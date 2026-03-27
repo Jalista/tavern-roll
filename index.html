@@ -4,528 +4,360 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>Tavern Roll — İnci Companion</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;900&family=Crimson+Text:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
-<style>
-*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-:root{
-  --parchment:#f5e6c8;--blood:#8b1a1a;
-  --gold:#c8952a;--gold-light:#f0c060;--shadow:#0d0705;
-  --stone:#1e1710;--stone-light:#2e2418;
-}
-html,body{height:100%;background:var(--shadow)}
-#root{min-height:100vh}
-</style>
 </head>
-<body>
+<body style="margin:0;background:#0d0705">
 <div id="root"></div>
 <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
 <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 <script type="text/babel">
-const { useState, useEffect, useRef } = React;
-
-const FB_URL = "https://incitavernroll-default-rtdb.europe-west1.firebasedatabase.app";
-
-const fbGet = async (path) => {
-  try { const r = await fetch(`${FB_URL}/${path}.json`); return await r.json(); }
-  catch { return null; }
-};
-const fbSet = async (path, val) => {
-  try { await fetch(`${FB_URL}/${path}.json`, { method:"PUT", body:JSON.stringify(val) }); }
-  catch {}
-};
-const fbPatch = async (path, val) => {
-  try { await fetch(`${FB_URL}/${path}.json`, { method:"PATCH", body:JSON.stringify(val) }); }
-  catch {}
-};
-const fbDelete = async (path) => {
-  try { await fetch(`${FB_URL}/${path}.json`, { method:"DELETE" }); }
-  catch {}
-};
-const fbListen = (path, cb) => {
-  const es = new EventSource(`${FB_URL}/${path}.json`);
-  es.addEventListener("put",   e => { try { cb(JSON.parse(e.data).data); } catch {} });
-  es.addEventListener("patch", e => { try { cb(null, JSON.parse(e.data).data); } catch {} });
-  es.onerror = () => {};
-  return () => es.close();
+const {useState,useEffect,useRef}=React;
+const FB="https://incitavernroll-default-rtdb.europe-west1.firebasedatabase.app";
+const fbGet=async p=>{try{const r=await fetch(`${FB}/${p}.json`);return await r.json();}catch{return null;}};
+const fbSet=async(p,v)=>{try{await fetch(`${FB}/${p}.json`,{method:"PUT",body:JSON.stringify(v)});}catch{}};
+const fbPatch=async(p,v)=>{try{await fetch(`${FB}/${p}.json`,{method:"PATCH",body:JSON.stringify(v)});}catch{}};
+const fbDel=async p=>{try{await fetch(`${FB}/${p}.json`,{method:"DELETE"});}catch{}};
+const fbListen=(path,cb)=>{
+  const es=new EventSource(`${FB}/${path}.json`);
+  es.addEventListener("put",e=>{try{cb(JSON.parse(e.data).data);}catch{}});
+  es.onerror=()=>{};
+  return()=>es.close();
 };
 
-const DICE=[{sides:4,icon:"🔺"},{sides:6,icon:"🎲"},{sides:8,icon:"🔷"},{sides:10,icon:"🔟"},{sides:12,icon:"🔶"},{sides:20,icon:"⭐"},{sides:100,icon:"💯"}];
-const DIE_ICONS={4:"🔺",6:"🎲",8:"🔷",10:"🔟",12:"🔶",20:"⭐",100:"💯"};
+const DICE=[{s:4,i:"🔺"},{s:6,i:"🎲"},{s:8,i:"🔷"},{s:10,i:"🔟"},{s:12,i:"🔶"},{s:20,i:"⭐"},{s:100,i:"💯"}];
+const DI={4:"🔺",6:"🎲",8:"🔷",10:"🔟",12:"🔶",20:"⭐",100:"💯"};
 const STATS=["STR","DEX","CON","INT","WIS","CHA"];
 const CLASSES=["Barbarian","Bard","Cleric","Druid","Fighter","Monk","Paladin","Ranger","Rogue","Sorcerer","Warlock","Wizard"];
 const RACES=["İnsan","Aguslu","Kuzeyli","Sisicalı","Farterli","İnsulamlı","Alalı"];
-const statMod=s=>{const m=Math.floor(((parseInt(s)||10)-10)/2);return(m>=0?"+":"")+m};
+const smod=s=>{const m=Math.floor(((parseInt(s)||10)-10)/2);return(m>=0?"+":"")+m};
 const ts=()=>Date.now();
-const initChar=(name="")=>({name,race:"",charClass:"",level:"1",stats:{STR:"10",DEX:"10",CON:"10",INT:"10",WIS:"10",CHA:"10"},fiziksel:0,zihinsel:0,ac:"10",speed:"30",proficiency:"2",notes:""});
+const iChar=(n="")=>({name:n,race:"",charClass:"",level:"1",stats:{STR:"10",DEX:"10",CON:"10",INT:"10",WIS:"10",CHA:"10"},fiziksel:0,zihinsel:0,ac:"10",speed:"30",proficiency:"2",notes:""});
 
-const CSS = `
-  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-  body{font-family:'Crimson Text',serif;color:#f5e6c8;background:#0d0705;
-    background-image:radial-gradient(ellipse at 15% 60%,rgba(139,26,26,.07) 0%,transparent 55%),
-    radial-gradient(ellipse at 85% 15%,rgba(200,149,42,.05) 0%,transparent 50%)}
-  .lobby{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:30px 20px}
-  .lobby-title{font-family:'Cinzel',serif;font-size:clamp(2rem,6vw,3.5rem);font-weight:900;color:#f0c060;letter-spacing:.15em;text-shadow:0 0 40px rgba(200,149,42,.35);margin-bottom:6px;text-align:center}
-  .lobby-sub{font-style:italic;color:rgba(245,230,200,.4);margin-bottom:48px;font-size:1rem}
-  .lobby-card{background:#1e1710;border:1px solid rgba(200,149,42,.2);border-radius:10px;padding:32px;width:100%;max-width:400px;box-shadow:0 8px 40px rgba(0,0,0,.5)}
-  .lobby-card h2{font-family:'Cinzel',serif;font-size:.7rem;letter-spacing:.2em;color:#c8952a;margin-bottom:20px;text-transform:uppercase}
-  .li{width:100%;background:#2e2418;border:1px solid rgba(200,149,42,.25);border-radius:5px;color:#f5e6c8;font-family:'Crimson Text',serif;font-size:1.1rem;padding:10px 14px;outline:none;margin-bottom:12px}
-  .li:focus{border-color:#c8952a}
-  .li::placeholder{color:rgba(245,230,200,.25)}
-  .lr{display:flex;gap:10px;margin-bottom:12px}
-  .rb{flex:1;background:#2e2418;border:1px solid rgba(200,149,42,.2);border-radius:5px;color:rgba(245,230,200,.5);font-family:'Cinzel',serif;font-size:.7rem;letter-spacing:.1em;padding:10px;cursor:pointer;transition:all .2s;text-transform:uppercase}
-  .rb.active{background:rgba(200,149,42,.12);border-color:#c8952a;color:#f0c060}
-  .jb{width:100%;background:rgba(200,149,42,.12);border:1px solid rgba(200,149,42,.4);border-radius:5px;color:#f0c060;font-family:'Cinzel',serif;font-size:.8rem;letter-spacing:.15em;padding:13px;cursor:pointer;transition:all .2s;text-transform:uppercase;margin-top:6px}
-  .jb:hover{background:rgba(200,149,42,.2)}
-  .jb:disabled{opacity:.4;cursor:not-allowed}
-  .header{display:flex;align-items:center;justify-content:space-between;padding:14px 20px;border-bottom:1px solid rgba(200,149,42,.15);position:sticky;top:0;z-index:100;background:rgba(13,7,5,.96);backdrop-filter:blur(8px)}
-  .header-title{font-family:'Cinzel',serif;font-size:1.1rem;font-weight:900;color:#f0c060;letter-spacing:.12em}
-  .header-user{font-size:.8rem;color:rgba(245,230,200,.4);font-style:italic}
-  .header-user strong{color:#c8952a;font-style:normal;font-family:'Cinzel',serif;font-size:.75rem}
-  .pdot{display:inline-block;width:7px;height:7px;border-radius:50%;background:#3cb454;margin-right:6px;animation:pulse 2s infinite}
-  @keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(.8)}}
-  .obar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:8px 18px;border-bottom:1px solid rgba(200,149,42,.08);background:rgba(0,0,0,.2)}
-  .olabel{font-family:'Cinzel',serif;font-size:.58rem;letter-spacing:.12em;color:rgba(200,149,42,.5);text-transform:uppercase}
-  .opill{background:rgba(200,149,42,.08);border:1px solid rgba(200,149,42,.2);border-radius:20px;padding:2px 10px;font-size:.72rem;color:rgba(245,230,200,.6);display:flex;align-items:center;gap:5px}
-  .opill.dm{border-color:rgba(139,26,26,.4);color:#ffaaaa}
-  .tabs{display:flex;justify-content:center;gap:6px;padding:16px 16px 10px;flex-wrap:wrap}
-  .tb{background:transparent;border:1px solid rgba(200,149,42,.2);color:rgba(245,230,200,.5);font-family:'Cinzel',serif;font-size:.68rem;letter-spacing:.1em;padding:7px 16px;cursor:pointer;border-radius:3px;transition:all .2s;text-transform:uppercase}
-  .tb:hover{border-color:#c8952a;color:#f0c060}
-  .tb.active{background:rgba(200,149,42,.1);border-color:#c8952a;color:#f0c060}
-  .panel{padding:10px 18px 50px;max-width:860px;margin:0 auto}
-  .dgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:22px}
-  @media(min-width:500px){.dgrid{grid-template-columns:repeat(7,1fr)}}
-  .dbtn{aspect-ratio:1;background:#1e1710;border:1px solid rgba(200,149,42,.18);border-radius:8px;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;transition:all .18s;position:relative;overflow:hidden}
-  .dbtn::before{content:'';position:absolute;inset:0;background:radial-gradient(circle at 30% 30%,rgba(200,149,42,.07),transparent 70%)}
-  .dbtn:hover{border-color:#c8952a;transform:translateY(-2px);box-shadow:0 4px 18px rgba(200,149,42,.18)}
-  .dbtn:active{transform:scale(.95)}
-  .dicon{font-size:1.6rem}
-  .dlabel{font-family:'Cinzel',serif;font-size:.6rem;color:#c8952a;margin-top:2px}
-  .rarea{background:#1e1710;border:1px solid rgba(200,149,42,.15);border-radius:10px;padding:22px 20px;text-align:center;min-height:120px;display:flex;flex-direction:column;align-items:center;justify-content:center;margin-bottom:14px}
-  .rwho{font-family:'Cinzel',serif;font-size:.62rem;letter-spacing:.15em;color:#c8952a;margin-bottom:6px;text-transform:uppercase}
-  .rnum{font-family:'Cinzel',serif;font-size:4rem;font-weight:900;color:#f0c060;text-shadow:0 0 24px rgba(200,149,42,.5);line-height:1}
-  .rnum.crit{color:#ffd700;text-shadow:0 0 30px gold,0 0 60px gold}
-  .rnum.fumble{color:#e05050;text-shadow:0 0 20px #c03030}
-  .rmeta{font-size:.9rem;color:rgba(245,230,200,.45);margin-top:5px;font-style:italic}
-  @keyframes rollPop{0%{transform:scale(.5) rotate(-10deg);opacity:0}60%{transform:scale(1.15) rotate(2deg)}100%{transform:scale(1) rotate(0);opacity:1}}
-  .ranim{animation:rollPop .35s cubic-bezier(.175,.885,.32,1.275)}
-  .ftitle{font-family:'Cinzel',serif;font-size:.62rem;letter-spacing:.18em;color:rgba(200,149,42,.6);text-transform:uppercase;margin-bottom:10px;border-bottom:1px solid rgba(200,149,42,.1);padding-bottom:6px}
-  .feed{display:flex;flex-direction:column;gap:6px;margin-bottom:6px}
-  .fi{background:#1e1710;border:1px solid rgba(200,149,42,.1);border-radius:6px;padding:10px 14px;display:flex;align-items:center;gap:12px}
-  .fi.nr{border-color:rgba(200,149,42,.35);background:rgba(200,149,42,.05);animation:fp .4s ease-out}
-  @keyframes fp{0%{transform:translateX(-8px);opacity:0}100%{transform:translateX(0);opacity:1}}
-  .fdie{font-size:1.4rem;min-width:28px;text-align:center}
-  .fbody{flex:1}
-  .fplayer{font-family:'Cinzel',serif;font-size:.72rem;color:#c8952a;letter-spacing:.06em}
-  .fdetail{font-size:.82rem;color:rgba(245,230,200,.5);font-style:italic;margin-top:1px}
-  .ftotal{font-family:'Cinzel',serif;font-size:1.5rem;font-weight:900;color:#f0c060}
-  .ftotal.crit{color:#ffd700}
-  .ftotal.fumble{color:#e05050}
-  .mrow{display:flex;align-items:center;gap:10px;margin-bottom:16px}
-  .mrow label{font-size:.85rem;color:rgba(245,230,200,.5);font-style:italic}
-  .minput{background:#2e2418;border:1px solid rgba(200,149,42,.25);border-radius:4px;color:#f5e6c8;font-family:'Cinzel',serif;font-size:1rem;width:70px;text-align:center;padding:5px 8px;outline:none}
-  .stitle{font-family:'Cinzel',serif;font-size:.6rem;letter-spacing:.2em;color:#c8952a;text-transform:uppercase;border-bottom:1px solid rgba(200,149,42,.15);padding-bottom:6px;margin:18px 0 12px}
-  .cg4{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
-  @media(min-width:560px){.cg4{grid-template-columns:repeat(4,1fr)}}
-  .cf label{display:block;font-family:'Cinzel',serif;font-size:.55rem;letter-spacing:.12em;color:#c8952a;margin-bottom:4px}
-  .cf input,.cf select{width:100%;background:#1e1710;border:1px solid rgba(200,149,42,.2);border-radius:4px;color:#f5e6c8;font-family:'Crimson Text',serif;font-size:1rem;padding:6px 8px;outline:none}
-  .cf input:focus,.cf select:focus{border-color:#c8952a}
-  .cf select option{background:#1e1710}
-  .sgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px}
-  @media(min-width:460px){.sgrid{grid-template-columns:repeat(6,1fr)}}
-  .sbox{background:#1e1710;border:1px solid rgba(200,149,42,.18);border-radius:6px;text-align:center;padding:9px 4px 7px}
-  .sname{font-family:'Cinzel',serif;font-size:.52rem;letter-spacing:.1em;color:#c8952a;margin-bottom:5px}
-  .sscore input{background:transparent;border:none;color:#f5e6c8;font-family:'Cinzel',serif;font-size:1.4rem;font-weight:900;width:100%;text-align:center;outline:none}
-  .smod{font-size:.82rem;color:rgba(200,149,42,.8);margin-top:2px}
-  .vrow{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px}
-  .vbox{background:#1e1710;border:1px solid rgba(200,149,42,.18);border-radius:6px;padding:10px;text-align:center}
-  .vbox label{display:block;font-family:'Cinzel',serif;font-size:.52rem;letter-spacing:.1em;color:#c8952a;margin-bottom:5px}
-  .vbox input{background:transparent;border:none;border-bottom:1px solid rgba(200,149,42,.25);color:#f5e6c8;font-family:'Cinzel',serif;font-size:1.3rem;font-weight:600;width:100%;text-align:center;outline:none}
-  .narea{width:100%;background:#1e1710;border:1px solid rgba(200,149,42,.2);border-radius:4px;color:#f5e6c8;font-family:'Crimson Text',serif;font-size:1rem;padding:10px;resize:vertical;outline:none;min-height:80px;line-height:1.5}
-  .narea:focus{border-color:#c8952a}
-  .sind{font-size:.75rem;color:rgba(200,149,42,.5);font-style:italic;margin-top:6px;text-align:right;transition:color .3s}
-  .sind.saved{color:#3cb454}
-  .dmonly{background:rgba(139,26,26,.08);border:1px solid rgba(139,26,26,.2);border-radius:5px;padding:8px 14px;margin-bottom:16px;font-size:.8rem;color:rgba(245,230,200,.45);font-style:italic;text-align:center}
-  .cblock{background:#1e1710;border:1px solid rgba(200,149,42,.18);border-radius:8px;padding:14px;margin-bottom:12px}
-  .crow{display:flex;gap:14px;align-items:flex-start;flex-wrap:wrap}
-  .chalf{flex:1;min-width:120px}
-  .clabel{font-family:'Cinzel',serif;font-size:.58rem;letter-spacing:.14em;text-transform:uppercase;margin-bottom:8px;display:block}
-  .clabel.f{color:#4caf7d}
-  .clabel.z{color:#5b9bd5}
-  .prow{display:flex;gap:7px}
-  .pip{width:32px;height:32px;border-radius:50%;border:2px solid;cursor:pointer;transition:all .2s;background:transparent}
-  .pip:disabled{cursor:not-allowed;opacity:.5}
-  .pip.fe{border-color:rgba(76,175,125,.35)}
-  .pip.fe:hover:not(:disabled){border-color:#4caf7d;background:rgba(76,175,125,.1)}
-  .pip.ff{border-color:#4caf7d;background:#4caf7d;box-shadow:0 0 10px rgba(76,175,125,.4)}
-  .pip.ze{border-color:rgba(91,155,213,.35)}
-  .pip.ze:hover:not(:disabled){border-color:#5b9bd5;background:rgba(91,155,213,.1)}
-  .pip.zf{border-color:#5b9bd5;background:#5b9bd5;box-shadow:0 0 10px rgba(91,155,213,.4)}
-  .cdiv{width:1px;background:rgba(200,149,42,.12);align-self:stretch;margin:0 4px}
-  .ncwrap{margin:6px 0 10px}
-  .ncrow{display:flex;gap:6px;align-items:center;margin-bottom:5px}
-  .nclabel{font-family:'Cinzel',serif;font-size:.52rem;letter-spacing:.1em;width:60px}
-  .nclabel.f{color:#4caf7d}
-  .nclabel.z{color:#5b9bd5}
-  .npip{width:22px;height:22px;border-radius:50%;border:1.5px solid;cursor:pointer;transition:all .18s;background:transparent}
-  .npip:disabled{cursor:not-allowed;opacity:.5}
-  .npip.fe{border-color:rgba(76,175,125,.3)}
-  .npip.fe:hover:not(:disabled){border-color:#4caf7d;background:rgba(76,175,125,.15)}
-  .npip.ff{border-color:#4caf7d;background:#4caf7d;box-shadow:0 0 8px rgba(76,175,125,.4)}
-  .npip.ze{border-color:rgba(91,155,213,.3)}
-  .npip.ze:hover:not(:disabled){border-color:#5b9bd5;background:rgba(91,155,213,.15)}
-  .npip.zf{border-color:#5b9bd5;background:#5b9bd5;box-shadow:0 0 8px rgba(91,155,213,.4)}
-  .mprow{display:flex;gap:4px}
-  .mp{width:10px;height:10px;border-radius:50%;border:1px solid}
-  .mp.ff{border-color:#4caf7d;background:#4caf7d}
-  .mp.fe{border-color:rgba(76,175,125,.3);background:transparent}
-  .mp.zf{border-color:#5b9bd5;background:#5b9bd5}
-  .mp.ze{border-color:rgba(91,155,213,.3);background:transparent}
-  .nlist{display:flex;flex-direction:column;gap:10px;margin-bottom:20px}
-  .ncard{background:#1e1710;border:1px solid rgba(200,149,42,.15);border-radius:8px;padding:14px;transition:border-color .2s}
-  .ncard:hover{border-color:rgba(200,149,42,.3)}
-  .ncard.dead{opacity:.5;filter:grayscale(.5)}
-  .nrow{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:4px}
-  .nname{font-family:'Cinzel',serif;font-size:1rem;color:#f0c060;font-weight:600}
-  .badge{font-family:'Cinzel',serif;font-size:.58rem;letter-spacing:.08em;padding:3px 8px;border-radius:2px;border:1px solid}
-  .be{border-color:#8b1a1a;color:#ff8080;background:rgba(139,26,26,.12)}
-  .ba{border-color:rgba(60,180,80,.4);color:#7ef0a0;background:rgba(60,180,80,.07)}
-  .bn{border-color:rgba(200,149,42,.4);color:#c8952a;background:rgba(200,149,42,.07)}
-  .nsub{font-size:.78rem;color:rgba(245,230,200,.4);margin-bottom:8px}
-  .nnotes{font-size:.82rem;color:rgba(245,230,200,.45);font-style:italic;margin-bottom:8px}
-  .nctrl{display:flex;gap:6px;flex-wrap:wrap}
-  .nbtn{background:#2e2418;border:1px solid rgba(200,149,42,.15);color:rgba(245,230,200,.65);font-family:'Cinzel',serif;font-size:.62rem;letter-spacing:.05em;padding:5px 11px;cursor:pointer;border-radius:3px;transition:all .15s}
-  .nbtn.rm:hover{border-color:#8b1a1a;color:#ff9090}
-  .addnpc{background:#1e1710;border:1px dashed rgba(200,149,42,.2);border-radius:8px;padding:16px}
-  .addnpc h3{font-family:'Cinzel',serif;font-size:.65rem;letter-spacing:.15em;color:#c8952a;margin-bottom:12px;text-transform:uppercase}
-  .f2{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px}
-  .fin{background:#2e2418;border:1px solid rgba(200,149,42,.2);border-radius:4px;color:#f5e6c8;font-family:'Crimson Text',serif;font-size:.95rem;padding:6px 10px;outline:none;width:100%}
-  .fin:focus{border-color:#c8952a}
-  .fin option{background:#1e1710}
-  .abtn{background:rgba(200,149,42,.1);border:1px solid rgba(200,149,42,.35);border-radius:4px;color:#f0c060;font-family:'Cinzel',serif;font-size:.72rem;letter-spacing:.12em;padding:9px 20px;cursor:pointer;transition:all .2s;text-transform:uppercase}
-  .abtn:hover{background:rgba(200,149,42,.18)}
-  .empty{text-align:center;padding:28px;color:rgba(245,230,200,.25);font-style:italic}
-  .empty span{display:block;font-size:2rem;margin-bottom:8px;opacity:.3}
-  .mwrap{max-width:860px;margin:0 auto;padding:0 18px 20px}
-  .mhdr{font-family:'Cinzel',serif;font-size:.58rem;letter-spacing:.22em;color:rgba(200,149,42,.5);text-transform:uppercase;border-bottom:1px solid rgba(200,149,42,.1);padding-bottom:5px;margin-bottom:10px}
-  .mgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(148px,1fr));gap:8px}
-  .mc{border-radius:7px;padding:10px 12px 9px;border:1px solid;position:relative;overflow:hidden;transition:transform .15s}
-  .mc::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at 20% 20%,rgba(255,255,255,.04),transparent 70%);pointer-events:none}
-  .mc:hover{transform:translateY(-1px)}
-  .mc.player{background:rgba(42,30,10,.9);border-color:rgba(200,149,42,.35)}
-  .mc.ally{background:rgba(10,30,14,.9);border-color:rgba(60,180,80,.35)}
-  .mc.neutral{background:rgba(10,18,32,.9);border-color:rgba(80,130,200,.35)}
-  .mc.enemy{background:rgba(28,8,8,.95);border-color:rgba(180,40,40,.4)}
-  .mc.dead{opacity:.45;filter:grayscale(.6)}
-  .mtag{font-family:'Cinzel',serif;font-size:.5rem;letter-spacing:.14em;text-transform:uppercase;margin-bottom:4px;opacity:.7}
-  .mc.player .mtag{color:#c8952a}
-  .mc.ally   .mtag{color:#7ef0a0}
-  .mc.neutral .mtag{color:#90b8f0}
-  .mc.enemy  .mtag{color:#ff9090}
-  .mname{font-family:'Cinzel',serif;font-size:.82rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:4px}
-  .mc.player  .mname{color:#f0c060}
-  .mc.ally    .mname{color:#a0f0b8}
-  .mc.neutral .mname{color:#a8c8f8}
-  .mc.enemy   .mname{color:#ffa0a0}
-  .msub{font-size:.68rem;color:rgba(245,230,200,.3);font-style:italic;margin-bottom:7px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .skull{position:absolute;top:6px;right:8px;font-size:.9rem;opacity:.6}
-`;
+// inject styles
+const S=`*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Crimson Text',serif;color:#f5e6c8;background:#0d0705;background-image:radial-gradient(ellipse at 15% 60%,rgba(139,26,26,.07),transparent 55%),radial-gradient(ellipse at 85% 15%,rgba(200,149,42,.05),transparent 50%)}
+.lobby{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:30px 20px}
+.lt{font-family:'Cinzel',serif;font-size:clamp(2rem,6vw,3.5rem);font-weight:900;color:#f0c060;letter-spacing:.15em;text-shadow:0 0 40px rgba(200,149,42,.35);margin-bottom:6px;text-align:center}
+.ls{font-style:italic;color:rgba(245,230,200,.4);margin-bottom:48px;font-size:1rem}
+.lc{background:#1e1710;border:1px solid rgba(200,149,42,.2);border-radius:10px;padding:32px;width:100%;max-width:400px;box-shadow:0 8px 40px rgba(0,0,0,.5)}
+.lc h2{font-family:'Cinzel',serif;font-size:.7rem;letter-spacing:.2em;color:#c8952a;margin-bottom:20px;text-transform:uppercase}
+.ii{width:100%;background:#2e2418;border:1px solid rgba(200,149,42,.25);border-radius:5px;color:#f5e6c8;font-family:'Crimson Text',serif;font-size:1.1rem;padding:10px 14px;outline:none;margin-bottom:12px}
+.ii:focus{border-color:#c8952a}.ii::placeholder{color:rgba(245,230,200,.25)}
+.lr{display:flex;gap:10px;margin-bottom:12px}
+.rb{flex:1;background:#2e2418;border:1px solid rgba(200,149,42,.2);border-radius:5px;color:rgba(245,230,200,.5);font-family:'Cinzel',serif;font-size:.7rem;letter-spacing:.1em;padding:10px;cursor:pointer;transition:all .2s;text-transform:uppercase}
+.rb.on{background:rgba(200,149,42,.12);border-color:#c8952a;color:#f0c060}
+.jb{width:100%;background:rgba(200,149,42,.12);border:1px solid rgba(200,149,42,.4);border-radius:5px;color:#f0c060;font-family:'Cinzel',serif;font-size:.8rem;letter-spacing:.15em;padding:13px;cursor:pointer;transition:all .2s;text-transform:uppercase;margin-top:6px}
+.jb:hover{background:rgba(200,149,42,.2)}.jb:disabled{opacity:.4;cursor:not-allowed}
+.hdr{display:flex;align-items:center;justify-content:space-between;padding:14px 20px;border-bottom:1px solid rgba(200,149,42,.15);position:sticky;top:0;z-index:100;background:rgba(13,7,5,.96);backdrop-filter:blur(8px)}
+.htitle{font-family:'Cinzel',serif;font-size:1.1rem;font-weight:900;color:#f0c060;letter-spacing:.12em}
+.huser{font-size:.8rem;color:rgba(245,230,200,.4);font-style:italic}
+.huser strong{color:#c8952a;font-style:normal;font-family:'Cinzel',serif;font-size:.75rem}
+.pd{display:inline-block;width:7px;height:7px;border-radius:50%;background:#3cb454;margin-right:6px;animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(.8)}}
+.ob{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:8px 18px;border-bottom:1px solid rgba(200,149,42,.08);background:rgba(0,0,0,.2)}
+.ol{font-family:'Cinzel',serif;font-size:.58rem;letter-spacing:.12em;color:rgba(200,149,42,.5);text-transform:uppercase}
+.op{background:rgba(200,149,42,.08);border:1px solid rgba(200,149,42,.2);border-radius:20px;padding:2px 10px;font-size:.72rem;color:rgba(245,230,200,.6);display:flex;align-items:center;gap:5px}
+.op.dm{border-color:rgba(139,26,26,.4);color:#ffaaaa}
+.tabs{display:flex;justify-content:center;gap:6px;padding:16px 16px 10px;flex-wrap:wrap}
+.tb{background:transparent;border:1px solid rgba(200,149,42,.2);color:rgba(245,230,200,.5);font-family:'Cinzel',serif;font-size:.68rem;letter-spacing:.1em;padding:7px 16px;cursor:pointer;border-radius:3px;transition:all .2s;text-transform:uppercase}
+.tb:hover{border-color:#c8952a;color:#f0c060}.tb.on{background:rgba(200,149,42,.1);border-color:#c8952a;color:#f0c060}
+.panel{padding:10px 18px 50px;max-width:860px;margin:0 auto}
+.dg{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:22px}
+@media(min-width:500px){.dg{grid-template-columns:repeat(7,1fr)}}
+.db{aspect-ratio:1;background:#1e1710;border:1px solid rgba(200,149,42,.18);border-radius:8px;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;transition:all .18s;position:relative;overflow:hidden}
+.db::before{content:'';position:absolute;inset:0;background:radial-gradient(circle at 30% 30%,rgba(200,149,42,.07),transparent 70%)}
+.db:hover{border-color:#c8952a;transform:translateY(-2px);box-shadow:0 4px 18px rgba(200,149,42,.18)}.db:active{transform:scale(.95)}
+.di{font-size:1.6rem}.dl{font-family:'Cinzel',serif;font-size:.6rem;color:#c8952a;margin-top:2px}
+.ra{background:#1e1710;border:1px solid rgba(200,149,42,.15);border-radius:10px;padding:22px 20px;text-align:center;min-height:120px;display:flex;flex-direction:column;align-items:center;justify-content:center;margin-bottom:14px}
+.rw{font-family:'Cinzel',serif;font-size:.62rem;letter-spacing:.15em;color:#c8952a;margin-bottom:6px;text-transform:uppercase}
+.rn{font-family:'Cinzel',serif;font-size:4rem;font-weight:900;color:#f0c060;text-shadow:0 0 24px rgba(200,149,42,.5);line-height:1}
+.rn.crit{color:#ffd700;text-shadow:0 0 30px gold,0 0 60px gold}.rn.fum{color:#e05050;text-shadow:0 0 20px #c03030}
+.rm{font-size:.9rem;color:rgba(245,230,200,.45);margin-top:5px;font-style:italic}
+@keyframes rp{0%{transform:scale(.5) rotate(-10deg);opacity:0}60%{transform:scale(1.15) rotate(2deg)}100%{transform:scale(1) rotate(0);opacity:1}}
+.ra2{animation:rp .35s cubic-bezier(.175,.885,.32,1.275)}
+.ft{font-family:'Cinzel',serif;font-size:.62rem;letter-spacing:.18em;color:rgba(200,149,42,.6);text-transform:uppercase;margin-bottom:10px;border-bottom:1px solid rgba(200,149,42,.1);padding-bottom:6px}
+.feed{display:flex;flex-direction:column;gap:6px;margin-bottom:6px}
+.fi{background:#1e1710;border:1px solid rgba(200,149,42,.1);border-radius:6px;padding:10px 14px;display:flex;align-items:center;gap:12px}
+.fi.nr{border-color:rgba(200,149,42,.35);background:rgba(200,149,42,.05);animation:fp .4s ease-out}
+@keyframes fp{0%{transform:translateX(-8px);opacity:0}100%{transform:translateX(0);opacity:1}}
+.fdie{font-size:1.4rem;min-width:28px;text-align:center}.fb{flex:1}
+.fp{font-family:'Cinzel',serif;font-size:.72rem;color:#c8952a;letter-spacing:.06em}
+.fd{font-size:.82rem;color:rgba(245,230,200,.5);font-style:italic;margin-top:1px}
+.fv{font-family:'Cinzel',serif;font-size:1.5rem;font-weight:900;color:#f0c060}
+.fv.crit{color:#ffd700}.fv.fum{color:#e05050}
+.mr{display:flex;align-items:center;gap:10px;margin-bottom:16px}
+.mr label{font-size:.85rem;color:rgba(245,230,200,.5);font-style:italic}
+.mi{background:#2e2418;border:1px solid rgba(200,149,42,.25);border-radius:4px;color:#f5e6c8;font-family:'Cinzel',serif;font-size:1rem;width:70px;text-align:center;padding:5px 8px;outline:none}
+.st{font-family:'Cinzel',serif;font-size:.6rem;letter-spacing:.2em;color:#c8952a;text-transform:uppercase;border-bottom:1px solid rgba(200,149,42,.15);padding-bottom:6px;margin:18px 0 12px}
+.cg{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
+@media(min-width:560px){.cg{grid-template-columns:repeat(4,1fr)}}
+.cf label{display:block;font-family:'Cinzel',serif;font-size:.55rem;letter-spacing:.12em;color:#c8952a;margin-bottom:4px}
+.cf input,.cf select{width:100%;background:#1e1710;border:1px solid rgba(200,149,42,.2);border-radius:4px;color:#f5e6c8;font-family:'Crimson Text',serif;font-size:1rem;padding:6px 8px;outline:none}
+.cf input:focus,.cf select:focus{border-color:#c8952a}.cf select option{background:#1e1710}
+.sg{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px}
+@media(min-width:460px){.sg{grid-template-columns:repeat(6,1fr)}}
+.sb{background:#1e1710;border:1px solid rgba(200,149,42,.18);border-radius:6px;text-align:center;padding:9px 4px 7px}
+.sn{font-family:'Cinzel',serif;font-size:.52rem;letter-spacing:.1em;color:#c8952a;margin-bottom:5px}
+.ss input{background:transparent;border:none;color:#f5e6c8;font-family:'Cinzel',serif;font-size:1.4rem;font-weight:900;width:100%;text-align:center;outline:none}
+.sm{font-size:.82rem;color:rgba(200,149,42,.8);margin-top:2px}
+.vr{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px}
+.vb{background:#1e1710;border:1px solid rgba(200,149,42,.18);border-radius:6px;padding:10px;text-align:center}
+.vb label{display:block;font-family:'Cinzel',serif;font-size:.52rem;letter-spacing:.1em;color:#c8952a;margin-bottom:5px}
+.vb input{background:transparent;border:none;border-bottom:1px solid rgba(200,149,42,.25);color:#f5e6c8;font-family:'Cinzel',serif;font-size:1.3rem;font-weight:600;width:100%;text-align:center;outline:none}
+.na{width:100%;background:#1e1710;border:1px solid rgba(200,149,42,.2);border-radius:4px;color:#f5e6c8;font-family:'Crimson Text',serif;font-size:1rem;padding:10px;resize:vertical;outline:none;min-height:80px;line-height:1.5}
+.na:focus{border-color:#c8952a}
+.si{font-size:.75rem;color:rgba(200,149,42,.5);font-style:italic;margin-top:6px;text-align:right;transition:color .3s}
+.si.ok{color:#3cb454}
+.dmo{background:rgba(139,26,26,.08);border:1px solid rgba(139,26,26,.2);border-radius:5px;padding:8px 14px;margin-bottom:16px;font-size:.8rem;color:rgba(245,230,200,.45);font-style:italic;text-align:center}
+.cb{background:#1e1710;border:1px solid rgba(200,149,42,.18);border-radius:8px;padding:14px;margin-bottom:12px}
+.cr{display:flex;gap:14px;align-items:flex-start;flex-wrap:wrap}
+.ch{flex:1;min-width:120px}
+.cl{font-family:'Cinzel',serif;font-size:.58rem;letter-spacing:.14em;text-transform:uppercase;margin-bottom:8px;display:block}
+.cl.f{color:#4caf7d}.cl.z{color:#5b9bd5}
+.pr{display:flex;gap:7px}
+.pip{width:32px;height:32px;border-radius:50%;border:2px solid;cursor:pointer;transition:all .2s;background:transparent}
+.pip:disabled{cursor:not-allowed;opacity:.5}
+.pip.fe{border-color:rgba(76,175,125,.35)}.pip.fe:hover:not(:disabled){border-color:#4caf7d;background:rgba(76,175,125,.1)}
+.pip.ff{border-color:#4caf7d;background:#4caf7d;box-shadow:0 0 10px rgba(76,175,125,.4)}
+.pip.ze{border-color:rgba(91,155,213,.35)}.pip.ze:hover:not(:disabled){border-color:#5b9bd5;background:rgba(91,155,213,.1)}
+.pip.zf{border-color:#5b9bd5;background:#5b9bd5;box-shadow:0 0 10px rgba(91,155,213,.4)}
+.cdv{width:1px;background:rgba(200,149,42,.12);align-self:stretch;margin:0 4px}
+.ncw{margin:6px 0 10px}
+.ncr{display:flex;gap:6px;align-items:center;margin-bottom:5px}
+.ncl{font-family:'Cinzel',serif;font-size:.52rem;letter-spacing:.1em;width:60px}
+.ncl.f{color:#4caf7d}.ncl.z{color:#5b9bd5}
+.np{width:22px;height:22px;border-radius:50%;border:1.5px solid;cursor:pointer;transition:all .18s;background:transparent}
+.np:disabled{cursor:not-allowed;opacity:.5}
+.np.fe{border-color:rgba(76,175,125,.3)}.np.fe:hover:not(:disabled){border-color:#4caf7d;background:rgba(76,175,125,.15)}
+.np.ff{border-color:#4caf7d;background:#4caf7d;box-shadow:0 0 8px rgba(76,175,125,.4)}
+.np.ze{border-color:rgba(91,155,213,.3)}.np.ze:hover:not(:disabled){border-color:#5b9bd5;background:rgba(91,155,213,.15)}
+.np.zf{border-color:#5b9bd5;background:#5b9bd5;box-shadow:0 0 8px rgba(91,155,213,.4)}
+.mpr{display:flex;gap:4px}
+.mp{width:10px;height:10px;border-radius:50%;border:1px solid}
+.mp.ff{border-color:#4caf7d;background:#4caf7d}.mp.fe{border-color:rgba(76,175,125,.3);background:transparent}
+.mp.zf{border-color:#5b9bd5;background:#5b9bd5}.mp.ze{border-color:rgba(91,155,213,.3);background:transparent}
+.nl{display:flex;flex-direction:column;gap:10px;margin-bottom:20px}
+.nc{background:#1e1710;border:1px solid rgba(200,149,42,.15);border-radius:8px;padding:14px;transition:border-color .2s}
+.nc:hover{border-color:rgba(200,149,42,.3)}.nc.dead{opacity:.5;filter:grayscale(.5)}
+.nr2{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:4px}
+.nn{font-family:'Cinzel',serif;font-size:1rem;color:#f0c060;font-weight:600}
+.badge{font-family:'Cinzel',serif;font-size:.58rem;letter-spacing:.08em;padding:3px 8px;border-radius:2px;border:1px solid}
+.be{border-color:#8b1a1a;color:#ff8080;background:rgba(139,26,26,.12)}
+.ba{border-color:rgba(60,180,80,.4);color:#7ef0a0;background:rgba(60,180,80,.07)}
+.bn{border-color:rgba(200,149,42,.4);color:#c8952a;background:rgba(200,149,42,.07)}
+.ns{font-size:.78rem;color:rgba(245,230,200,.4);margin-bottom:8px}
+.nnt{font-size:.82rem;color:rgba(245,230,200,.45);font-style:italic;margin-bottom:8px}
+.nct{display:flex;gap:6px;flex-wrap:wrap}
+.nbtn{background:#2e2418;border:1px solid rgba(200,149,42,.15);color:rgba(245,230,200,.65);font-family:'Cinzel',serif;font-size:.62rem;letter-spacing:.05em;padding:5px 11px;cursor:pointer;border-radius:3px;transition:all .15s}
+.nbtn.rm:hover{border-color:#8b1a1a;color:#ff9090}
+.an{background:#1e1710;border:1px dashed rgba(200,149,42,.2);border-radius:8px;padding:16px}
+.an h3{font-family:'Cinzel',serif;font-size:.65rem;letter-spacing:.15em;color:#c8952a;margin-bottom:12px;text-transform:uppercase}
+.f2{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px}
+.fin{background:#2e2418;border:1px solid rgba(200,149,42,.2);border-radius:4px;color:#f5e6c8;font-family:'Crimson Text',serif;font-size:.95rem;padding:6px 10px;outline:none;width:100%}
+.fin:focus{border-color:#c8952a}.fin option{background:#1e1710}
+.ab{background:rgba(200,149,42,.1);border:1px solid rgba(200,149,42,.35);border-radius:4px;color:#f0c060;font-family:'Cinzel',serif;font-size:.72rem;letter-spacing:.12em;padding:9px 20px;cursor:pointer;transition:all .2s;text-transform:uppercase}
+.ab:hover{background:rgba(200,149,42,.18)}
+.em{text-align:center;padding:28px;color:rgba(245,230,200,.25);font-style:italic}
+.em span{display:block;font-size:2rem;margin-bottom:8px;opacity:.3}
+.mw{max-width:860px;margin:0 auto;padding:0 18px 20px}
+.mh{font-family:'Cinzel',serif;font-size:.58rem;letter-spacing:.22em;color:rgba(200,149,42,.5);text-transform:uppercase;border-bottom:1px solid rgba(200,149,42,.1);padding-bottom:5px;margin-bottom:10px}
+.mg{display:grid;grid-template-columns:repeat(auto-fill,minmax(148px,1fr));gap:8px}
+.mc{border-radius:7px;padding:10px 12px 9px;border:1px solid;position:relative;overflow:hidden;transition:transform .15s}
+.mc::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at 20% 20%,rgba(255,255,255,.04),transparent 70%);pointer-events:none}
+.mc:hover{transform:translateY(-1px)}
+.mc.player{background:rgba(42,30,10,.9);border-color:rgba(200,149,42,.35)}
+.mc.ally{background:rgba(10,30,14,.9);border-color:rgba(60,180,80,.35)}
+.mc.neutral{background:rgba(10,18,32,.9);border-color:rgba(80,130,200,.35)}
+.mc.enemy{background:rgba(28,8,8,.95);border-color:rgba(180,40,40,.4)}
+.mc.dead{opacity:.45;filter:grayscale(.6)}
+.mtg{font-family:'Cinzel',serif;font-size:.5rem;letter-spacing:.14em;text-transform:uppercase;margin-bottom:4px;opacity:.7}
+.mc.player .mtg{color:#c8952a}.mc.ally .mtg{color:#7ef0a0}.mc.neutral .mtg{color:#90b8f0}.mc.enemy .mtg{color:#ff9090}
+.mnm{font-family:'Cinzel',serif;font-size:.82rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:4px}
+.mc.player .mnm{color:#f0c060}.mc.ally .mnm{color:#a0f0b8}.mc.neutral .mnm{color:#a8c8f8}.mc.enemy .mnm{color:#ffa0a0}
+.msb{font-size:.68rem;color:rgba(245,230,200,.3);font-style:italic;margin-bottom:7px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sku{position:absolute;top:6px;right:8px;font-size:.9rem;opacity:.6}`;
+const el=document.createElement("style");el.textContent=S;document.head.appendChild(el);
 
 function PipBar({type,hasar,onChange,disabled}){
-  const cls=type==="fiziksel"?"f":"z";
-  return(
-    <div className="chalf">
-      <span className={`clabel ${cls}`}>{type==="fiziksel"?"⚔ Fiziksel":"🧠 Zihinsel"}</span>
-      <div className="prow">
-        {[0,1,2].map(i=>(
-          <button key={i} className={`pip ${cls}${i<hasar?"f":"e"}`} disabled={disabled}
-            onClick={()=>onChange(i<hasar&&i===hasar-1?hasar-1:i+1)}/>
-        ))}
-      </div>
-    </div>
-  );
+  const c=type==="fiziksel"?"f":"z";
+  return <div className="ch">
+    <span className={`cl ${c}`}>{type==="fiziksel"?"⚔ Fiziksel":"🧠 Zihinsel"}</span>
+    <div className="pr">{[0,1,2].map(i=><button key={i} className={`pip ${c}${i<hasar?"f":"e"}`} disabled={disabled} onClick={()=>onChange(i<hasar&&i===hasar-1?hasar-1:i+1)}/>)}</div>
+  </div>;
 }
-function NpcPipBar({type,hasar,onChange,disabled}){
-  const cls=type==="fiziksel"?"f":"z";
-  return(
-    <div className="ncrow">
-      <span className={`nclabel ${cls}`}>{type==="fiziksel"?"⚔ Fiziksel":"🧠 Zihinsel"}</span>
-      {[0,1,2].map(i=>(
-        <button key={i} className={`npip ${cls}${i<hasar?"f":"e"}`} disabled={disabled}
-          onClick={()=>onChange(i<hasar&&i===hasar-1?hasar-1:i+1)}/>
-      ))}
-    </div>
-  );
+function NpcPips({type,hasar,onChange,disabled}){
+  const c=type==="fiziksel"?"f":"z";
+  return <div className="ncr">
+    <span className={`ncl ${c}`}>{type==="fiziksel"?"⚔ Fiziksel":"🧠 Zihinsel"}</span>
+    {[0,1,2].map(i=><button key={i} className={`np ${c}${i<hasar?"f":"e"}`} disabled={disabled} onClick={()=>onChange(i<hasar&&i===hasar-1?hasar-1:i+1)}/>)}
+  </div>;
 }
-function MiniPips({type,hasar}){
-  const cls=type==="fiziksel"?"f":"z";
-  return(
-    <div className="mprow">
-      {[0,1,2].map(i=><div key={i} className={`mp ${cls}${i<hasar?"f":"e"}`}/>)}
-    </div>
-  );
+function MPs({type,hasar}){
+  const c=type==="fiziksel"?"f":"z";
+  return <div className="mpr">{[0,1,2].map(i=><div key={i} className={`mp ${c}${i<hasar?"f":"e"}`}/>)}</div>;
 }
 
-function MasaDurumu({playerName,char,npcs,allPlayers}){
+function Masa({me,char,npcs,all}){
   const tl={player:"OYUNCU",ally:"MÜTTEFİK",neutral:"TARAFSIZ",enemy:"DÜŞMAN"};
-  const playerCards=allPlayers.map(p=>{
-    const c=p.name===playerName?char:(p.char||{});
-    return{key:`p-${p.name}`,type:"player",name:c.name||p.name,
-      sub:[c.race,c.charClass,c.level?`Lvl ${c.level}`:null].filter(Boolean).join(" · ")||"—",
-      fiziksel:c.fiziksel||0,zihinsel:c.zihinsel||0,ac:c.ac,
-      isDead:(c.fiziksel||0)>=3&&(c.zihinsel||0)>=3};
-  });
-  const npcCards=npcs.map(n=>({key:`n-${n.id}`,type:n.type,name:n.name,
-    sub:`ZS ${n.ac} · CR ${n.cr}`,fiziksel:n.fiziksel||0,zihinsel:n.zihinsel||0,
-    isDead:(n.fiziksel||0)>=3&&(n.zihinsel||0)>=3}));
-  const order={player:0,ally:1,neutral:2,enemy:3};
-  const all=[...playerCards,...npcCards].sort((a,b)=>order[a.type]-order[b.type]);
-  if(!all.length) return null;
-  return(
-    <div className="mwrap">
-      <div className="mhdr">⚔ Masa Durumu</div>
-      <div className="mgrid">
-        {all.map(card=>(
-          <div key={card.key} className={`mc ${card.type}${card.isDead?" dead":""}`}>
-            {card.isDead&&<span className="skull">💀</span>}
-            <div className="mtag">{tl[card.type]}</div>
-            <div className="mname">{card.name}</div>
-            <div className="msub">{card.sub}</div>
-            <div style={{display:"flex",flexDirection:"column",gap:5,marginTop:4}}>
-              <MiniPips type="fiziksel" hasar={card.fiziksel}/>
-              <MiniPips type="zihinsel" hasar={card.zihinsel}/>
-            </div>
-            {card.ac&&<div style={{fontSize:".65rem",color:"rgba(245,230,200,.3)",marginTop:5}}>ZS {card.ac}</div>}
-          </div>
-        ))}
+  const pc=all.map(p=>{const c=p.name===me?char:(p.char||{});return{key:`p-${p.name}`,type:"player",name:c.name||p.name,sub:[c.race,c.charClass,c.level?`Lvl ${c.level}`:null].filter(Boolean).join(" · ")||"—",fiziksel:c.fiziksel||0,zihinsel:c.zihinsel||0,ac:c.ac,dead:(c.fiziksel||0)>=3&&(c.zihinsel||0)>=3};});
+  const nc=npcs.map(n=>({key:`n-${n.id}`,type:n.type,name:n.name,sub:`ZS ${n.ac} · CR ${n.cr}`,fiziksel:n.fiziksel||0,zihinsel:n.zihinsel||0,dead:(n.fiziksel||0)>=3&&(n.zihinsel||0)>=3}));
+  const ord={player:0,ally:1,neutral:2,enemy:3};
+  const cards=[...pc,...nc].sort((a,b)=>ord[a.type]-ord[b.type]);
+  if(!cards.length)return null;
+  return <div className="mw">
+    <div className="mh">⚔ Masa Durumu</div>
+    <div className="mg">{cards.map(c=><div key={c.key} className={`mc ${c.type}${c.dead?" dead":""}`}>
+      {c.dead&&<span className="sku">💀</span>}
+      <div className="mtg">{tl[c.type]}</div>
+      <div className="mnm">{c.name}</div>
+      <div className="msb">{c.sub}</div>
+      <div style={{display:"flex",flexDirection:"column",gap:5,marginTop:4}}>
+        <MPs type="fiziksel" hasar={c.fiziksel}/>
+        <MPs type="zihinsel" hasar={c.zihinsel}/>
       </div>
-    </div>
-  );
+      {c.ac&&<div style={{fontSize:".65rem",color:"rgba(245,230,200,.3)",marginTop:5}}>ZS {c.ac}</div>}
+    </div>)}</div>
+  </div>;
 }
 
-function DicePanel({playerName,char,npcs,allPlayers,latest,feed,akey,onRoll}){
-  const [modifier,setModifier]=useState("0");
-  const roll=async(sides)=>{
-    const raw=Math.floor(Math.random()*sides)+1;
-    const m=parseInt(modifier)||0;
-    const total=raw+m;
-    await onRoll({sides,raw,modifier:m,total});
-  };
+function Dice({me,char,npcs,all,rolls,onRoll}){
+  const [mod,setMod]=useState("0");
+  const {latest,feed,akey}=rolls;
   const ic=latest?.sides===20&&latest?.raw===20;
-  const if_=latest?.sides===20&&latest?.raw===1;
-  return(
-    <div className="panel">
-      <div className="dgrid">
-        {DICE.map(d=>(
-          <button key={d.sides} className="dbtn" onClick={()=>roll(d.sides)}>
-            <span className="dicon">{d.icon}</span>
-            <span className="dlabel">d{d.sides}</span>
-          </button>
-        ))}
-      </div>
-      <div className="mrow">
-        <label>Modifier</label>
-        <input className="minput" type="number" value={modifier} onChange={e=>setModifier(e.target.value)}/>
-      </div>
-      <div className="rarea">
-        {latest?(
-          <>
-            <div className="rwho">{latest.player} — d{latest.sides}</div>
-            <div key={akey} className={`rnum ranim${ic?" crit":if_?" fumble":""}`}>{latest.total}</div>
-            <div className="rmeta">{ic?"⚡ KRİTİK VURUŞ!":if_?"💀 KRİTİK HATA!":`${latest.raw}${latest.modifier!==0?` + (${latest.modifier>0?"+":""}${latest.modifier})`:""}`}</div>
-          </>
-        ):<div className="rmeta">Bir zar seç ve at...</div>}
-      </div>
-      {feed.length>0&&(
-        <>
-          <div className="ftitle">Son Atışlar</div>
-          <div className="feed">
-            {feed.map((r,i)=>{
-              const c=r.sides===20&&r.raw===20?"crit":r.sides===20&&r.raw===1?"fumble":"";
-              return(
-                <div key={r.id} className={`fi${i===0?" nr":""}`}>
-                  <span className="fdie">{DIE_ICONS[r.sides]||"🎲"}</span>
-                  <div className="fbody">
-                    <div className="fplayer">{r.player}</div>
-                    <div className="fdetail">d{r.sides} = {r.raw}{r.modifier!==0?` + (${r.modifier>0?"+":""}${r.modifier})`:""}{c==="crit"?" ⚡":c==="fumble"?" 💀":""}</div>
-                  </div>
-                  <div className={`ftotal ${c}`}>{r.total}</div>
-                </div>
-              );
-            })}
-          </div>
-        </>
-      )}
-      <div style={{height:24}}/>
-      <MasaDurumu playerName={playerName} char={char} npcs={npcs} allPlayers={allPlayers}/>
+  const fu=latest?.sides===20&&latest?.raw===1;
+  const roll=async s=>{
+    const raw=Math.floor(Math.random()*s)+1;
+    const m=parseInt(mod)||0;
+    await onRoll({sides:s,raw,modifier:m,total:raw+m});
+  };
+  return <div className="panel">
+    <div className="dg">{DICE.map(d=><button key={d.s} className="db" onClick={()=>roll(d.s)}><span className="di">{d.i}</span><span className="dl">d{d.s}</span></button>)}</div>
+    <div className="mr"><label>Modifier</label><input className="mi" type="number" value={mod} onChange={e=>setMod(e.target.value)}/></div>
+    <div className="ra">
+      {latest?<>
+        <div className="rw">{latest.player} — d{latest.sides}</div>
+        <div key={akey} className={`rn ra2${ic?" crit":fu?" fum":""}`}>{latest.total}</div>
+        <div className="rm">{ic?"⚡ KRİTİK VURUŞ!":fu?"💀 KRİTİK HATA!":`${latest.raw}${latest.modifier!==0?` + (${latest.modifier>0?"+":""}${latest.modifier})`:""}`}</div>
+      </>:<div className="rm">Bir zar seç ve at...</div>}
     </div>
-  );
+    {feed.length>0&&<>
+      <div className="ft">Son Atışlar</div>
+      <div className="feed">{feed.map((r,i)=>{
+        const c=r.sides===20&&r.raw===20?"crit":r.sides===20&&r.raw===1?"fum":"";
+        return <div key={r.id} className={`fi${i===0?" nr":""}`}>
+          <span className="fdie">{DI[r.sides]||"🎲"}</span>
+          <div className="fb"><div className="fp">{r.player}</div><div className="fd">d{r.sides} = {r.raw}{r.modifier!==0?` + (${r.modifier>0?"+":""}${r.modifier})`:""}{c==="crit"?" ⚡":c==="fum"?" 💀":""}</div></div>
+          <div className={`fv ${c}`}>{r.total}</div>
+        </div>;
+      })}</div>
+    </>}
+    <div style={{height:24}}/>
+    <Masa me={me} char={char} npcs={npcs} all={all}/>
+  </div>;
 }
 
-function CharacterPanel({playerName,isDM,char,setChar,allPlayers}){
+function Char({me,isDM,char,setChar,all}){
   const [saved,setSaved]=useState(false);
-  const [vp,setVp]=useState(playerName);
+  const [vp,setVp]=useState(me);
   const st=useRef(null);
-  const isSelf=vp===playerName||!isDM;
-  const vc=isSelf?char:(allPlayers.find(p=>p.name===vp)?.char||initChar(vp));
-  const canEdit=isSelf||isDM;
-  const save=async(upd,tgt)=>{await fbSet(`chars/${tgt}`,upd);if(tgt===playerName){setSaved(true);setTimeout(()=>setSaved(false),1500);}};
-  const update=(field,val)=>{
-    if(!canEdit)return;
-    if(isSelf){setChar(c=>{const n={...c,[field]:val};clearTimeout(st.current);st.current=setTimeout(()=>save(n,playerName),600);return n;});}
-    else{const upd={...vc,[field]:val};clearTimeout(st.current);st.current=setTimeout(()=>save(upd,vp),600);}
-  };
-  const updateStat=(stat,val)=>{
-    if(!canEdit)return;
-    if(isSelf){setChar(c=>{const n={...c,stats:{...c.stats,[stat]:val}};clearTimeout(st.current);st.current=setTimeout(()=>save(n,playerName),600);return n;});}
-    else{const upd={...vc,stats:{...vc.stats,[stat]:val}};clearTimeout(st.current);st.current=setTimeout(()=>save(upd,vp),600);}
-  };
-  const dc=vc;
-  return(
-    <div className="panel">
-      {isDM&&allPlayers.length>0&&(
-        <>
-          <div className="stitle" style={{marginTop:0}}>Oyuncuları Görüntüle</div>
-          <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:16}}>
-            {allPlayers.map(p=>(
-              <button key={p.name} className={`tb${vp===p.name?" active":""}`}
-                onClick={()=>setVp(p.name)} style={{fontSize:".7rem"}}>{p.name}</button>
-            ))}
-          </div>
-        </>
-      )}
-      {!canEdit&&<div className="dmonly">📖 Salt okunur — {vp}'in sayfası</div>}
-      <div className="cg4">
-        {[{label:"KARAKTER ADI",field:"name",ph:"Duncan the Tall..."},{label:"IRK",field:"race",type:"select",opts:RACES},{label:"SINIF",field:"charClass",type:"select",opts:CLASSES},{label:"SEVİYE",field:"level",ph:"1"}].map(f=>(
-          <div key={f.field} className="cf">
-            <label>{f.label}</label>
-            {f.type==="select"
-              ?<select value={dc[f.field]} onChange={e=>update(f.field,e.target.value)} disabled={!canEdit}>
-                <option value="">—</option>{f.opts.map(o=><option key={o}>{o}</option>)}
-               </select>
-              :<input value={dc[f.field]} onChange={e=>update(f.field,e.target.value)} placeholder={f.ph} disabled={!canEdit}/>}
-          </div>
-        ))}
-      </div>
-      <div className="stitle">Yetenekler</div>
-      <div className="sgrid">
-        {STATS.map(s=>(
-          <div key={s} className="sbox">
-            <div className="sname">{s}</div>
-            <div className="sscore"><input type="number" value={dc.stats[s]} onChange={e=>updateStat(s,e.target.value)} min={1} max={30} disabled={!canEdit}/></div>
-            <div className="smod">{statMod(dc.stats[s])}</div>
-          </div>
-        ))}
-      </div>
-      <div className="stitle">Can Durumu</div>
-      <div className="cblock">
-        <div className="crow">
-          <PipBar type="fiziksel" hasar={dc.fiziksel||0} disabled={!canEdit} onChange={v=>update("fiziksel",v)}/>
-          <div className="cdiv"/>
-          <PipBar type="zihinsel" hasar={dc.zihinsel||0} disabled={!canEdit} onChange={v=>update("zihinsel",v)}/>
-        </div>
-      </div>
-      <div className="vrow">
-        {[{label:"ZIRH SINIFI",field:"ac"},{label:"HIZ",field:"speed"},{label:"YETKİNLİK",field:"proficiency"}].map(v=>(
-          <div key={v.field} className="vbox">
-            <label>{v.label}</label>
-            <input type="number" value={dc[v.field]} onChange={e=>update(v.field,e.target.value)} disabled={!canEdit}/>
-          </div>
-        ))}
-      </div>
-      <div className="stitle">Notlar</div>
-      <textarea className="narea" rows={5} placeholder="Geçmiş, yetenekler, büyüler..." value={dc.notes} onChange={e=>update("notes",e.target.value)} disabled={!canEdit}/>
-      <div className={`sind${saved?" saved":""}`}>{saved?"✓ Kaydedildi":"Otomatik kaydediliyor..."}</div>
+  const self=vp===me||!isDM;
+  const vc=self?char:(all.find(p=>p.name===vp)?.char||iChar(vp));
+  const can=self||isDM;
+  const save=async(u,t)=>{await fbSet(`chars/${t}`,u);if(t===me){setSaved(true);setTimeout(()=>setSaved(false),1500);}};
+  const upd=(f,v)=>{if(!can)return;if(self){setChar(c=>{const n={...c,[f]:v};clearTimeout(st.current);st.current=setTimeout(()=>save(n,me),600);return n;});}else{const u={...vc,[f]:v};clearTimeout(st.current);st.current=setTimeout(()=>save(u,vp),600);}};
+  const updS=(s,v)=>{if(!can)return;if(self){setChar(c=>{const n={...c,stats:{...c.stats,[s]:v}};clearTimeout(st.current);st.current=setTimeout(()=>save(n,me),600);return n;});}else{const u={...vc,stats:{...vc.stats,[s]:v}};clearTimeout(st.current);st.current=setTimeout(()=>save(u,vp),600);}};
+  return <div className="panel">
+    {isDM&&all.length>0&&<><div className="st" style={{marginTop:0}}>Oyuncuları Görüntüle</div>
+      <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:16}}>
+        {all.map(p=><button key={p.name} className={`tb${vp===p.name?" on":""}`} onClick={()=>setVp(p.name)} style={{fontSize:".7rem"}}>{p.name}</button>)}
+      </div></>}
+    {!can&&<div className="dmo">📖 Salt okunur — {vp}'in sayfası</div>}
+    <div className="cg">
+      {[{l:"KARAKTER ADI",f:"name",ph:"Duncan the Tall..."},{l:"IRK",f:"race",sel:RACES},{l:"SINIF",f:"charClass",sel:CLASSES},{l:"SEVİYE",f:"level",ph:"1"}].map(x=><div key={x.f} className="cf">
+        <label>{x.l}</label>
+        {x.sel?<select value={vc[x.f]} onChange={e=>upd(x.f,e.target.value)} disabled={!can}><option value="">—</option>{x.sel.map(o=><option key={o}>{o}</option>)}</select>
+              :<input value={vc[x.f]} onChange={e=>upd(x.f,e.target.value)} placeholder={x.ph} disabled={!can}/>}
+      </div>)}
     </div>
-  );
+    <div className="st">Yetenekler</div>
+    <div className="sg">{STATS.map(s=><div key={s} className="sb"><div className="sn">{s}</div><div className="ss"><input type="number" value={vc.stats[s]} onChange={e=>updS(s,e.target.value)} min={1} max={30} disabled={!can}/></div><div className="sm">{smod(vc.stats[s])}</div></div>)}</div>
+    <div className="st">Can Durumu</div>
+    <div className="cb"><div className="cr">
+      <PipBar type="fiziksel" hasar={vc.fiziksel||0} disabled={!can} onChange={v=>upd("fiziksel",v)}/>
+      <div className="cdv"/>
+      <PipBar type="zihinsel" hasar={vc.zihinsel||0} disabled={!can} onChange={v=>upd("zihinsel",v)}/>
+    </div></div>
+    <div className="vr">{[{l:"ZIRH SINIFI",f:"ac"},{l:"HIZ",f:"speed"},{l:"YETKİNLİK",f:"proficiency"}].map(v=><div key={v.f} className="vb"><label>{v.l}</label><input type="number" value={vc[v.f]} onChange={e=>upd(v.f,e.target.value)} disabled={!can}/></div>)}</div>
+    <div className="st">Notlar</div>
+    <textarea className="na" rows={5} placeholder="Geçmiş, yetenekler, büyüler..." value={vc.notes} onChange={e=>upd("notes",e.target.value)} disabled={!can}/>
+    <div className={`si${saved?" ok":""}`}>{saved?"✓ Kaydedildi":"Otomatik kaydediliyor..."}</div>
+  </div>;
 }
 
-function NpcPanel({isDM,npcs,setNpcs}){
+function Npc({isDM,npcs,setNpcs}){
   const [form,setForm]=useState({name:"",type:"enemy",ac:"12",cr:"1",notes:""});
-  const sync=async upd=>{
-    setNpcs(upd);
-    if(!upd.length){await fbSet("npcs",null);return;}
-    const obj={};upd.forEach(n=>{obj[n.id]=n;});
-    await fbSet("npcs",obj);
-  };
-  const add=async()=>{
-    if(!form.name.trim())return;
-    await sync([...npcs,{...form,id:ts(),fiziksel:0,zihinsel:0}]);
-    setForm({name:"",type:"enemy",ac:"12",cr:"1",notes:""});
-  };
-  const upPip=async(id,field,val)=>sync(npcs.map(n=>n.id===id?{...n,[field]:val}:n));
+  const sync=async u=>{setNpcs(u);if(!u.length){await fbSet("npcs",null);return;}const o={};u.forEach(n=>{o[n.id]=n;});await fbSet("npcs",o);};
+  const add=async()=>{if(!form.name.trim())return;await sync([...npcs,{...form,id:ts(),fiziksel:0,zihinsel:0}]);setForm({name:"",type:"enemy",ac:"12",cr:"1",notes:""});};
+  const uPip=async(id,f,v)=>sync(npcs.map(n=>n.id===id?{...n,[f]:v}:n));
   const rem=async id=>sync(npcs.filter(n=>n.id!==id));
-  return(
-    <div className="panel">
-      {!isDM&&<div className="dmonly">⚔ NPC'ler DM tarafından yönetilir.</div>}
-      <div className="nlist">
-        {!npcs.length&&<div className="empty"><span>🐉</span>Henüz NPC yok.</div>}
-        {npcs.map(npc=>{
-          const dead=(npc.fiziksel||0)>=3&&(npc.zihinsel||0)>=3;
-          return(
-            <div key={npc.id} className={`ncard${dead?" dead":""}`}>
-              <div className="nrow">
-                <div className="nname">{npc.name}{dead?" 💀":""}</div>
-                <span className={`badge b${npc.type[0]}`}>{npc.type==="enemy"?"DÜŞMAN":npc.type==="ally"?"MÜTTEFİK":"TARAFSIZ"}</span>
-              </div>
-              <div className="nsub">ZS {npc.ac} · CR {npc.cr}</div>
-              <div className="ncwrap">
-                <NpcPipBar type="fiziksel" hasar={npc.fiziksel||0} disabled={!isDM} onChange={v=>upPip(npc.id,"fiziksel",v)}/>
-                <NpcPipBar type="zihinsel" hasar={npc.zihinsel||0} disabled={!isDM} onChange={v=>upPip(npc.id,"zihinsel",v)}/>
-              </div>
-              {npc.notes&&<div className="nnotes">📜 {npc.notes}</div>}
-              {isDM&&<div className="nctrl"><button className="nbtn rm" onClick={()=>rem(npc.id)}>✕ Kaldır</button></div>}
-            </div>
-          );
-        })}
-      </div>
-      {isDM&&(
-        <div className="addnpc">
-          <h3>+ Yeni NPC / Düşman</h3>
-          <div className="f2">
-            <input className="fin" placeholder="İsim" value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))}/>
-            <select className="fin" value={form.type} onChange={e=>setForm(f=>({...f,type:e.target.value}))}>
-              <option value="enemy">Düşman</option>
-              <option value="ally">Müttefik</option>
-              <option value="neutral">Tarafsız</option>
-            </select>
-          </div>
-          <div className="f2">
-            <input className="fin" placeholder="Zırh Sınıfı" type="number" value={form.ac} onChange={e=>setForm(f=>({...f,ac:e.target.value}))}/>
-            <input className="fin" placeholder="CR" value={form.cr} onChange={e=>setForm(f=>({...f,cr:e.target.value}))}/>
-          </div>
-          <input className="fin" style={{marginBottom:12}} placeholder="Notlar (opsiyonel)" value={form.notes} onChange={e=>setForm(f=>({...f,notes:e.target.value}))}/>
-          <button className="abtn" onClick={add}>⚔ Ekle</button>
+  return <div className="panel">
+    {!isDM&&<div className="dmo">⚔ NPC'ler DM tarafından yönetilir.</div>}
+    <div className="nl">
+      {!npcs.length&&<div className="em"><span>🐉</span>Henüz NPC yok.</div>}
+      {npcs.map(n=>{const dead=(n.fiziksel||0)>=3&&(n.zihinsel||0)>=3;return <div key={n.id} className={`nc${dead?" dead":""}`}>
+        <div className="nr2"><div className="nn">{n.name}{dead?" 💀":""}</div>
+          <span className={`badge b${n.type==="enemy"?"e":n.type==="ally"?"a":"n"}`}>{n.type==="enemy"?"DÜŞMAN":n.type==="ally"?"MÜTTEFİK":"TARAFSIZ"}</span>
         </div>
-      )}
+        <div className="ns">ZS {n.ac} · CR {n.cr}</div>
+        <div className="ncw">
+          <NpcPips type="fiziksel" hasar={n.fiziksel||0} disabled={!isDM} onChange={v=>uPip(n.id,"fiziksel",v)}/>
+          <NpcPips type="zihinsel" hasar={n.zihinsel||0} disabled={!isDM} onChange={v=>uPip(n.id,"zihinsel",v)}/>
+        </div>
+        {n.notes&&<div className="nnt">📜 {n.notes}</div>}
+        {isDM&&<div className="nct"><button className="nbtn rm" onClick={()=>rem(n.id)}>✕ Kaldır</button></div>}
+      </div>;})}
     </div>
-  );
+    {isDM&&<div className="an"><h3>+ Yeni NPC / Düşman</h3>
+      <div className="f2">
+        <input className="fin" placeholder="İsim" value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))}/>
+        <select className="fin" value={form.type} onChange={e=>setForm(f=>({...f,type:e.target.value}))}><option value="enemy">Düşman</option><option value="ally">Müttefik</option><option value="neutral">Tarafsız</option></select>
+      </div>
+      <div className="f2">
+        <input className="fin" placeholder="Zırh Sınıfı" type="number" value={form.ac} onChange={e=>setForm(f=>({...f,ac:e.target.value}))}/>
+        <input className="fin" placeholder="CR" value={form.cr} onChange={e=>setForm(f=>({...f,cr:e.target.value}))}/>
+      </div>
+      <input className="fin" style={{marginBottom:12}} placeholder="Notlar (opsiyonel)" value={form.notes} onChange={e=>setForm(f=>({...f,notes:e.target.value}))}/>
+      <button className="ab" onClick={add}>⚔ Ekle</button>
+    </div>}
+  </div>;
 }
 
 function App(){
   const [phase,setPhase]=useState("lobby");
-  const [playerName,setPn]=useState("");
+  const [name,setName]=useState("");
   const [role,setRole]=useState("player");
   const [tab,setTab]=useState("dice");
-  const [char,setChar]=useState(()=>initChar());
+  const [char,setChar]=useState(()=>iChar());
   const [npcs,setNpcs]=useState([]);
-  const [allPlayers,setAll]=useState([]);
+  const [all,setAll]=useState([]);
   const [rolls,setRolls]=useState({latest:null,feed:[],akey:0});
-  const lastRollId=useRef(0);
-  const st=useRef(null);
+  const lastRid=useRef(0);
+  const cst=useRef(null);
 
   useEffect(()=>{
     if(phase!=="game")return;
-    fbSet(`players/${playerName}`,{name:playerName,role,lastSeen:ts()});
-    fbSet(`chars/${playerName}`,char);
-    const hb=setInterval(()=>fbPatch(`players/${playerName}`,{lastSeen:ts()}),5000);
+    fbSet(`players/${name}`,{name,role,lastSeen:ts()});
+    fbSet(`chars/${name}`,char);
+    const hb=setInterval(()=>fbPatch(`players/${name}`,{lastSeen:ts()}),5000);
+
+    // Rolls listener — at App level so tab changes don't break it
     const unR=fbListen("rolls",data=>{
       if(!data)return;
       const arr=Object.values(data).sort((a,b)=>a.id-b.id);
-      const nw=arr.filter(r=>r.id>lastRollId.current);
+      const nw=arr.filter(r=>r.id>lastRid.current);
       if(nw.length){
-        lastRollId.current=Math.max(...nw.map(r=>r.id));
+        lastRid.current=Math.max(...nw.map(r=>r.id));
         setRolls({latest:nw[nw.length-1],feed:arr.slice(-12).reverse(),akey:Date.now()});
       }
     });
@@ -533,11 +365,11 @@ function App(){
       if(!data)return;
       const now=ts();
       const alive=Object.values(data).filter(p=>now-(p.lastSeen||0)<15000);
-      setAll(prev=>alive.map(p=>({...p,char:prev.find(x=>x.name===p.name)?.char||initChar(p.name)})));
+      setAll(prev=>alive.map(p=>({...p,char:prev.find(x=>x.name===p.name)?.char||iChar(p.name)})));
     });
     const unC=fbListen("chars",data=>{
       if(!data)return;
-      if(data[playerName])setChar(data[playerName]);
+      if(data[name])setChar(data[name]);
       setAll(prev=>prev.map(p=>({...p,char:data[p.name]||p.char})));
     });
     const unN=fbListen("npcs",data=>{
@@ -545,79 +377,61 @@ function App(){
       setNpcs(Object.values(data).sort((a,b)=>a.id-b.id));
     });
     return()=>{clearInterval(hb);unR();unP();unC();unN();};
-  },[phase,playerName]);
+  },[phase,name]);
 
-  const hsc=fn=>{
-    setChar(prev=>{
-      const upd=typeof fn==="function"?fn(prev):fn;
-      clearTimeout(st.current);
-      st.current=setTimeout(()=>fbSet(`chars/${playerName}`,upd),400);
-      return upd;
-    });
-  };
+  const hChar=fn=>{setChar(prev=>{const u=typeof fn==="function"?fn(prev):fn;clearTimeout(cst.current);cst.current=setTimeout(()=>fbSet(`chars/${name}`,u),400);return u;});};
 
   const onRoll=async({sides,raw,modifier,total})=>{
     const id=ts();
-    const entry={id,player:playerName,sides,raw,modifier,total};
-    setRolls(r=>({latest:entry,feed:[entry,...r.feed].slice(0,12),akey:Date.now()}));
-    lastRollId.current=id;
+    const entry={id,player:name,sides,raw,modifier,total};
+    // optimistic update
+    setRolls(r=>({latest:entry,feed:[entry,...r.feed].slice(0,12),akey:id}));
+    lastRid.current=id;
     await fbSet(`rolls/${id}`,entry);
-    const all=await fbGet("rolls");
-    if(all){
-      const keys=Object.keys(all).sort((a,b)=>Number(a)-Number(b));
-      if(keys.length>30) for(const k of keys.slice(0,keys.length-30)) await fbDelete(`rolls/${k}`);
-    }
+    // trim
+    const all2=await fbGet("rolls");
+    if(all2){const keys=Object.keys(all2).sort((a,b)=>Number(a)-Number(b));if(keys.length>30)for(const k of keys.slice(0,keys.length-30))await fbDel(`rolls/${k}`);}
   };
-    ?[{id:"dice",l:"🎲 Zar"},{id:"character",l:"📜 Karakterler"},{id:"npc",l:"⚔ NPC Yönet"}]
-    :[{id:"dice",l:"🎲 Zar"},{id:"character",l:"📜 Karakter"},{id:"npc",l:"⚔ Düşmanlar"}];
+
+  const TABS=role==="dm"
+    ?[{id:"dice",l:"🎲 Zar"},{id:"char",l:"📜 Karakterler"},{id:"npc",l:"⚔ NPC Yönet"}]
+    :[{id:"dice",l:"🎲 Zar"},{id:"char",l:"📜 Karakter"},{id:"npc",l:"⚔ Düşmanlar"}];
 
   if(phase==="lobby")return(
     <div className="lobby">
-      <h1 className="lobby-title">TAVERN ROLL</h1>
-      <p className="lobby-sub">İnci — Companion</p>
-      <div className="lobby-card">
+      <h1 className="lt">TAVERN ROLL</h1>
+      <p className="ls">İnci — Companion</p>
+      <div className="lc">
         <h2>Masaya Katıl</h2>
-        <input className="li" placeholder="Adın (ör. Duncan the Tall, Kael, Revlo Krell...)"
-          value={playerName} onChange={e=>setPn(e.target.value)} onKeyDown={e=>e.key==="Enter"&&playerName.trim()&&setPhase("game")}/>
+        <input className="ii" placeholder="Adın (ör. Duncan the Tall, Kael, Revlo Krell...)" value={name} onChange={e=>setName(e.target.value)} onKeyDown={e=>e.key==="Enter"&&name.trim()&&setPhase("game")}/>
         <div className="lr">
-          <button className={`rb${role==="player"?" active":""}`} onClick={()=>setRole("player")}>⚔ Oyuncu</button>
-          <button className={`rb${role==="dm"?" active":""}`} onClick={()=>setRole("dm")}>👁 DM</button>
+          <button className={`rb${role==="player"?" on":""}`} onClick={()=>setRole("player")}>⚔ Oyuncu</button>
+          <button className={`rb${role==="dm"?" on":""}`} onClick={()=>setRole("dm")}>👁 DM</button>
         </div>
-        <button className="jb" onClick={()=>setPhase("game")} disabled={!playerName.trim()}>Masaya Otur →</button>
+        <button className="jb" onClick={()=>setPhase("game")} disabled={!name.trim()}>Masaya Otur →</button>
       </div>
     </div>
   );
 
-  return(
-    <div>
-      <div className="header">
-        <div className="header-title">TAVERN ROLL</div>
-        <div className="header-user"><span className="pdot"/><strong>{playerName}</strong>{role==="dm"?" · DM":""}</div>
-      </div>
-      <div className="obar">
-        <span className="olabel">Çevrimiçi</span>
-        {allPlayers.map(p=>(
-          <span key={p.name} className={`opill${p.role==="dm"?" dm":""}`}>
-            <span className="pdot" style={{width:5,height:5}}/>{p.name}{p.role==="dm"?" 👁":""}
-          </span>
-        ))}
-        {!allPlayers.length&&<span style={{fontSize:".72rem",color:"rgba(245,230,200,.25)",fontStyle:"italic"}}>bağlanıyor...</span>}
-      </div>
-      <div className="tabs">
-        {TABS.map(t=>(
-          <button key={t.id} className={`tb${tab===t.id?" active":""}`} onClick={()=>setTab(t.id)}>{t.l}</button>
-        ))}
-      </div>
-      {tab==="dice"      &&<DicePanel      playerName={playerName} char={char} npcs={npcs} allPlayers={allPlayers} latest={rolls.latest} feed={rolls.feed} akey={rolls.akey} onRoll={onRoll}/>}
-      {tab==="character" &&<CharacterPanel playerName={playerName} isDM={role==="dm"} char={char} setChar={hsc} allPlayers={allPlayers}/>}
-      {tab==="npc"       &&<NpcPanel       isDM={role==="dm"} npcs={npcs} setNpcs={setNpcs}/>}
+  return <div>
+    <div className="hdr">
+      <div className="htitle">TAVERN ROLL</div>
+      <div className="huser"><span className="pd"/><strong>{name}</strong>{role==="dm"?" · DM":""}</div>
     </div>
-  );
+    <div className="ob">
+      <span className="ol">Çevrimiçi</span>
+      {all.map(p=><span key={p.name} className={`op${p.role==="dm"?" dm":""}`}><span className="pd" style={{width:5,height:5}}/>{p.name}{p.role==="dm"?" 👁":""}</span>)}
+      {!all.length&&<span style={{fontSize:".72rem",color:"rgba(245,230,200,.25)",fontStyle:"italic"}}>bağlanıyor...</span>}
+    </div>
+    <div className="tabs">
+      {TABS.map(t=><button key={t.id} className={`tb${tab===t.id?" on":""}`} onClick={()=>setTab(t.id)}>{t.l}</button>)}
+    </div>
+    {tab==="dice"&&<Dice me={name} char={char} npcs={npcs} all={all} rolls={rolls} onRoll={onRoll}/>}
+    {tab==="char"&&<Char me={name} isDM={role==="dm"} char={char} setChar={hChar} all={all}/>}
+    {tab==="npc" &&<Npc isDM={role==="dm"} npcs={npcs} setNpcs={setNpcs}/>}
+  </div>;
 }
 
-const styleEl=document.createElement("style");
-styleEl.textContent=CSS;
-document.head.appendChild(styleEl);
 ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
 </script>
 </body>
