@@ -13,18 +13,49 @@
 <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 <script src="https://unpkg.com/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 <script type="text/babel">
-const {useState,useEffect,useRef}=React;
+const {useState,useEffect,useRef,Component}=React;
 const FB="https://incitavernroll-default-rtdb.europe-west1.firebasedatabase.app";
-const fbGet=async p=>{try{const r=await fetch(`${FB}/${p}.json`);return await r.json();}catch{return null;}};
-const fbSet=async(p,v)=>{try{await fetch(`${FB}/${p}.json`,{method:"PUT",body:JSON.stringify(v)});}catch{}};
-const fbPatch=async(p,v)=>{try{await fetch(`${FB}/${p}.json`,{method:"PATCH",body:JSON.stringify(v)});}catch{}};
-const fbDel=async p=>{try{await fetch(`${FB}/${p}.json`,{method:"DELETE"});}catch{}};
+const fbGet=async p=>{try{const r=await fetch(`${FB}/${p}.json`);return await r.json();}catch(e){console.error("fbGet",p,e);return null;}};
+const fbSet=async(p,v)=>{try{const r=await fetch(`${FB}/${p}.json`,{method:"PUT",body:JSON.stringify(v)});if(!r.ok)throw new Error(`HTTP ${r.status}`);return true;}catch(e){console.error("fbSet",p,e);return false;}};
+const fbPatch=async(p,v)=>{try{await fetch(`${FB}/${p}.json`,{method:"PATCH",body:JSON.stringify(v)});}catch(e){console.error("fbPatch",p,e);}};
+const fbDel=async p=>{try{await fetch(`${FB}/${p}.json`,{method:"DELETE"});}catch(e){console.error("fbDel",p,e);}};
 const fbListen=(path,cb)=>{
   const es=new EventSource(`${FB}/${path}.json`);
-  es.addEventListener("put",e=>{try{cb(JSON.parse(e.data).data);}catch{}});
-  es.onerror=()=>{};
+  es.addEventListener("put",e=>{try{cb(JSON.parse(e.data).data);}catch(err){console.error("fbListen parse",err);}});
+  es.onerror=e=>{console.warn("fbListen error",path,e);};
   return()=>es.close();
 };
+
+// ─── ERROR BOUNDARY ──────────────────────────────────────────────────────────
+class ErrorBoundary extends Component{
+  constructor(props){super(props);this.state={error:null,info:null};}
+  static getDerivedStateFromError(error){return{error};}
+  componentDidCatch(error,info){
+    console.error("ErrorBoundary caught:",error,info);
+    this.setState({info});
+  }
+  render(){
+    const {error,info}=this.state;
+    if(error) return(
+      <div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",background:"#0d0705",padding:20}}>
+        <div style={{background:"#1e1710",border:"1px solid rgba(139,26,26,.5)",borderRadius:10,padding:32,maxWidth:500,width:"100%",boxShadow:"0 8px 40px rgba(0,0,0,.6)"}}>
+          <div style={{fontFamily:"'Cinzel',serif",fontSize:"1.1rem",color:"#ff6060",marginBottom:12,letterSpacing:".1em"}}>⚠ Bir Hata Oluştu</div>
+          <div style={{fontFamily:"'Cinzel',serif",fontSize:".65rem",letterSpacing:".15em",color:"rgba(200,149,42,.6)",textTransform:"uppercase",marginBottom:8}}>Hata Detayı</div>
+          <pre style={{background:"#0d0705",border:"1px solid rgba(200,149,42,.15)",borderRadius:6,padding:12,fontSize:".78rem",color:"rgba(245,230,200,.6)",overflowX:"auto",marginBottom:16,whiteSpace:"pre-wrap",wordBreak:"break-all"}}>
+            {error.toString()}
+            {info&&info.componentStack?"\n\nKonum:"+info.componentStack.split("\n").slice(0,5).join("\n"):""}
+          </pre>
+          <button
+            onClick={()=>{this.setState({error:null,info:null});}}
+            style={{background:"rgba(200,149,42,.12)",border:"1px solid rgba(200,149,42,.4)",borderRadius:5,color:"#f0c060",fontFamily:"'Cinzel',serif",fontSize:".75rem",letterSpacing:".12em",padding:"10px 20px",cursor:"pointer",width:"100%",textTransform:"uppercase"}}>
+            ↺ Yeniden Dene
+          </button>
+        </div>
+      </div>
+    );
+    return this.props.children;
+  }
+}
 
 const DICE=[{s:4,i:"🗡️"},{s:6,i:"🛡️"},{s:8,i:"🪄"},{s:10,i:"🔮"},{s:12,i:"💀"},{s:20,i:"⚔️"},{s:100,i:"🐉"}];
 const DI={4:"🗡️",6:"🛡️",8:"🪄",10:"🔮",12:"💀",20:"⚔️",100:"🐉"};
@@ -523,7 +554,7 @@ function Notebooks({me,isDM,charName}){
     if(!activeNb||!unlocked[activeNb.id])return;
     const load=async()=>{
       const data=await fbGet(`nbcontent/${activeNb.id}`);
-      setNbContent(c=>({...c,[activeNb.id]:data?.text||""}));
+      setNbContent(c=>({...c,[activeNb.id]:(data&&data.text)||""}));
     };
     load();
   },[activeNb,unlocked]);
@@ -557,6 +588,7 @@ function Notebooks({me,isDM,charName}){
   };
 
   const countWords=text=>text.trim()?text.trim().split(/\s+/).length:0;
+  const closeEditor=()=>{setActiveNb(null);setPassInput("");setPassErr(false);};
 
   const handleEdit=async(id,text)=>{
     setNbContent(c=>({...c,[id]:text}));
@@ -807,7 +839,7 @@ function Char({me,isDM,char,setChar,all}){
     <div className="st">Notlar</div>
     <textarea className="na" rows={5} placeholder="Geçmiş, yetenekler, büyüler..." value={vc.notes} onChange={e=>upd("notes",e.target.value)} disabled={!can}/>
     <div className={`si${saved?" ok":""}`}>{saved?"✓ Kaydedildi":"Otomatik kaydediliyor..."}</div>
-    {self&&<Notebooks me={me} isDM={isDM} charName={vc.name||me}/>}
+    {self&&<ErrorBoundary><Notebooks me={me} isDM={isDM} charName={vc.name||me}/></ErrorBoundary>}
   </div>;
 }
 
@@ -1094,7 +1126,9 @@ function App(){
   </div>;
 }
 
-ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+ReactDOM.createRoot(document.getElementById("root")).render(
+  <ErrorBoundary><App/></ErrorBoundary>
+);
 </script>
 </body>
 </html>
