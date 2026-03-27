@@ -10,7 +10,7 @@
 <div id="root"></div>
 <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone@7.23.10/babel.min.js"></script>
 <script src="https://unpkg.com/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 <script type="text/babel">
 const {useState,useEffect,useRef,Component}=React;
@@ -65,7 +65,17 @@ const RACES=["İnsan","Aguslu","Kuzeyli","Sisicalı","Farterli","İnsulamlı","A
 const smod=s=>{const m=Math.floor(((parseInt(s)||10)-10)/2);return(m>=0?"+":"")+m};
 const ts=()=>Date.now();
 const fmtTime=id=>{if(!id)return"";const d=new Date(id);return d.toLocaleTimeString("tr-TR",{hour:"2-digit",minute:"2-digit"});};
-const iChar=(n="")=>({name:n,race:"",charClass:"",level:"1",stats:{STR:"10",DEX:"10",CON:"10",INT:"10",WIS:"10",CHA:"10"},fiziksel:3,zihinsel:3,ac:"10",speed:"30",proficiency:"2",notes:""});
+const FIZIKSEL_SKILLS=["Nişancılık","Yakın Dövüş","Performans","Gizlilik","Atletik","Binicilik","Denizcilik"];
+const ZIHINSEL_SKILLS=["Hayvan Bağı","Arcana","Kandırma","Tarih","Sezgi","Tehditkarlık","Araştırma","Tıbbi Beceri","Doğa Becerisi","Farkındalık","İkna","Dini Bilgi"];
+const PYRAMID_LEVELS=[5,4,3,2,1,-1,-2,-3,-4,-5];
+const ATTRIBUTES=["Güç","Çeviklik","Dayanıklılık","Zeka","İrfan","Karizma"];
+const iChar=(n="")=>({
+  name:n, race:"", level:"1", age:"",
+  fiziksel:0, zihinsel:0,
+  attrs:{Güç:"",Çeviklik:"",Dayanıklılık:"",Zeka:"",İrfan:"",Karizma:""},
+  skills:{}, // {skillName: levelValue} e.g. {"Nişancılık": 3}
+  notes:""
+});
 
 // inject styles
 const S=`*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -157,6 +167,39 @@ body{font-family:'Crimson Text',serif;color:var(--text);background:var(--bg0);ba
 .na:focus{border-color:#c8952a}
 .si{font-size:.75rem;color:rgba(200,149,42,.5);font-style:italic;margin-top:6px;text-align:right;transition:color .3s}
 .si.ok{color:#3cb454}
+/* İnci Skill Pyramid */
+.pyramid-wrap{margin-bottom:16px}
+.pyramid-row{display:flex;align-items:center;gap:6px;margin-bottom:4px}
+.pyramid-level{font-family:'Cinzel',serif;font-size:.65rem;font-weight:700;width:28px;text-align:center;border-radius:3px;padding:2px 0;flex-shrink:0}
+.pyramid-level.pos{background:rgba(60,180,80,.15);color:#7ef0a0;border:1px solid rgba(60,180,80,.3)}
+.pyramid-level.neg{background:rgba(180,40,40,.15);color:#ff9090;border:1px solid rgba(180,40,40,.3)}
+.pyramid-slots{display:flex;gap:5px;flex-wrap:wrap;flex:1}
+.pyramid-slot{min-width:90px;height:26px;background:var(--bg2);border:1px dashed rgba(200,149,42,.2);border-radius:4px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .15s;position:relative}
+.pyramid-slot:hover{border-color:var(--gold);background:rgba(200,149,42,.06)}
+.pyramid-slot.filled{border-style:solid;border-color:rgba(200,149,42,.35);background:rgba(200,149,42,.08)}
+.pyramid-slot.filled.neg-slot{border-color:rgba(180,40,40,.4);background:rgba(180,40,40,.08)}
+.pyramid-slot-text{font-family:'Cinzel',serif;font-size:.6rem;color:var(--gold);letter-spacing:.04em;text-align:center;padding:0 4px}
+.pyramid-slot.filled.neg-slot .pyramid-slot-text{color:#ff9090}
+.pyramid-slot-remove{position:absolute;top:-5px;right:-5px;width:14px;height:14px;border-radius:50%;background:#c03030;border:none;color:#fff;font-size:.55rem;cursor:pointer;display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity .15s}
+.pyramid-slot:hover .pyramid-slot-remove{opacity:1}
+.skill-picker{background:#1a120c;border:1px solid rgba(200,149,42,.3);border-radius:8px;padding:12px;margin-top:6px;box-shadow:0 8px 30px rgba(0,0,0,.6)}
+.skill-picker-title{font-family:'Cinzel',serif;font-size:.6rem;letter-spacing:.15em;color:var(--gold);text-transform:uppercase;margin-bottom:8px}
+.skill-picker-cols{display:grid;grid-template-columns:1fr 1fr;gap:4px}
+.skill-pick-btn{background:transparent;border:1px solid rgba(200,149,42,.15);border-radius:4px;color:var(--text-dim);font-family:'Crimson Text',serif;font-size:.88rem;padding:5px 8px;cursor:pointer;text-align:left;transition:all .15s}
+.skill-pick-btn:hover{border-color:var(--gold);color:var(--parchment);background:rgba(200,149,42,.08)}
+.skill-pick-btn:disabled{opacity:.35;cursor:not-allowed}
+.skill-pick-btn.fiz{border-left:2px solid rgba(76,175,125,.4)}
+.skill-pick-btn.zih{border-left:2px solid rgba(91,155,213,.4)}
+.attr-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px}
+@media(min-width:500px){.attr-grid{grid-template-columns:repeat(6,1fr)}}
+.attr-box{background:var(--bg1);border:1px solid rgba(200,149,42,.18);border-radius:6px;text-align:center;padding:8px 4px 6px}
+.attr-name{font-family:'Cinzel',serif;font-size:.5rem;letter-spacing:.08em;color:var(--gold);margin-bottom:4px}
+.attr-input{background:transparent;border:none;border-bottom:1px solid rgba(200,149,42,.25);color:var(--parchment);font-family:'Cinzel',serif;font-size:1.3rem;font-weight:700;width:100%;text-align:center;outline:none}
+.moves-info{background:rgba(200,149,42,.06);border:1px solid rgba(200,149,42,.15);border-radius:6px;padding:10px 12px;margin-bottom:12px;display:flex;gap:16px;flex-wrap:wrap}
+.moves-item{font-family:'Cinzel',serif;font-size:.62rem;letter-spacing:.08em}
+.moves-item span{color:var(--gold-light);font-size:.9rem;font-weight:700;margin-right:4px}
+.moves-item.used span{color:rgba(245,230,200,.3)}
+.moves-label{color:rgba(245,230,200,.5)}
 /* Notebooks */
 .nb-actions{display:flex;gap:10px;margin-bottom:18px;flex-wrap:wrap}
 .nb-action-btn{flex:1;min-width:140px;background:var(--bg2);border:1px solid var(--border-gold);border-radius:6px;color:var(--gold-light);font-family:'Cinzel',serif;font-size:.68rem;letter-spacing:.1em;padding:12px 8px;cursor:pointer;transition:all .2s;text-transform:uppercase;text-align:center}
@@ -319,6 +362,35 @@ body{font-family:'Crimson Text',serif;color:var(--text);background:var(--bg0);ba
 .chat-send:hover{background:rgba(200,149,42,.22)}
 .chat-empty{text-align:center;padding:24px;color:var(--text-dim);font-style:italic;font-size:.85rem}
 
+/* Initiative Tracker */
+.init-bar{background:rgba(10,6,4,.95);border-bottom:1px solid rgba(200,149,42,.2);padding:6px 16px;display:flex;align-items:center;gap:8px;overflow-x:auto;flex-wrap:nowrap;position:sticky;top:57px;z-index:90;backdrop-filter:blur(6px)}
+.init-bar::-webkit-scrollbar{height:3px}
+.init-bar::-webkit-scrollbar-thumb{background:rgba(200,149,42,.3);border-radius:2px}
+.init-label{font-family:'Cinzel',serif;font-size:.55rem;letter-spacing:.15em;color:rgba(200,149,42,.5);text-transform:uppercase;white-space:nowrap;flex-shrink:0}
+.init-list{display:flex;gap:6px;align-items:center;flex:1}
+.init-card{display:flex;align-items:center;gap:5px;background:var(--bg2);border:1px solid rgba(200,149,42,.2);border-radius:20px;padding:3px 10px 3px 6px;cursor:grab;user-select:none;transition:all .15s;white-space:nowrap;flex-shrink:0}
+.init-card:active{cursor:grabbing;transform:scale(1.04);box-shadow:0 4px 16px rgba(0,0,0,.5)}
+.init-card.active{border-color:#f0c060;background:rgba(200,149,42,.15);box-shadow:0 0 10px rgba(200,149,42,.2)}
+.init-card.enemy{border-color:rgba(180,40,40,.4);background:rgba(28,8,8,.8)}
+.init-card.ally{border-color:rgba(60,180,80,.3);background:rgba(10,28,10,.8)}
+.init-card.dragging{opacity:.35;transform:scale(.96)}
+.init-card.drag-over{border-color:#f0c060;border-style:dashed}
+.init-avatar{width:22px;height:22px;border-radius:50%;object-fit:cover;border:1px solid rgba(200,149,42,.3);flex-shrink:0}
+.init-avatar-ph{width:22px;height:22px;border-radius:50%;background:var(--bg1);border:1px solid rgba(200,149,42,.2);display:flex;align-items:center;justify-content:center;font-size:.7rem;flex-shrink:0}
+.init-name{font-family:'Cinzel',serif;font-size:.65rem;color:var(--parchment);letter-spacing:.04em}
+.init-card.active .init-name{color:#f0c060}
+.init-card.enemy .init-name{color:#ffa0a0}
+.init-card.ally  .init-name{color:#a0f0b8}
+.init-arrow{font-size:.8rem;color:rgba(200,149,42,.4);flex-shrink:0;margin:0 2px}
+.init-empty{font-size:.75rem;color:rgba(245,230,200,.25);font-style:italic;padding:0 8px}
+.init-controls{display:flex;gap:5px;align-items:center;flex-shrink:0;margin-left:6px}
+.init-btn{background:transparent;border:1px solid rgba(200,149,42,.2);border-radius:4px;color:rgba(245,230,200,.5);font-family:'Cinzel',serif;font-size:.55rem;letter-spacing:.06em;padding:3px 8px;cursor:pointer;transition:all .15s;white-space:nowrap;text-transform:uppercase}
+.init-btn:hover{border-color:var(--gold);color:var(--gold-light)}
+.init-btn.next{border-color:rgba(200,149,42,.35);color:var(--gold)}
+.init-btn.next:hover{background:rgba(200,149,42,.12)}
+.init-btn.danger:hover{border-color:var(--blood);color:#ff9090}
+.init-turn{font-family:'Cinzel',serif;font-size:.6rem;color:rgba(200,149,42,.5);white-space:nowrap;flex-shrink:0;padding:0 4px}
+
 /* Settings */
 .gear-btn{background:transparent;border:1px solid rgba(200,149,42,.2);border-radius:6px;color:rgba(245,230,200,.45);font-size:1rem;width:32px;height:32px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .2s;flex-shrink:0}
 .gear-btn:hover{border-color:var(--gold);color:var(--gold-light)}
@@ -407,7 +479,7 @@ function Masa({me,char,npcs,all,avatars}){
   const myCard={
     key:`p-${me}`, type:"player", isMe:true,
     name:char.name||me,
-    sub:[char.race,char.charClass,char.level?`Lvl ${char.level}`:null].filter(Boolean).join(" · ")||"—",
+    sub:[char.race,char.level?`Seviye ${char.level}`:null].filter(Boolean).join(" · ")||"—",
     fiziksel:char.fiziksel||0, zihinsel:char.zihinsel||0, ac:char.ac,
     dead:(char.fiziksel||0)<=0&&(char.zihinsel||0)<=0
   };
@@ -417,7 +489,7 @@ function Masa({me,char,npcs,all,avatars}){
     const c=p.char||{};
     return{key:`p-${p.name}`,type:"player",isMe:false,
       name:c.name||p.name,
-      sub:[c.race,c.charClass,c.level?`Lvl ${c.level}`:null].filter(Boolean).join(" · ")||"—",
+      sub:[c.race,c.level?`Seviye ${c.level}`:null].filter(Boolean).join(" · ")||"—",
       fiziksel:c.fiziksel||0,zihinsel:c.zihinsel||0,ac:c.ac,
       dead:(c.fiziksel||0)<=0&&(c.zihinsel||0)<=0};
   });
@@ -550,8 +622,8 @@ function Dice({me,char,npcs,all,rolls,onRoll,animOn,avatars}){
   const [showSmoke,setShowSmoke]=useState(false);
   const [showHistory,setShowHistory]=useState(false);
   const {latest,feed,akey}=rolls;
-  const ic=latest?.sides===20&&latest?.raw===20;
-  const fu=latest?.sides===20&&latest?.raw===1;
+  const ic=(latest&&latest.sides)===20&&(latest&&latest.raw)===20;
+  const fu=(latest&&latest.sides)===20&&(latest&&latest.raw)===1;
 
   const prevAkey=useRef(0);
   useEffect(()=>{
@@ -820,7 +892,7 @@ function Notebooks({me,isDM,charName}){
         {notebooks.map(nb=>{
           const isOwner=nb.owner===me;
           const isOpen=unlocked[nb.id];
-          return <div key={nb.id} className={`nb-item${activeNb?.id===nb.id?" active":""}`} onClick={()=>{setActiveNb(nb);setMode(null);}}>
+          return <div key={nb.id} className={`nb-item${(activeNb&&activeNb.id)===nb.id?" active":""}`} onClick={()=>{setActiveNb(nb);setMode(null);}}>
             <span className="nb-item-icon">{isOpen?"📖":"📓"}</span>
             <div className="nb-item-body">
               <div className="nb-item-name">{nb.name}</div>
@@ -924,39 +996,142 @@ function Notebooks({me,isDM,charName}){
 function Char({me,isDM,char,setChar,all,avatars,onUploadAvatar}){
   const [saved,setSaved]=useState(false);
   const [vp,setVp]=useState(me);
+  const [pickerOpen,setPickerOpen]=useState(null);
   const st=useRef(null);
   const self=vp===me||!isDM;
-  const vc=self?char:(all.find(p=>p.name===vp)?.char||iChar(vp));
+  const vc=self?char:(all.find(p=>p.name===vp)||{char:iChar(vp)}).char||iChar(vp);
   const can=self||isDM;
   const save=async(u,t)=>{await fbSet(`chars/${t}`,u);if(t===me){setSaved(true);setTimeout(()=>setSaved(false),1500);}};
-  const upd=(f,v)=>{if(!can)return;if(self){setChar(c=>{const n={...c,[f]:v};clearTimeout(st.current);st.current=setTimeout(()=>save(n,me),600);return n;});}else{const u={...vc,[f]:v};clearTimeout(st.current);st.current=setTimeout(()=>save(u,vp),600);}};
-  const updS=(s,v)=>{if(!can)return;if(self){setChar(c=>{const n={...c,stats:{...c.stats,[s]:v}};clearTimeout(st.current);st.current=setTimeout(()=>save(n,me),600);return n;});}else{const u={...vc,stats:{...vc.stats,[s]:v}};clearTimeout(st.current);st.current=setTimeout(()=>save(u,vp),600);}};
+  const upd=(f,v)=>{
+    if(!can)return;
+    if(self){setChar(c=>{const n={...c,[f]:v};clearTimeout(st.current);st.current=setTimeout(()=>save(n,me),600);return n;});}
+    else{const u={...vc,[f]:v};clearTimeout(st.current);st.current=setTimeout(()=>save(u,vp),600);}
+  };
+  const updAttr=(attr,v)=>{
+    if(!can)return;
+    const newAttrs={...(vc.attrs||{}),[attr]:v};
+    upd("attrs",newAttrs);
+  };
+  const skills=vc.skills||{};
+  const slotsMap={"5":1,"4":2,"3":2,"2":3,"1":4,"-1":4,"-2":3,"-3":2,"-4":2,"-5":1};
+  const getSlotsForLevel=lv=>slotsMap[String(lv)]||1;
+  const skillsAtLevel=lv=>Object.entries(skills).filter(([,v])=>v===lv).map(([k])=>k);
+  const level=parseInt(vc.level)||1;
+  const negCount=Object.keys(skills).filter(s=>skills[s]<0).length;
+  const totalPosMoves=level+negCount;
+  const usedPosMoves=Object.keys(skills).filter(s=>skills[s]>0).length;
+  const usedNegMoves=negCount;
+  const remPos=totalPosMoves-usedPosMoves;
+  const remNeg=level-usedNegMoves;
+  const placedSkills=new Set(Object.keys(skills));
+  const assignSkill=(skill,lv)=>{if(!can)return;upd("skills",{...skills,[skill]:lv});setPickerOpen(null);};
+  const removeSkill=(skill)=>{if(!can)return;const ns={...skills};delete ns[skill];upd("skills",ns);};
   return <div className="panel">
     {self&&<AvatarUpload me={me} avatars={avatars} onUpload={onUploadAvatar}/>}
-    {isDM&&!self&&avatars[vp]&&<div className="avatar-wrap"><img src={avatars[vp]} className="avatar-img" alt="avatar"/><span style={{fontSize:".75rem",color:"var(--text-dim)",fontStyle:"italic"}}>{vp}'in avatarı</span></div>}
-    {isDM&&all.length>0&&<><div className="st" style={{marginTop:0}}>Oyuncuları Görüntüle</div>
+    {isDM&&!self&&avatars&&avatars[vp]&&<div className="avatar-wrap"><img src={avatars[vp]} className="avatar-img" alt="avatar"/></div>}
+    {isDM&&all.length>0&&<>
+      <div className="st" style={{marginTop:0}}>Oyuncuları Görüntüle</div>
       <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:16}}>
-        {all.map(p=><button key={p.name} className={`tb${vp===p.name?" on":""}`} onClick={()=>setVp(p.name)} style={{fontSize:".7rem"}}>{p.name}</button>)}
-      </div></>}
-    {!can&&<div className="dmo">📖 Salt okunur — {vp}'in sayfası</div>}
-    <div className="cg">
-      {[{l:"KARAKTER ADI",f:"name",ph:"Duncan the Tall..."},{l:"IRK",f:"race",sel:RACES},{l:"SINIF",f:"charClass",sel:CLASSES},{l:"SEVİYE",f:"level",ph:"1"}].map(x=><div key={x.f} className="cf">
-        <label>{x.l}</label>
-        {x.sel?<select value={vc[x.f]} onChange={e=>upd(x.f,e.target.value)} disabled={!can}><option value="">—</option>{x.sel.map(o=><option key={o}>{o}</option>)}</select>
-              :<input value={vc[x.f]} onChange={e=>upd(x.f,e.target.value)} placeholder={x.ph} disabled={!can}/>}
-      </div>)}
+        {all.map(p=><button key={p.name} className={`tb${vp===p.name?" on":""}`} onClick={()=>{setVp(p.name);setPickerOpen(null);}} style={{fontSize:".7rem"}}>{p.name}</button>)}
+      </div>
+    </>}
+    {!can&&<div className="dmo">📖 Salt okunur — {vp} karakteri</div>}
+    <div className="st" style={{marginTop:0}}>Karakter Bilgileri</div>
+    <div style={{display:"grid",gridTemplateColumns:"2fr 1fr 1fr",gap:8,marginBottom:12}}>
+      {[{l:"KARAKTER ADI",f:"name",ph:"Duncan the Tall..."},{l:"IRK",f:"race",sel:RACES},{l:"YAŞ",f:"age",ph:"25"},{l:"SEVİYE",f:"level",ph:"1",type:"number"}].map(x=>(
+        <div key={x.f} className="cf">
+          <label>{x.l}</label>
+          {x.sel
+            ?<select value={vc[x.f]||""} onChange={e=>upd(x.f,e.target.value)} disabled={!can}><option value="">—</option>{x.sel.map(o=><option key={o}>{o}</option>)}</select>
+            :<input type={x.type||"text"} value={vc[x.f]||""} onChange={e=>upd(x.f,e.target.value)} placeholder={x.ph} disabled={!can}/>}
+        </div>
+      ))}
     </div>
-    <div className="st">Yetenekler</div>
-    <div className="sg">{STATS.map(s=><div key={s} className="sb"><div className="sn">{s}</div><div className="ss"><input type="number" value={vc.stats[s]} onChange={e=>updS(s,e.target.value)} min={1} max={30} disabled={!can}/></div><div className="sm">{smod(vc.stats[s])}</div></div>)}</div>
-    <div className="st">Can Durumu</div>
+    <div className="st">Kondisyon</div>
     <div className="cb"><div className="cr">
       <PipBar type="fiziksel" hasar={vc.fiziksel||0} disabled={!can} onChange={v=>upd("fiziksel",v)}/>
       <div className="cdv"/>
       <PipBar type="zihinsel" hasar={vc.zihinsel||0} disabled={!can} onChange={v=>upd("zihinsel",v)}/>
     </div></div>
-    <div className="vr">{[{l:"ZIRH SINIFI",f:"ac"},{l:"HIZ",f:"speed"},{l:"YETKİNLİK",f:"proficiency"}].map(v=><div key={v.f} className="vb"><label>{v.l}</label><input type="number" value={vc[v.f]} onChange={e=>upd(v.f,e.target.value)} disabled={!can}/></div>)}</div>
+    <div className="st">Saving Throwlar</div>
+    <div className="attr-grid">
+      {ATTRIBUTES.map(a=>(
+        <div key={a} className="attr-box">
+          <div className="attr-name">{a}</div>
+          <input className="attr-input" type="text" value={(vc.attrs&&vc.attrs[a])||""} placeholder="—"
+            onChange={e=>updAttr(a,e.target.value)} disabled={!can}/>
+        </div>
+      ))}
+    </div>
+    <div className="st">Skill Piramidi</div>
+    <div className="moves-info">
+      <div className="moves-item"><span>{remPos}</span><span className="moves-label">Pozitif hamle kaldı</span></div>
+      <div className="moves-item"><span>{remNeg}</span><span className="moves-label">Negatif hamle kaldı</span></div>
+      <div className="moves-item" style={{color:"rgba(245,230,200,.4)",fontSize:".7rem",alignSelf:"center",fontStyle:"italic"}}>
+        Seviye {level} → {level} pozitif{negCount>0?` + ${negCount} bonus`:""} · {level} negatif hakkı
+      </div>
+    </div>
+    <div className="pyramid-wrap">
+      {PYRAMID_LEVELS.map(lv=>{
+        const isNeg=lv<0;
+        const slots=getSlotsForLevel(lv);
+        const placed=skillsAtLevel(lv);
+        return(
+          <div key={lv} className="pyramid-row">
+            <div className={`pyramid-level ${isNeg?"neg":"pos"}`}>{lv>0?"+":""}{lv}</div>
+            <div className="pyramid-slots">
+              {Array.from({length:slots}).map((_,si)=>{
+                const skill=placed[si];
+                const isOpen=pickerOpen&&pickerOpen.level===lv&&pickerOpen.slotIdx===si;
+                const isFiz=skill&&FIZIKSEL_SKILLS.includes(skill);
+                const canAdd=can&&!skill&&((!isNeg&&remPos>0)||(isNeg&&remNeg>0));
+                return(
+                  <div key={si} style={{position:"relative"}}>
+                    <div className={`pyramid-slot${skill?" filled":""}${skill&&isNeg?" neg-slot":""}`}
+                      onClick={()=>{if(canAdd)setPickerOpen(isOpen?null:{level:lv,slotIdx:si});}}>
+                      {skill?(
+                        <>
+                          <span className="pyramid-slot-text" style={{color:isFiz?"#7ef0a0":"#a8c8f8"}}>{skill}</span>
+                          {can&&<button className="pyramid-slot-remove" onClick={e=>{e.stopPropagation();removeSkill(skill);}}>✕</button>}
+                        </>
+                      ):(
+                        <span style={{fontSize:".68rem",color:canAdd?"rgba(200,149,42,.4)":"rgba(245,230,200,.15)"}}>
+                          {canAdd?"+ ekle":"—"}
+                        </span>
+                      )}
+                    </div>
+                    {isOpen&&(
+                      <div className="skill-picker" style={{position:"absolute",top:"100%",left:0,zIndex:300,minWidth:280}}>
+                        <div className="skill-picker-title">{lv>0?"+":""}{lv} seviyesine skill ekle</div>
+                        <div style={{marginBottom:6,fontSize:".65rem",color:"rgba(76,175,125,.8)"}}>🟢 Fiziksel</div>
+                        <div className="skill-picker-cols" style={{marginBottom:8}}>
+                          {FIZIKSEL_SKILLS.map(s=>(
+                            <button key={s} className="skill-pick-btn fiz"
+                              disabled={placedSkills.has(s)&&skills[s]!==lv}
+                              onClick={()=>assignSkill(s,lv)}>{s}</button>
+                          ))}
+                        </div>
+                        <div style={{marginBottom:6,fontSize:".65rem",color:"rgba(91,155,213,.8)"}}>🔵 Zihinsel</div>
+                        <div className="skill-picker-cols">
+                          {ZIHINSEL_SKILLS.map(s=>(
+                            <button key={s} className="skill-pick-btn zih"
+                              disabled={placedSkills.has(s)&&skills[s]!==lv}
+                              onClick={()=>assignSkill(s,lv)}>{s}</button>
+                          ))}
+                        </div>
+                        <button className="nb-btn cancel" style={{marginTop:8,width:"100%"}} onClick={()=>setPickerOpen(null)}>İptal</button>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })}
+    </div>
     <div className="st">Notlar</div>
-    <textarea className="na" rows={5} placeholder="Geçmiş, yetenekler, büyüler..." value={vc.notes} onChange={e=>upd("notes",e.target.value)} disabled={!can}/>
+    <textarea className="na" rows={5} placeholder="Geçmiş, bağlantılar, ekipman..." value={vc.notes||""} onChange={e=>upd("notes",e.target.value)} disabled={!can}/>
     <div className={`si${saved?" ok":""}`}>{saved?"✓ Kaydedildi":"Otomatik kaydediliyor..."}</div>
     {self&&<ErrorBoundary><Notebooks me={me} isDM={isDM} charName={vc.name||me}/></ErrorBoundary>}
   </div>;
@@ -1044,6 +1219,181 @@ function applyTheme(darkness){
   r.style.setProperty('--text-dim',textDim);
   r.style.setProperty('--text-mid',textMid);
   document.body.style.background=bg0;
+}
+
+// ─── INITIATIVE TRACKER ──────────────────────────────────────────────────────
+function InitiativeBar({isDM,all,npcs,avatars}){
+  const [order,setOrder]=useState([]); // [{id,name,type}]
+  const [activeIdx,setActiveIdx]=useState(0);
+  const [turn,setTurn]=useState(1);
+  const [combat,setCombat]=useState(false);
+  const [showAdd,setShowAdd]=useState(false);
+  const dragIdx=useRef(null);
+  const lastDataRef=useRef(null);
+
+  // Poll Firebase
+  useEffect(()=>{
+    const poll=async()=>{
+      const data=await fbGet("initiative");
+      const key=JSON.stringify(data);
+      if(key===lastDataRef.current)return;
+      lastDataRef.current=key;
+      if(!data){setOrder([]);setActiveIdx(0);setTurn(1);setCombat(false);return;}
+      if(data.order)setOrder(data.order);
+      if(data.activeIdx!=null)setActiveIdx(data.activeIdx);
+      if(data.turn!=null)setTurn(data.turn);
+      setCombat(!!data.combat);
+    };
+    poll();
+    const iv=setInterval(poll,2000);
+    return()=>clearInterval(iv);
+  },[]);
+
+  const push=async(upd)=>{
+    const data={order:upd.order!=null?upd.order:order,activeIdx:upd.activeIdx!=null?upd.activeIdx:activeIdx,turn:upd.turn!=null?upd.turn:turn,combat:upd.combat!=null?upd.combat:combat,...upd};
+    lastDataRef.current=JSON.stringify(data);
+    await fbSet("initiative",data);
+  };
+
+  // Build candidate list for DM add panel
+  const candidates=[
+    ...all.map(p=>({id:`p-${p.name}`,name:p.char&&p.char.name?p.char.name:p.name,type:"player"})),
+    ...npcs.map(n=>({id:`n-${n.id}`,name:n.name,type:n.type})),
+  ].filter(c=>!order.find(o=>o.id===c.id));
+
+  const addToOrder=async(c)=>{
+    const newOrder=[...order,c];
+    setOrder(newOrder);setShowAdd(false);
+    await push({order:newOrder});
+  };
+
+  const startCombat=async()=>{
+    const newOrder=[...order];
+    setActiveIdx(0);setTurn(1);setCombat(true);
+    await push({order:newOrder,activeIdx:0,turn:1,combat:true});
+  };
+
+  const nextTurn=async()=>{
+    const next=(activeIdx+1)%order.length;
+    const newTurn=next===0?turn+1:turn;
+    setActiveIdx(next);setTurn(newTurn);
+    await push({activeIdx:next,turn:newTurn});
+  };
+
+  const endCombat=async()=>{
+    setOrder([]);setActiveIdx(0);setTurn(1);setCombat(false);
+    await fbSet("initiative",null);
+    lastDataRef.current=null;
+  };
+
+  // Drag & drop (DM only)
+  const onDragStart=(i)=>{ dragIdx.current=i; };
+  const onDragOver=(e,i)=>{ e.preventDefault(); };
+  const onDrop=async(i)=>{
+    if(dragIdx.current==null||dragIdx.current===i)return;
+    const newOrder=[...order];
+    const [moved]=newOrder.splice(dragIdx.current,1);
+    newOrder.splice(i,0,moved);
+    // Keep active pointer on same entity
+    let newActive=activeIdx;
+    if(dragIdx.current===activeIdx) newActive=i;
+    else if(dragIdx.current<activeIdx&&i>=activeIdx) newActive=activeIdx-1;
+    else if(dragIdx.current>activeIdx&&i<=activeIdx) newActive=activeIdx+1;
+    dragIdx.current=null;
+    setOrder(newOrder);setActiveIdx(newActive);
+    await push({order:newOrder,activeIdx:newActive});
+  };
+
+  const removeFromOrder=async(id)=>{
+    const idx=order.findIndex(o=>o.id===id);
+    const newOrder=order.filter(o=>o.id!==id);
+    let newActive=activeIdx;
+    if(idx<activeIdx) newActive=Math.max(0,activeIdx-1);
+    else if(idx===activeIdx) newActive=Math.min(newActive,newOrder.length-1);
+    setOrder(newOrder);setActiveIdx(Math.max(0,newActive));
+    await push({order:newOrder,activeIdx:Math.max(0,newActive)});
+  };
+
+  const getAvatar=(entry)=>{
+    if(entry.type==="player"){
+      const pname=entry.id.replace("p-","");
+      return avatars&&avatars[pname]?avatars[pname]:null;
+    }
+    return null;
+  };
+
+  if(!combat&&order.length===0&&!isDM) return null;
+
+  return(
+    <div className="init-bar">
+      <span className="init-label">⚔ Sıra</span>
+
+      {combat&&turn>0&&<span className="init-turn">Tur {turn}</span>}
+
+      <div className="init-list">
+        {order.length===0&&<span className="init-empty">Savaşçı yok</span>}
+        {order.map((entry,i)=>{
+          const av=getAvatar(entry);
+          const isActive=combat&&i===activeIdx;
+          return(
+            <React.Fragment key={entry.id}>
+              {i>0&&<span className="init-arrow">›</span>}
+              <div
+                className={`init-card${isActive?" active":""}${entry.type==="enemy"?" enemy":entry.type==="ally"?" ally":""}`}
+                draggable={isDM}
+                onDragStart={()=>onDragStart(i)}
+                onDragOver={e=>onDragOver(e,i)}
+                onDrop={()=>onDrop(i)}
+                title={isDM?"Sürükle ile sırala":""}
+              >
+                {av
+                  ?<img src={av} className="init-avatar" alt=""/>
+                  :<div className="init-avatar-ph">{entry.name[0]||"?"}</div>}
+                <span className="init-name">{entry.name}</span>
+                {isDM&&<button style={{background:"transparent",border:"none",color:"rgba(245,230,200,.3)",cursor:"pointer",fontSize:".7rem",padding:"0 0 0 2px",lineHeight:1}} onClick={()=>removeFromOrder(entry.id)}>✕</button>}
+              </div>
+            </React.Fragment>
+          );
+        })}
+      </div>
+
+      {isDM&&(
+        <div className="init-controls">
+          {!combat?(
+            <>
+              <button className="init-btn" onClick={()=>setShowAdd(s=>!s)}>+ Ekle</button>
+              {order.length>0&&<button className="init-btn next" onClick={startCombat}>▶ Başlat</button>}
+            </>
+          ):(
+            <>
+              <button className="init-btn next" onClick={nextTurn}>Sonraki ›</button>
+              <button className="init-btn danger" onClick={endCombat}>✕ Bitir</button>
+            </>
+          )}
+        </div>
+      )}
+
+      {/* Add dropdown */}
+      {isDM&&showAdd&&(
+        <div style={{position:"absolute",top:"100%",right:16,background:"#1a120c",border:"1px solid rgba(200,149,42,.3)",borderRadius:8,padding:10,zIndex:200,minWidth:180,boxShadow:"0 8px 30px rgba(0,0,0,.6)"}}>
+          <div style={{fontFamily:"'Cinzel',serif",fontSize:".58rem",letterSpacing:".12em",color:"rgba(200,149,42,.6)",marginBottom:8,textTransform:"uppercase"}}>Sıraya Ekle</div>
+          {candidates.length===0&&<div style={{fontSize:".78rem",color:"var(--text-dim)",fontStyle:"italic"}}>Hepsi sıraya eklendi</div>}
+          {candidates.map(c=>(
+            <div key={c.id} onClick={()=>addToOrder(c)}
+              style={{display:"flex",alignItems:"center",gap:8,padding:"6px 8px",cursor:"pointer",borderRadius:5,transition:"background .15s"}}
+              onMouseEnter={e=>e.currentTarget.style.background="rgba(200,149,42,.1)"}
+              onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+              <span style={{fontSize:".85rem"}}>{c.type==="player"?"👤":c.type==="enemy"?"💀":"🤝"}</span>
+              <span style={{fontFamily:"'Cinzel',serif",fontSize:".72rem",color:"var(--parchment)"}}>{c.name}</span>
+            </div>
+          ))}
+          <div style={{borderTop:"1px solid rgba(200,149,42,.1)",marginTop:6,paddingTop:6}}>
+            <div onClick={()=>setShowAdd(false)} style={{fontSize:".7rem",color:"var(--text-dim)",cursor:"pointer",textAlign:"center",fontStyle:"italic"}}>Kapat</div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }
 
 // ─── AVATAR ──────────────────────────────────────────────────────────────────
@@ -1187,9 +1537,183 @@ function Chat({me,role,all,avatars}){
   );
 }
 
-// ─── AMBİYANS ────────────────────────────────────────────────────────────────
-// Web Audio API ile sentezlenmiş sesler — dış bağımlılık yok, her zaman çalışır
-const SCENES=[
+// ─── AMBİYANS (YouTube) ──────────────────────────────────────────────────────
+const ytIdFromUrl=url=>{
+  if(!url)return null;
+  const m=url.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|v\/|shorts\/))([a-zA-Z0-9_-]{11})/);
+  return m?m[1]:null;
+};
+
+function Ambiance({isDM}){
+  const [open,setOpen]=useState(false);
+  const [url,setUrl]=useState("");
+  const [activeVid,setActiveVid]=useState(null); // {ytId, startedAt}
+  const [volume,setVolume]=useState(50);
+  const [status,setStatus]=useState("idle"); // idle|loading|playing|error
+  const playerRef=useRef(null);
+  const containerRef=useRef(null);
+  const lastVidRef=useRef(null);
+  const pollRef=useRef(null);
+
+  // Load YT API once
+  useEffect(()=>{
+    if(window.YT)return;
+    const tag=document.createElement("script");
+    tag.src="https://www.youtube.com/iframe_api";
+    document.head.appendChild(tag);
+  },[]);
+
+  const destroyPlayer=()=>{
+    if(playerRef.current){
+      try{playerRef.current.destroy();}catch{}
+      playerRef.current=null;
+    }
+  };
+
+  const startPlayer=(ytId,seekTo=0)=>{
+    destroyPlayer();
+    setStatus("loading");
+    const div=document.createElement("div");
+    div.id="yt-player-"+Date.now();
+    div.style.cssText="position:absolute;width:1px;height:1px;opacity:0;pointer-events:none;";
+    document.body.appendChild(div);
+    const create=()=>{
+      playerRef.current=new window.YT.Player(div.id,{
+        videoId:ytId,
+        playerVars:{autoplay:1,loop:1,playlist:ytId,start:Math.floor(seekTo),controls:0,disablekb:1},
+        events:{
+          onReady:e=>{e.target.setVolume(volume);e.target.playVideo();setStatus("playing");},
+          onError:()=>setStatus("error"),
+          onStateChange:e=>{if(e.data===window.YT.PlayerState.ENDED){e.target.playVideo();}}
+        }
+      });
+    };
+    if(window.YT&&window.YT.Player) create();
+    else{window.onYouTubeIframeAPIReady=create;}
+  };
+
+  // DM: push to Firebase
+  const activate=async()=>{
+    const ytId=ytIdFromUrl(url);
+    if(!ytId){setStatus("error");return;}
+    const data={ytId,startedAt:ts()};
+    await fbSet("ambiance",data);
+    setActiveVid(data);
+    startPlayer(ytId,0);
+  };
+
+  const stop=async()=>{
+    await fbSet("ambiance",{ytId:null,startedAt:0});
+    setActiveVid(null);
+    destroyPlayer();
+    setStatus("idle");
+    setUrl("");
+  };
+
+  // Player: poll Firebase
+  useEffect(()=>{
+    if(isDM)return;
+    const poll=async()=>{
+      const data=await fbGet("ambiance");
+      if(!data||!data.ytId){
+        if(lastVidRef.current){lastVidRef.current=null;destroyPlayer();setActiveVid(null);setStatus("idle");}
+        return;
+      }
+      if(data.ytId===lastVidRef.current)return;
+      lastVidRef.current=data.ytId;
+      setActiveVid(data);
+      // Seek to approximate current position
+      const elapsed=(ts()-data.startedAt)/1000;
+      startPlayer(data.ytId,elapsed%3600);
+    };
+    poll();
+    pollRef.current=setInterval(poll,4000);
+    return()=>{clearInterval(pollRef.current);destroyPlayer();};
+  },[isDM]);
+
+  const changeVolume=v=>{
+    setVolume(v);
+    if(playerRef.current)try{playerRef.current.setVolume(v);}catch{}
+  };
+
+  // Player bar (both DM and player when active)
+  const nowPlaying=activeVid&&activeVid.ytId;
+
+  if(!isDM){
+    if(!nowPlaying) return null;
+    return(
+      <div style={{position:"fixed",bottom:22,left:22,zIndex:500}}>
+        <div style={{background:"rgba(91,155,213,.12)",border:"1px solid rgba(91,155,213,.3)",borderRadius:24,padding:"6px 14px",display:"flex",alignItems:"center",gap:8,boxShadow:"0 4px 16px rgba(0,0,0,.4)"}}>
+          <span style={{fontSize:"1rem",animation:status==="playing"?"amb-pulse 2.5s infinite":undefined}}>🎵</span>
+          <span style={{fontFamily:"'Cinzel',serif",fontSize:".6rem",letterSpacing:".1em",color:"#90b8f0"}}>
+            {status==="loading"?"Yükleniyor...":status==="playing"?"Ambiyans çalıyor":"Bağlanıyor..."}
+          </span>
+          <input type="range" min={0} max={100} value={volume} className="amb-vol-slider" style={{width:64}}
+            onChange={e=>changeVolume(Number(e.target.value))}/>
+        </div>
+      </div>
+    );
+  }
+
+  // DM panel
+  return(
+    <>
+      {open&&(
+        <div className="amb-panel" style={{width:280}}>
+          <div className="amb-title">
+            🎵 Ambiyans
+            <button className="amb-close" onClick={()=>setOpen(false)}>✕</button>
+          </div>
+
+          {!nowPlaying?(
+            <>
+              <div style={{fontSize:".78rem",color:"var(--text-dim)",fontStyle:"italic",marginBottom:10,lineHeight:1.5}}>
+                YouTube linki yapıştır, tüm oyuncular senkron duyar.
+              </div>
+              <input
+                className="nb-input"
+                placeholder="https://youtube.com/watch?v=..."
+                value={url}
+                onChange={e=>setUrl(e.target.value)}
+                onKeyDown={e=>e.key==="Enter"&&activate()}
+                style={{marginBottom:8}}
+              />
+              {status==="error"&&<div style={{color:"#ff6060",fontSize:".75rem",marginBottom:8}}>Geçersiz YouTube linki!</div>}
+              <button className="nb-btn" style={{width:"100%"}} onClick={activate} disabled={!url.trim()}>
+                ▶ Başlat
+              </button>
+              <div style={{marginTop:10,fontSize:".7rem",color:"var(--text-dim)",fontStyle:"italic"}}>
+                💡 İpucu: Tavern, forest, battle ambient için YouTube'da ara.
+              </div>
+            </>
+          ):(
+            <>
+              <div style={{background:"rgba(91,155,213,.08)",border:"1px solid rgba(91,155,213,.2)",borderRadius:6,padding:"8px 10px",marginBottom:12}}>
+                <div style={{fontFamily:"'Cinzel',serif",fontSize:".6rem",color:"#90b8f0",marginBottom:4,letterSpacing:".1em"}}>ÇALIYOR</div>
+                <a href={`https://youtube.com/watch?v=${activeVid.ytId}`} target="_blank" rel="noopener noreferrer"
+                  style={{fontSize:".75rem",color:"#a8c8f8",wordBreak:"break-all",textDecoration:"none"}}>
+                  youtu.be/{activeVid.ytId}
+                </a>
+              </div>
+              <div className="amb-volume" style={{marginBottom:12}}>
+                <label style={{fontSize:".72rem",color:"var(--text-dim)"}}>🔊</label>
+                <input type="range" min={0} max={100} value={volume} className="amb-vol-slider"
+                  onChange={e=>changeVolume(Number(e.target.value))}/>
+                <span style={{fontSize:".7rem",color:"var(--text-dim)",minWidth:28}}>{volume}%</span>
+              </div>
+              <button className="nb-btn cancel" style={{width:"100%"}} onClick={stop}>⏹ Durdur</button>
+            </>
+          )}
+        </div>
+      )}
+      <div className="amb-bar">
+        <button className={`amb-toggle${nowPlaying?" playing":""}`} onClick={()=>setOpen(o=>!o)} title="Ambiyans">
+          🎵
+        </button>
+      </div>
+    </>
+  );
+}
   {id:"tavern",  icon:"🍺", label:"Tavern"},
   {id:"battle",  icon:"⚔️",  label:"Savaş"},
   {id:"forest",  icon:"🌲", label:"Orman"},
@@ -1200,305 +1724,6 @@ const SCENES=[
 ];
 
 // Her sahne için Web Audio sentezi
-function createAmbiance(sceneId, volume=0.4){
-  const ctx=new (window.AudioContext||window.webkitAudioContext)();
-  const nodes=[];
-  const master=ctx.createGain();
-  master.gain.value=volume;
-  master.connect(ctx.destination);
-
-  const noise=(type="white")=>{
-    const buf=ctx.createBuffer(1,ctx.sampleRate*2,ctx.sampleRate);
-    const d=buf.getChannelData(0);
-    for(let i=0;i<d.length;i++) d[i]=(Math.random()*2-1);
-    const src=ctx.createBufferSource();
-    src.buffer=buf; src.loop=true;
-    return src;
-  };
-
-  const osc=(freq,type="sine",gainVal=0.1)=>{
-    const o=ctx.createOscillator();
-    const g=ctx.createGain();
-    o.type=type; o.frequency.value=freq;
-    g.gain.value=gainVal;
-    o.connect(g);
-    return{osc:o,gain:g};
-  };
-
-  const filter=(src,type,freq,Q=1)=>{
-    const f=ctx.createBiquadFilter();
-    f.type=type; f.frequency.value=freq; f.Q.value=Q;
-    src.connect(f); return f;
-  };
-
-  const lfo=(target,min,max,rate)=>{
-    const l=ctx.createOscillator();
-    const lg=ctx.createGain();
-    l.frequency.value=rate;
-    lg.gain.value=(max-min)/2;
-    l.connect(lg);
-    lg.connect(target);
-    target.value=(min+max)/2;
-    l.start();
-    nodes.push(l);
-  };
-
-  if(sceneId==="tavern"){
-    // Crowd murmur: filtered noise + low rumble
-    const n=noise(); const f=filter(n,"bandpass",400,0.5);
-    const g=ctx.createGain(); g.gain.value=0.15;
-    f.connect(g); g.connect(master); n.start(); nodes.push(n);
-    lfo(g.gain,0.08,0.22,0.3);
-    // Fire crackle
-    const fn=noise(); const ff=filter(fn,"highpass",2000,1);
-    const fg=ctx.createGain(); fg.gain.value=0.05;
-    ff.connect(fg); fg.connect(master); fn.start(); nodes.push(fn);
-    lfo(fg.gain,0.02,0.08,4.7);
-    // Low bass hum
-    const{osc:bo,gain:bg}=osc(80,"sine",0.05);
-    bg.connect(master); bo.start(); nodes.push(bo);
-  }
-  else if(sceneId==="battle"){
-    // Tension drone
-    const{osc:o1,gain:g1}=osc(55,"sawtooth",0.04);
-    const f1=filter(g1,"lowpass",300,2);
-    f1.connect(master); o1.start(); nodes.push(o1);
-    lfo(o1.frequency,50,65,0.15);
-    const{osc:o2,gain:g2}=osc(110,"square",0.02);
-    const f2=filter(g2,"lowpass",200,1);
-    f2.connect(master); o2.start(); nodes.push(o2);
-    // Distant rumble
-    const n=noise(); const fn=filter(n,"lowpass",150,0.5);
-    const ng=ctx.createGain(); ng.gain.value=0.1;
-    fn.connect(ng); ng.connect(master); n.start(); nodes.push(n);
-    lfo(ng.gain,0.05,0.2,0.8);
-  }
-  else if(sceneId==="forest"){
-    // Wind
-    const n=noise(); const f=filter(n,"bandpass",600,0.3);
-    const g=ctx.createGain(); g.gain.value=0.08;
-    f.connect(g); g.connect(master); n.start(); nodes.push(n);
-    lfo(g.gain,0.03,0.15,0.2);
-    // Birds (random chirps)
-    const chirp=()=>{
-      const{osc:o,gain:g2}=osc(2400+Math.random()*800,"sine",0);
-      g2.connect(master); o.start();
-      const t=ctx.currentTime;
-      g2.gain.setValueAtTime(0,t);
-      g2.gain.linearRampToValueAtTime(0.06,t+0.05);
-      g2.gain.linearRampToValueAtTime(0,t+0.15);
-      o.frequency.linearRampToValueAtTime(3200,t+0.1);
-      o.stop(t+0.2); nodes.push(o);
-      setTimeout(chirp,1500+Math.random()*4000);
-    };
-    setTimeout(chirp,500);
-    // Leaves
-    const ln=noise(); const lf=filter(ln,"highpass",3000,1);
-    const lg=ctx.createGain(); lg.gain.value=0.04;
-    lf.connect(lg); lg.connect(master); ln.start(); nodes.push(ln);
-  }
-  else if(sceneId==="dungeon"){
-    // Drips
-    const drip=()=>{
-      const{osc:o,gain:g2}=osc(1200+Math.random()*400,"sine",0);
-      g2.connect(master); o.start();
-      const t=ctx.currentTime;
-      g2.gain.setValueAtTime(0.08,t);
-      g2.gain.exponentialRampToValueAtTime(0.001,t+0.4);
-      o.frequency.exponentialRampToValueAtTime(400,t+0.3);
-      o.stop(t+0.5); nodes.push(o);
-      setTimeout(drip,2000+Math.random()*5000);
-    };
-    setTimeout(drip,300);
-    // Eerie hum
-    const{osc:o1,gain:g1}=osc(65,"sine",0.03);
-    const f1=filter(g1,"lowpass",200,5);
-    f1.connect(master); o1.start(); nodes.push(o1);
-    lfo(o1.frequency,60,75,0.05);
-    // Cave ambience noise
-    const n=noise(); const f2=filter(n,"bandpass",200,0.2);
-    const ng=ctx.createGain(); ng.gain.value=0.04;
-    f2.connect(ng); ng.connect(master); n.start(); nodes.push(n);
-  }
-  else if(sceneId==="storm"){
-    // Rain
-    const rn=noise(); const rf=filter(rn,"bandpass",1200,0.4);
-    const rg=ctx.createGain(); rg.gain.value=0.18;
-    rf.connect(rg); rg.connect(master); rn.start(); nodes.push(rn);
-    lfo(rg.gain,0.12,0.25,0.6);
-    // Thunder (random)
-    const thunder=()=>{
-      const tn=noise(); const tf=filter(tn,"lowpass",80,2);
-      const tg=ctx.createGain(); tg.gain.value=0;
-      tf.connect(tg); tg.connect(master); tn.start();
-      const t=ctx.currentTime;
-      tg.gain.linearRampToValueAtTime(0.3,t+0.1);
-      tg.gain.exponentialRampToValueAtTime(0.001,t+2.5);
-      tn.stop(t+3); nodes.push(tn);
-      setTimeout(thunder,8000+Math.random()*15000);
-    };
-    setTimeout(thunder,2000);
-    // Wind
-    const wn=noise(); const wf=filter(wn,"lowpass",400,0.5);
-    const wg=ctx.createGain(); wg.gain.value=0.12;
-    wf.connect(wg); wg.connect(master); wn.start(); nodes.push(wn);
-    lfo(wg.gain,0.06,0.2,0.15);
-  }
-  else if(sceneId==="village"){
-    // Crowd
-    const n=noise(); const f=filter(n,"bandpass",500,0.4);
-    const g=ctx.createGain(); g.gain.value=0.1;
-    f.connect(g); g.connect(master); n.start(); nodes.push(n);
-    lfo(g.gain,0.06,0.16,0.4);
-    // Birds
-    const chirp=()=>{
-      const{osc:o,gain:g2}=osc(2800+Math.random()*600,"sine",0);
-      g2.connect(master); o.start();
-      const t=ctx.currentTime;
-      g2.gain.setValueAtTime(0,t);
-      g2.gain.linearRampToValueAtTime(0.05,t+0.05);
-      g2.gain.linearRampToValueAtTime(0,t+0.2);
-      o.stop(t+0.25); nodes.push(o);
-      setTimeout(chirp,800+Math.random()*2500);
-    };
-    setTimeout(chirp,400);
-    // Bell (distant)
-    const bell=()=>{
-      const{osc:o,gain:g2}=osc(520,"sine",0);
-      g2.connect(master); o.start();
-      const t=ctx.currentTime;
-      g2.gain.setValueAtTime(0.08,t);
-      g2.gain.exponentialRampToValueAtTime(0.001,t+1.5);
-      o.stop(t+2); nodes.push(o);
-      setTimeout(bell,12000+Math.random()*20000);
-    };
-    setTimeout(bell,5000);
-  }
-  else if(sceneId==="travel"){
-    // Hoofbeats rhythm
-    const beat=()=>{
-      [0,0.25,0.5,0.75].forEach(delay=>{
-        const{osc:o,gain:g2}=osc(120+Math.random()*30,"sine",0);
-        g2.connect(master); o.start();
-        const t=ctx.currentTime+delay;
-        g2.gain.setValueAtTime(0.12,t);
-        g2.gain.exponentialRampToValueAtTime(0.001,t+0.15);
-        o.stop(t+0.2); nodes.push(o);
-      });
-      setTimeout(beat,1000);
-    };
-    beat();
-    // Wind
-    const wn=noise(); const wf=filter(wn,"bandpass",700,0.3);
-    const wg=ctx.createGain(); wg.gain.value=0.07;
-    wf.connect(wg); wg.connect(master); wn.start(); nodes.push(wn);
-    lfo(wg.gain,0.04,0.12,0.5);
-  }
-
-  return{
-    setVolume:(v)=>{master.gain.value=v;},
-    stop:()=>{
-      nodes.forEach(n=>{try{n.stop();}catch{}});
-      setTimeout(()=>{try{ctx.close();}catch{}},200);
-    }
-  };
-}
-
-function Ambiance({isDM}){
-  const [open,setOpen]=useState(false);
-  const [activeId,setActiveId]=useState(null);
-  const [volume,setVolume]=useState(0.4);
-  const engineRef=useRef(null);
-  const lastSceneRef=useRef(null);
-
-  const startScene=(sceneId,vol)=>{
-    if(engineRef.current){engineRef.current.stop();engineRef.current=null;}
-    if(!sceneId)return;
-    try{
-      const eng=createAmbiance(sceneId,vol);
-      engineRef.current=eng;
-    }catch(e){console.error("Ambiance error:",e);}
-  };
-
-  // Player: poll Firebase
-  useEffect(()=>{
-    if(isDM)return;
-    const poll=async()=>{
-      const data=await fbGet("ambiance");
-      const sceneId=(data&&data.scene)||null;
-      if(sceneId===lastSceneRef.current)return;
-      lastSceneRef.current=sceneId;
-      setActiveId(sceneId);
-      startScene(sceneId,volume);
-    };
-    poll();
-    const iv=setInterval(poll,3000);
-    return()=>{clearInterval(iv);if(engineRef.current){engineRef.current.stop();engineRef.current=null;}};
-  },[isDM]);
-
-  const selectScene=async(sceneId)=>{
-    const newId=activeId===sceneId?null:sceneId;
-    setActiveId(newId);
-    await fbSet("ambiance",{scene:newId,updatedAt:ts()});
-    startScene(newId,volume);
-  };
-
-  const changeVolume=v=>{
-    setVolume(v);
-    if(engineRef.current)engineRef.current.setVolume(v);
-  };
-
-  // Cleanup on unmount
-  useEffect(()=>()=>{if(engineRef.current)engineRef.current.stop();},[]);
-
-  const activeScene=SCENES.find(s=>s.id===activeId);
-
-  if(!isDM){
-    if(!activeId)return null;
-    return(
-      <div style={{position:"fixed",bottom:22,left:22,zIndex:500}}>
-        <div style={{background:"rgba(91,155,213,.12)",border:"1px solid rgba(91,155,213,.3)",borderRadius:24,padding:"6px 14px",display:"flex",alignItems:"center",gap:8,boxShadow:"0 4px 16px rgba(0,0,0,.4)"}}>
-          <span style={{fontSize:"1rem"}}>{activeScene&&activeScene.icon}</span>
-          <span style={{fontFamily:"'Cinzel',serif",fontSize:".6rem",letterSpacing:".1em",color:"#90b8f0"}}>{activeScene&&activeScene.label}</span>
-          <input type="range" min={0} max={1} step={0.05} value={volume} className="amb-vol-slider" style={{width:60}} onChange={e=>changeVolume(Number(e.target.value))}/>
-        </div>
-      </div>
-    );
-  }
-
-  return(
-    <>
-      {open&&(
-        <div className="amb-panel">
-          <div className="amb-title">
-            🎵 Ambiyans
-            <button className="amb-close" onClick={()=>setOpen(false)}>✕</button>
-          </div>
-          <div className="amb-grid">
-            {SCENES.map(s=>(
-              <button key={s.id} className={`amb-btn${activeId===s.id?" active":""}`} onClick={()=>selectScene(s.id)}>
-                <span className="amb-btn-icon">{s.icon}</span>
-                <span className="amb-btn-label">{s.label}</span>
-              </button>
-            ))}
-          </div>
-          <div className="amb-volume">
-            <label>🔊</label>
-            <input type="range" min={0} max={1} step={0.05} value={volume} className="amb-vol-slider" onChange={e=>changeVolume(Number(e.target.value))}/>
-          </div>
-          {activeId&&<div className="amb-now-playing">♪ {activeScene&&activeScene.icon} {activeScene&&activeScene.label} çalıyor...</div>}
-          {!activeId&&<div className="amb-now-playing">Bir ortam seç</div>}
-        </div>
-      )}
-      <div className="amb-bar">
-        <button className={`amb-toggle${activeId?" playing":""}`} onClick={()=>setOpen(o=>!o)} title="Ambiyans">
-          {activeId?(activeScene&&activeScene.icon)||"🎵":"🎵"}
-        </button>
-      </div>
-    </>
-  );
-}
-
 function SettingsPanel({onClose,darkness,setDarkness,animOn,setAnimOn}){
   const isLight=darkness>60;
   return <>
@@ -1701,6 +1926,7 @@ function App(){
       {all.map(p=><span key={p.name} className={`op${p.role==="dm"?" dm":""}`}><span className="pd" style={{width:5,height:5}}/>{p.name}{p.role==="dm"?" 👁":""}</span>)}
       {!all.length&&<span style={{fontSize:".72rem",color:"rgba(245,230,200,.25)",fontStyle:"italic"}}>bağlanıyor...</span>}
     </div>
+    <InitiativeBar isDM={role==="dm"} all={all} npcs={npcs} avatars={avatars}/>
     <div className="tabs">
       {TABS.map(t=><button key={t.id} className={`tb${tab===t.id?" on":""}`} onClick={()=>setTab(t.id)}>{t.l}</button>)}
     </div>
