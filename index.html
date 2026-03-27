@@ -11,6 +11,7 @@
 <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
 <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script src="https://unpkg.com/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 <script type="text/babel">
 const {useState,useEffect,useRef}=React;
 const FB="https://incitavernroll-default-rtdb.europe-west1.firebasedatabase.app";
@@ -25,34 +26,41 @@ const fbListen=(path,cb)=>{
   return()=>es.close();
 };
 
-const DICE=[{s:4,i:"🔺"},{s:6,i:"🎲"},{s:8,i:"🔷"},{s:10,i:"🔟"},{s:12,i:"🔶"},{s:20,i:"⭐"},{s:100,i:"💯"}];
-const DI={4:"🔺",6:"🎲",8:"🔷",10:"🔟",12:"🔶",20:"⭐",100:"💯"};
+const DICE=[{s:4,i:"🗡️"},{s:6,i:"🛡️"},{s:8,i:"🪄"},{s:10,i:"🔮"},{s:12,i:"💀"},{s:20,i:"⚔️"},{s:100,i:"🐉"}];
+const DI={4:"🗡️",6:"🛡️",8:"🪄",10:"🔮",12:"💀",20:"⚔️",100:"🐉"};
 const STATS=["STR","DEX","CON","INT","WIS","CHA"];
 const CLASSES=["Barbarian","Bard","Cleric","Druid","Fighter","Monk","Paladin","Ranger","Rogue","Sorcerer","Warlock","Wizard"];
 const RACES=["İnsan","Aguslu","Kuzeyli","Sisicalı","Farterli","İnsulamlı","Alalı"];
 const smod=s=>{const m=Math.floor(((parseInt(s)||10)-10)/2);return(m>=0?"+":"")+m};
 const ts=()=>Date.now();
-const iChar=(n="")=>({name:n,race:"",charClass:"",level:"1",stats:{STR:"10",DEX:"10",CON:"10",INT:"10",WIS:"10",CHA:"10"},fiziksel:0,zihinsel:0,ac:"10",speed:"30",proficiency:"2",notes:""});
+const fmtTime=id=>{if(!id)return"";const d=new Date(id);return d.toLocaleTimeString("tr-TR",{hour:"2-digit",minute:"2-digit"});};
+const iChar=(n="")=>({name:n,race:"",charClass:"",level:"1",stats:{STR:"10",DEX:"10",CON:"10",INT:"10",WIS:"10",CHA:"10"},fiziksel:3,zihinsel:3,ac:"10",speed:"30",proficiency:"2",notes:""});
 
 // inject styles
 const S=`*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-body{font-family:'Crimson Text',serif;color:#f5e6c8;background:#0d0705;background-image:radial-gradient(ellipse at 15% 60%,rgba(139,26,26,.07),transparent 55%),radial-gradient(ellipse at 85% 15%,rgba(200,149,42,.05),transparent 50%)}
+:root{
+  --bg0:#0d0705;--bg1:#1e1710;--bg2:#2e2418;
+  --text:#f5e6c8;--text-dim:rgba(245,230,200,.4);--text-mid:rgba(245,230,200,.6);
+  --gold:#c8952a;--gold-light:#f0c060;--blood:#8b1a1a;
+  --border:rgba(200,149,42,.2);--border-gold:rgba(200,149,42,.35);
+}
+body{font-family:'Crimson Text',serif;color:var(--text);background:var(--bg0);background-image:radial-gradient(ellipse at 15% 60%,rgba(139,26,26,.07),transparent 55%),radial-gradient(ellipse at 85% 15%,rgba(200,149,42,.05),transparent 50%)}
 .lobby{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:30px 20px}
 .lt{font-family:'Cinzel',serif;font-size:clamp(2rem,6vw,3.5rem);font-weight:900;color:#f0c060;letter-spacing:.15em;text-shadow:0 0 40px rgba(200,149,42,.35);margin-bottom:6px;text-align:center}
-.ls{font-style:italic;color:rgba(245,230,200,.4);margin-bottom:48px;font-size:1rem}
-.lc{background:#1e1710;border:1px solid rgba(200,149,42,.2);border-radius:10px;padding:32px;width:100%;max-width:400px;box-shadow:0 8px 40px rgba(0,0,0,.5)}
-.lc h2{font-family:'Cinzel',serif;font-size:.7rem;letter-spacing:.2em;color:#c8952a;margin-bottom:20px;text-transform:uppercase}
-.ii{width:100%;background:#2e2418;border:1px solid rgba(200,149,42,.25);border-radius:5px;color:#f5e6c8;font-family:'Crimson Text',serif;font-size:1.1rem;padding:10px 14px;outline:none;margin-bottom:12px}
-.ii:focus{border-color:#c8952a}.ii::placeholder{color:rgba(245,230,200,.25)}
+.ls{font-style:italic;color:var(--text-dim);margin-bottom:48px;font-size:1rem}
+.lc{background:var(--bg1);border:1px solid var(--border);border-radius:10px;padding:32px;width:100%;max-width:400px;box-shadow:0 8px 40px rgba(0,0,0,.5)}
+.lc h2{font-family:'Cinzel',serif;font-size:.7rem;letter-spacing:.2em;color:var(--gold);margin-bottom:20px;text-transform:uppercase}
+.ii{width:100%;background:var(--bg2);border:1px solid var(--border-gold);border-radius:5px;color:var(--text);font-family:'Crimson Text',serif;font-size:1.1rem;padding:10px 14px;outline:none;margin-bottom:12px}
+.ii:focus{border-color:var(--gold)}.ii::placeholder{color:var(--text-dim)}
 .lr{display:flex;gap:10px;margin-bottom:12px}
-.rb{flex:1;background:#2e2418;border:1px solid rgba(200,149,42,.2);border-radius:5px;color:rgba(245,230,200,.5);font-family:'Cinzel',serif;font-size:.7rem;letter-spacing:.1em;padding:10px;cursor:pointer;transition:all .2s;text-transform:uppercase}
-.rb.on{background:rgba(200,149,42,.12);border-color:#c8952a;color:#f0c060}
-.jb{width:100%;background:rgba(200,149,42,.12);border:1px solid rgba(200,149,42,.4);border-radius:5px;color:#f0c060;font-family:'Cinzel',serif;font-size:.8rem;letter-spacing:.15em;padding:13px;cursor:pointer;transition:all .2s;text-transform:uppercase;margin-top:6px}
+.rb{flex:1;background:var(--bg2);border:1px solid var(--border);border-radius:5px;color:var(--text-dim);font-family:'Cinzel',serif;font-size:.7rem;letter-spacing:.1em;padding:10px;cursor:pointer;transition:all .2s;text-transform:uppercase}
+.rb.on{background:rgba(200,149,42,.12);border-color:var(--gold);color:var(--gold-light)}
+.jb{width:100%;background:rgba(200,149,42,.12);border:1px solid rgba(200,149,42,.4);border-radius:5px;color:var(--gold-light);font-family:'Cinzel',serif;font-size:.8rem;letter-spacing:.15em;padding:13px;cursor:pointer;transition:all .2s;text-transform:uppercase;margin-top:6px}
 .jb:hover{background:rgba(200,149,42,.2)}.jb:disabled{opacity:.4;cursor:not-allowed}
 .hdr{display:flex;align-items:center;justify-content:space-between;padding:14px 20px;border-bottom:1px solid rgba(200,149,42,.15);position:sticky;top:0;z-index:100;background:rgba(13,7,5,.96);backdrop-filter:blur(8px)}
 .htitle{font-family:'Cinzel',serif;font-size:1.1rem;font-weight:900;color:#f0c060;letter-spacing:.12em}
-.huser{font-size:.8rem;color:rgba(245,230,200,.4);font-style:italic}
-.huser strong{color:#c8952a;font-style:normal;font-family:'Cinzel',serif;font-size:.75rem}
+.huser{font-size:.8rem;color:var(--text-dim);font-style:italic}
+.huser strong{color:var(--gold);font-style:normal;font-family:'Cinzel',serif;font-size:.75rem}
 .pd{display:inline-block;width:7px;height:7px;border-radius:50%;background:#3cb454;margin-right:6px;animation:pulse 2s infinite}
 @keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(.8)}}
 .ob{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:8px 18px;border-bottom:1px solid rgba(200,149,42,.08);background:rgba(0,0,0,.2)}
@@ -65,52 +73,102 @@ body{font-family:'Crimson Text',serif;color:#f5e6c8;background:#0d0705;backgroun
 .panel{padding:10px 18px 50px;max-width:860px;margin:0 auto}
 .dg{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:22px}
 @media(min-width:500px){.dg{grid-template-columns:repeat(7,1fr)}}
-.db{aspect-ratio:1;background:#1e1710;border:1px solid rgba(200,149,42,.18);border-radius:8px;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;transition:all .18s;position:relative;overflow:hidden}
+.db{aspect-ratio:1;background:var(--bg1);border:1px solid rgba(200,149,42,.18);border-radius:8px;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;transition:all .18s;position:relative;overflow:hidden}
 .db::before{content:'';position:absolute;inset:0;background:radial-gradient(circle at 30% 30%,rgba(200,149,42,.07),transparent 70%)}
-.db:hover{border-color:#c8952a;transform:translateY(-2px);box-shadow:0 4px 18px rgba(200,149,42,.18)}.db:active{transform:scale(.95)}
-.di{font-size:1.6rem}.dl{font-family:'Cinzel',serif;font-size:.6rem;color:#c8952a;margin-top:2px}
-.ra{background:#1e1710;border:1px solid rgba(200,149,42,.15);border-radius:10px;padding:22px 20px;text-align:center;min-height:120px;display:flex;flex-direction:column;align-items:center;justify-content:center;margin-bottom:14px}
-.rw{font-family:'Cinzel',serif;font-size:.62rem;letter-spacing:.15em;color:#c8952a;margin-bottom:6px;text-transform:uppercase}
+.db:hover{border-color:var(--gold);transform:translateY(-2px);box-shadow:0 4px 18px rgba(200,149,42,.18)}.db:active{transform:scale(.95)}
+.di{font-size:1.6rem}.dl{font-family:'Cinzel',serif;font-size:.6rem;color:var(--gold);margin-top:2px}
+.ra{background:var(--bg1);border:1px solid rgba(200,149,42,.15);border-radius:10px;padding:22px 20px;text-align:center;min-height:120px;display:flex;flex-direction:column;align-items:center;justify-content:center;margin-bottom:14px}
+.rw{font-family:'Cinzel',serif;font-size:.62rem;letter-spacing:.15em;color:var(--gold);margin-bottom:6px;text-transform:uppercase}
 .rn{font-family:'Cinzel',serif;font-size:4rem;font-weight:900;color:#f0c060;text-shadow:0 0 24px rgba(200,149,42,.5);line-height:1}
 .rn.crit{color:#ffd700;text-shadow:0 0 30px gold,0 0 60px gold}.rn.fum{color:#e05050;text-shadow:0 0 20px #c03030}
-.rm{font-size:.9rem;color:rgba(245,230,200,.45);margin-top:5px;font-style:italic}
+.fireworks{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:999;overflow:hidden}
+.spark{position:absolute;width:8px;height:8px;border-radius:50%;animation:spark-fly 1.2s ease-out forwards}
+@keyframes spark-fly{0%{transform:translate(0,0) scale(1);opacity:1}100%{transform:translate(var(--dx),var(--dy)) scale(0);opacity:0}}
+.smoke-overlay{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:999;overflow:hidden}
+.smoke-puff{position:absolute;border-radius:50%;animation:smoke-rise var(--dur) ease-out forwards;filter:blur(var(--blur))}
+@keyframes smoke-rise{0%{transform:translate(0,0) scale(0.2);opacity:0.85}40%{opacity:0.6}100%{transform:translate(var(--dx),var(--dy)) scale(var(--sc));opacity:0}}
+@keyframes screen-flash{0%{opacity:0}15%{opacity:0.18}35%{opacity:0.08}60%{opacity:0.14}100%{opacity:0}}
+.smoke-flash{position:fixed;inset:0;background:radial-gradient(ellipse at center,rgba(80,0,0,0.5),rgba(20,5,5,0.7));pointer-events:none;z-index:998;animation:screen-flash 1.8s ease-out forwards}
+.rm{font-size:.9rem;color:var(--text-dim);margin-top:5px;font-style:italic}
 @keyframes rp{0%{transform:scale(.5) rotate(-10deg);opacity:0}60%{transform:scale(1.15) rotate(2deg)}100%{transform:scale(1) rotate(0);opacity:1}}
 .ra2{animation:rp .35s cubic-bezier(.175,.885,.32,1.275)}
 .ft{font-family:'Cinzel',serif;font-size:.62rem;letter-spacing:.18em;color:rgba(200,149,42,.6);text-transform:uppercase;margin-bottom:10px;border-bottom:1px solid rgba(200,149,42,.1);padding-bottom:6px}
 .feed{display:flex;flex-direction:column;gap:6px;margin-bottom:6px}
-.fi{background:#1e1710;border:1px solid rgba(200,149,42,.1);border-radius:6px;padding:10px 14px;display:flex;align-items:center;gap:12px}
+.fi{background:var(--bg1);border:1px solid rgba(200,149,42,.1);border-radius:6px;padding:10px 14px;display:flex;align-items:center;gap:12px}
 .fi.nr{border-color:rgba(200,149,42,.35);background:rgba(200,149,42,.05);animation:fp .4s ease-out}
 @keyframes fp{0%{transform:translateX(-8px);opacity:0}100%{transform:translateX(0);opacity:1}}
 .fdie{font-size:1.4rem;min-width:28px;text-align:center}.fb{flex:1}
-.fp{font-family:'Cinzel',serif;font-size:.72rem;color:#c8952a;letter-spacing:.06em}
-.fd{font-size:.82rem;color:rgba(245,230,200,.5);font-style:italic;margin-top:1px}
+.fp{font-family:'Cinzel',serif;font-size:.72rem;color:var(--gold);letter-spacing:.06em;display:flex;justify-content:space-between;align-items:center}
+.fd{font-size:.82rem;color:var(--text-mid);font-style:italic;margin-top:1px}
 .fv{font-family:'Cinzel',serif;font-size:1.5rem;font-weight:900;color:#f0c060}
 .fv.crit{color:#ffd700}.fv.fum{color:#e05050}
+.feed::-webkit-scrollbar{width:4px}.feed::-webkit-scrollbar-track{background:transparent}.feed::-webkit-scrollbar-thumb{background:rgba(200,149,42,0.3);border-radius:2px}
 .mr{display:flex;align-items:center;gap:10px;margin-bottom:16px}
-.mr label{font-size:.85rem;color:rgba(245,230,200,.5);font-style:italic}
-.mi{background:#2e2418;border:1px solid rgba(200,149,42,.25);border-radius:4px;color:#f5e6c8;font-family:'Cinzel',serif;font-size:1rem;width:70px;text-align:center;padding:5px 8px;outline:none}
-.st{font-family:'Cinzel',serif;font-size:.6rem;letter-spacing:.2em;color:#c8952a;text-transform:uppercase;border-bottom:1px solid rgba(200,149,42,.15);padding-bottom:6px;margin:18px 0 12px}
+.mr label{font-size:.85rem;color:var(--text-dim);font-style:italic}
+.mi{background:var(--bg2);border:1px solid rgba(200,149,42,.25);border-radius:4px;color:var(--text);font-family:'Cinzel',serif;font-size:1rem;width:70px;text-align:center;padding:5px 8px;outline:none}
+.st{font-family:'Cinzel',serif;font-size:.6rem;letter-spacing:.2em;color:var(--gold);text-transform:uppercase;border-bottom:1px solid rgba(200,149,42,.15);padding-bottom:6px;margin:18px 0 12px}
 .cg{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
 @media(min-width:560px){.cg{grid-template-columns:repeat(4,1fr)}}
 .cf label{display:block;font-family:'Cinzel',serif;font-size:.55rem;letter-spacing:.12em;color:#c8952a;margin-bottom:4px}
-.cf input,.cf select{width:100%;background:#1e1710;border:1px solid rgba(200,149,42,.2);border-radius:4px;color:#f5e6c8;font-family:'Crimson Text',serif;font-size:1rem;padding:6px 8px;outline:none}
-.cf input:focus,.cf select:focus{border-color:#c8952a}.cf select option{background:#1e1710}
+.cf input,.cf select{width:100%;background:var(--bg1);border:1px solid rgba(200,149,42,.2);border-radius:4px;color:#f5e6c8;font-family:'Crimson Text',serif;font-size:1rem;padding:6px 8px;outline:none}
+.cf input:focus,.cf select:focus{border-color:var(--gold)}.cf select option{background:var(--bg1)}
 .sg{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px}
 @media(min-width:460px){.sg{grid-template-columns:repeat(6,1fr)}}
-.sb{background:#1e1710;border:1px solid rgba(200,149,42,.18);border-radius:6px;text-align:center;padding:9px 4px 7px}
-.sn{font-family:'Cinzel',serif;font-size:.52rem;letter-spacing:.1em;color:#c8952a;margin-bottom:5px}
-.ss input{background:transparent;border:none;color:#f5e6c8;font-family:'Cinzel',serif;font-size:1.4rem;font-weight:900;width:100%;text-align:center;outline:none}
+.sb{background:var(--bg1);border:1px solid rgba(200,149,42,.18);border-radius:6px;text-align:center;padding:9px 4px 7px}
+.sn{font-family:'Cinzel',serif;font-size:.52rem;letter-spacing:.1em;color:var(--gold);margin-bottom:5px}
+.ss input{background:transparent;border:none;color:var(--text);font-family:'Cinzel',serif;font-size:1.4rem;font-weight:900;width:100%;text-align:center;outline:none}
 .sm{font-size:.82rem;color:rgba(200,149,42,.8);margin-top:2px}
 .vr{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px}
-.vb{background:#1e1710;border:1px solid rgba(200,149,42,.18);border-radius:6px;padding:10px;text-align:center}
-.vb label{display:block;font-family:'Cinzel',serif;font-size:.52rem;letter-spacing:.1em;color:#c8952a;margin-bottom:5px}
+.vb{background:var(--bg1);border:1px solid rgba(200,149,42,.18);border-radius:6px;padding:10px;text-align:center}
+.vb label{display:block;font-family:'Cinzel',serif;font-size:.52rem;letter-spacing:.1em;color:var(--gold);margin-bottom:5px}
 .vb input{background:transparent;border:none;border-bottom:1px solid rgba(200,149,42,.25);color:#f5e6c8;font-family:'Cinzel',serif;font-size:1.3rem;font-weight:600;width:100%;text-align:center;outline:none}
-.na{width:100%;background:#1e1710;border:1px solid rgba(200,149,42,.2);border-radius:4px;color:#f5e6c8;font-family:'Crimson Text',serif;font-size:1rem;padding:10px;resize:vertical;outline:none;min-height:80px;line-height:1.5}
+.na{width:100%;background:var(--bg1);border:1px solid rgba(200,149,42,.2);border-radius:4px;color:var(--text);font-family:'Crimson Text',serif;font-size:1rem;padding:10px;resize:vertical;outline:none;min-height:80px;line-height:1.5}
 .na:focus{border-color:#c8952a}
 .si{font-size:.75rem;color:rgba(200,149,42,.5);font-style:italic;margin-top:6px;text-align:right;transition:color .3s}
 .si.ok{color:#3cb454}
+/* Notebooks */
+.nb-actions{display:flex;gap:10px;margin-bottom:18px;flex-wrap:wrap}
+.nb-action-btn{flex:1;min-width:140px;background:var(--bg2);border:1px solid var(--border-gold);border-radius:6px;color:var(--gold-light);font-family:'Cinzel',serif;font-size:.68rem;letter-spacing:.1em;padding:12px 8px;cursor:pointer;transition:all .2s;text-transform:uppercase;text-align:center}
+.nb-action-btn:hover{background:rgba(200,149,42,.15);box-shadow:0 0 12px rgba(200,149,42,.15)}
+.nb-form{background:var(--bg1);border:1px solid var(--border-gold);border-radius:8px;padding:16px;margin-bottom:14px}
+.nb-form h4{font-family:'Cinzel',serif;font-size:.62rem;letter-spacing:.15em;color:var(--gold);text-transform:uppercase;margin-bottom:12px}
+.nb-input{width:100%;background:var(--bg2);border:1px solid rgba(200,149,42,.25);border-radius:4px;color:var(--text);font-family:'Crimson Text',serif;font-size:1rem;padding:8px 10px;outline:none;margin-bottom:8px}
+.nb-input:focus{border-color:var(--gold)}
+.nb-input::placeholder{color:var(--text-dim)}
+.nb-btn{background:rgba(200,149,42,.1);border:1px solid rgba(200,149,42,.35);border-radius:4px;color:var(--gold-light);font-family:'Cinzel',serif;font-size:.68rem;letter-spacing:.1em;padding:8px 16px;cursor:pointer;transition:all .2s;text-transform:uppercase}
+.nb-btn:hover{background:rgba(200,149,42,.2)}
+.nb-btn.cancel{background:transparent;border-color:rgba(200,149,42,.2);color:var(--text-dim)}
+.nb-btn.cancel:hover{border-color:var(--gold);color:var(--gold)}
+.nb-list{display:flex;flex-direction:column;gap:8px;margin-bottom:14px}
+.nb-item{background:var(--bg1);border:1px solid rgba(200,149,42,.2);border-radius:6px;padding:12px 14px;display:flex;align-items:center;gap:10px;cursor:pointer;transition:all .2s}
+.nb-item:hover{border-color:var(--gold-light);background:rgba(200,149,42,.06)}
+.nb-item.active{border-color:#f0c060;background:rgba(200,149,42,.1);box-shadow:0 0 10px rgba(200,149,42,.15)}
+.nb-item-icon{font-size:1.4rem}
+.nb-item-body{flex:1}
+.nb-item-name{font-family:'Cinzel',serif;font-size:.85rem;color:var(--gold-light);font-weight:600}
+.nb-item-meta{font-size:.75rem;color:var(--text-dim);margin-top:2px;font-style:italic}
+.nb-item-lock{font-size:.85rem;opacity:.5}
+.nb-editor{background:var(--bg1);border:1px solid rgba(200,149,42,.2);border-radius:8px;overflow:hidden}
+.nb-editor-header{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:1px solid rgba(200,149,42,.12);background:rgba(200,149,42,.04)}
+.nb-editor-title{font-family:'Cinzel',serif;font-size:.78rem;color:var(--gold-light);font-weight:600}
+.nb-editor-meta{font-size:.7rem;color:var(--text-dim);font-style:italic}
+.nb-editor-close{background:transparent;border:1px solid rgba(200,149,42,.2);border-radius:3px;color:var(--text-dim);font-family:'Cinzel',serif;font-size:.6rem;padding:3px 8px;cursor:pointer}
+.nb-editor-close:hover{border-color:var(--gold);color:var(--gold)}
+.nb-textarea{width:100%;background:transparent;border:none;color:var(--text);font-family:'Crimson Text',serif;font-size:1.05rem;padding:14px;outline:none;resize:none;line-height:1.7;min-height:260px}
+.nb-footer{padding:6px 14px;border-top:1px solid rgba(200,149,42,.08);display:flex;justify-content:space-between;align-items:center}
+.nb-wordcount{font-size:.72rem;color:var(--text-dim);font-style:italic}
+.nb-save-ind{font-size:.72rem;color:rgba(200,149,42,.5);font-style:italic;transition:color .3s}
+.nb-save-ind.ok{color:#3cb454}
+.nb-lock-overlay{display:flex;flex-direction:column;align-items:center;gap:12px;padding:28px 20px;text-align:center}
+.nb-lock-icon{font-size:2.5rem;opacity:.6}
+.nb-lock-title{font-family:'Cinzel',serif;font-size:.75rem;letter-spacing:.12em;color:var(--gold);text-transform:uppercase}
+.nb-err{color:#ff6060;font-size:.78rem;font-style:italic}
+.nb-dm-row{display:flex;align-items:flex-start;gap:10px;padding:8px 12px;background:rgba(139,26,26,.06);border:1px solid rgba(139,26,26,.15);border-radius:5px;margin-bottom:6px}
+.nb-dm-info{flex:1}
+.nb-dm-name{font-family:'Cinzel',serif;font-size:.75rem;color:#ffaaaa;font-weight:600}
+.nb-dm-pass{font-size:.78rem;color:rgba(245,230,200,.45);font-style:italic;margin-top:2px}
 .dmo{background:rgba(139,26,26,.08);border:1px solid rgba(139,26,26,.2);border-radius:5px;padding:8px 14px;margin-bottom:16px;font-size:.8rem;color:rgba(245,230,200,.45);font-style:italic;text-align:center}
-.cb{background:#1e1710;border:1px solid rgba(200,149,42,.18);border-radius:8px;padding:14px;margin-bottom:12px}
+.cb{background:var(--bg1);border:1px solid rgba(200,149,42,.18);border-radius:8px;padding:14px;margin-bottom:12px}
 .cr{display:flex;gap:14px;align-items:flex-start;flex-wrap:wrap}
 .ch{flex:1;min-width:120px}
 .cl{font-family:'Cinzel',serif;font-size:.58rem;letter-spacing:.14em;text-transform:uppercase;margin-bottom:8px;display:block}
@@ -138,7 +196,7 @@ body{font-family:'Crimson Text',serif;color:#f5e6c8;background:#0d0705;backgroun
 .mp.ff{border-color:#4caf7d;background:#4caf7d}.mp.fe{border-color:rgba(76,175,125,.3);background:transparent}
 .mp.zf{border-color:#5b9bd5;background:#5b9bd5}.mp.ze{border-color:rgba(91,155,213,.3);background:transparent}
 .nl{display:flex;flex-direction:column;gap:10px;margin-bottom:20px}
-.nc{background:#1e1710;border:1px solid rgba(200,149,42,.15);border-radius:8px;padding:14px;transition:border-color .2s}
+.nc{background:var(--bg1);border:1px solid rgba(200,149,42,.15);border-radius:8px;padding:14px;transition:border-color .2s}
 .nc:hover{border-color:rgba(200,149,42,.3)}.nc.dead{opacity:.5;filter:grayscale(.5)}
 .nr2{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:4px}
 .nn{font-family:'Cinzel',serif;font-size:1rem;color:#f0c060;font-weight:600}
@@ -149,7 +207,7 @@ body{font-family:'Crimson Text',serif;color:#f5e6c8;background:#0d0705;backgroun
 .ns{font-size:.78rem;color:rgba(245,230,200,.4);margin-bottom:8px}
 .nnt{font-size:.82rem;color:rgba(245,230,200,.45);font-style:italic;margin-bottom:8px}
 .nct{display:flex;gap:6px;flex-wrap:wrap}
-.nbtn{background:#2e2418;border:1px solid rgba(200,149,42,.15);color:rgba(245,230,200,.65);font-family:'Cinzel',serif;font-size:.62rem;letter-spacing:.05em;padding:5px 11px;cursor:pointer;border-radius:3px;transition:all .15s}
+.nbtn{background:var(--bg2);border:1px solid rgba(200,149,42,.15);color:rgba(245,230,200,.65);font-family:'Cinzel',serif;font-size:.62rem;letter-spacing:.05em;padding:5px 11px;cursor:pointer;border-radius:3px;transition:all .15s}
 .nbtn.rm:hover{border-color:#8b1a1a;color:#ff9090}
 .danger-btn{background:rgba(139,26,26,.1);border:1px solid rgba(139,26,26,.35);border-radius:4px;color:#ff9090;font-family:'Cinzel',serif;font-size:.7rem;letter-spacing:.1em;padding:8px 16px;cursor:pointer;transition:all .2s;text-transform:uppercase}
 .danger-btn:hover{background:rgba(139,26,26,.2);border-color:#c03030}
@@ -161,11 +219,11 @@ body{font-family:'Crimson Text',serif;color:#f5e6c8;background:#0d0705;backgroun
 .no-btn{background:rgba(200,149,42,.08);border:1px solid rgba(200,149,42,.3);border-radius:4px;color:rgba(245,230,200,.6);font-family:'Cinzel',serif;font-size:.68rem;padding:6px 14px;cursor:pointer;transition:all .15s;text-transform:uppercase}
 .no-btn:hover{border-color:#c8952a;color:#f0c060}
 .dm-tools{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;padding:12px;background:rgba(139,26,26,.05);border:1px solid rgba(139,26,26,.15);border-radius:6px}
-.an{background:#1e1710;border:1px dashed rgba(200,149,42,.2);border-radius:8px;padding:16px}
+.an{background:var(--bg1);border:1px dashed rgba(200,149,42,.2);border-radius:8px;padding:16px}
 .an h3{font-family:'Cinzel',serif;font-size:.65rem;letter-spacing:.15em;color:#c8952a;margin-bottom:12px;text-transform:uppercase}
 .f2{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px}
-.fin{background:#2e2418;border:1px solid rgba(200,149,42,.2);border-radius:4px;color:#f5e6c8;font-family:'Crimson Text',serif;font-size:.95rem;padding:6px 10px;outline:none;width:100%}
-.fin:focus{border-color:#c8952a}.fin option{background:#1e1710}
+.fin{background:var(--bg2);border:1px solid rgba(200,149,42,.2);border-radius:4px;color:var(--text);font-family:'Crimson Text',serif;font-size:.95rem;padding:6px 10px;outline:none;width:100%}
+.fin:focus{border-color:var(--gold)}.fin option{background:var(--bg1)}
 .ab{background:rgba(200,149,42,.1);border:1px solid rgba(200,149,42,.35);border-radius:4px;color:#f0c060;font-family:'Cinzel',serif;font-size:.72rem;letter-spacing:.12em;padding:9px 20px;cursor:pointer;transition:all .2s;text-transform:uppercase}
 .ab:hover{background:rgba(200,149,42,.18)}
 .em{text-align:center;padding:28px;color:rgba(245,230,200,.25);font-style:italic}
@@ -176,7 +234,37 @@ body{font-family:'Crimson Text',serif;color:#f5e6c8;background:#0d0705;backgroun
 .mc{border-radius:7px;padding:10px 12px 9px;border:1px solid;position:relative;overflow:hidden;transition:transform .15s}
 .mc::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at 20% 20%,rgba(255,255,255,.04),transparent 70%);pointer-events:none}
 .mc:hover{transform:translateY(-1px)}
-.mc.player{background:rgba(42,30,10,.9);border-color:rgba(200,149,42,.35)}
+.mc.player{background:var(--bg1);border-color:rgba(200,149,42,.35)}
+.mc.player.me{border-color:#f0c060;border-width:2px;box-shadow:0 0 12px rgba(240,192,96,.2)}
+.ts{font-size:.62rem;color:rgba(245,230,200,.3);margin-left:auto;white-space:nowrap}
+/* Settings */
+.gear-btn{background:transparent;border:1px solid rgba(200,149,42,.2);border-radius:6px;color:rgba(245,230,200,.45);font-size:1rem;width:32px;height:32px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .2s;flex-shrink:0}
+.gear-btn:hover{border-color:var(--gold);color:var(--gold-light)}
+.settings-overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:200;display:flex;align-items:flex-start;justify-content:flex-end;padding:60px 16px 0}
+.settings-panel{background:var(--bg1);border:1px solid rgba(200,149,42,.3);border-radius:10px;padding:24px;width:100%;max-width:300px;box-shadow:0 8px 40px rgba(0,0,0,.6)}
+.settings-title{font-family:'Cinzel',serif;font-size:.7rem;letter-spacing:.2em;color:var(--gold);text-transform:uppercase;margin-bottom:20px;display:flex;justify-content:space-between;align-items:center}
+.settings-close{background:transparent;border:1px solid rgba(200,149,42,.2);border-radius:4px;color:rgba(245,230,200,.4);font-size:.7rem;padding:3px 9px;cursor:pointer;font-family:'Cinzel',serif}
+.settings-close:hover{border-color:var(--gold);color:var(--gold-light)}
+.settings-section{margin-bottom:20px}
+.settings-section-title{font-family:'Cinzel',serif;font-size:.58rem;letter-spacing:.15em;color:rgba(200,149,42,.6);text-transform:uppercase;margin-bottom:12px;border-bottom:1px solid rgba(200,149,42,.1);padding-bottom:5px}
+.theme-btns{display:flex;gap:8px;margin-bottom:14px}
+.theme-btn{flex:1;background:rgba(200,149,42,.06);border:1px solid rgba(200,149,42,.2);border-radius:5px;color:rgba(245,230,200,.5);font-family:'Cinzel',serif;font-size:.62rem;letter-spacing:.08em;padding:8px 6px;cursor:pointer;transition:all .2s;text-transform:uppercase;text-align:center}
+.theme-btn.on{background:rgba(200,149,42,.14);border-color:var(--gold);color:var(--gold-light)}
+.slider-row{margin-top:8px}
+.slider-label{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;font-size:.75rem;color:rgba(245,230,200,.45)}
+.slider-label span{font-family:'Cinzel',serif;font-size:.58rem;letter-spacing:.08em;color:var(--gold)}
+.theme-slider{-webkit-appearance:none;width:100%;height:5px;border-radius:3px;outline:none;cursor:pointer}
+.theme-slider::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;border-radius:50%;background:var(--gold-light);border:2px solid var(--gold);cursor:pointer;box-shadow:0 0 6px rgba(200,149,42,.4)}
+.theme-slider::-moz-range-thumb{width:16px;height:16px;border-radius:50%;background:var(--gold-light);border:2px solid var(--gold);cursor:pointer}
+.toggle-row{display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid rgba(200,149,42,.07)}
+.toggle-label{font-size:.82rem;color:rgba(245,230,200,.65)}
+.toggle-sub{font-size:.7rem;color:rgba(245,230,200,.3);margin-top:2px}
+.toggle{position:relative;width:42px;height:22px;flex-shrink:0}
+.toggle input{opacity:0;width:0;height:0}
+.toggle-track{position:absolute;inset:0;background:rgba(200,149,42,.12);border:1px solid rgba(200,149,42,.2);border-radius:11px;cursor:pointer;transition:all .25s}
+.toggle input:checked+.toggle-track{background:rgba(200,149,42,.35);border-color:var(--gold)}
+.toggle-thumb{position:absolute;top:2px;left:2px;width:16px;height:16px;background:rgba(245,230,200,.4);border-radius:50%;transition:transform .25s}
+.toggle input:checked~.toggle-thumb{transform:translateX(20px);background:var(--gold-light)}
 .mc.ally{background:rgba(10,30,14,.9);border-color:rgba(60,180,80,.35)}
 .mc.neutral{background:rgba(10,18,32,.9);border-color:rgba(80,130,200,.35)}
 .mc.enemy{background:rgba(28,8,8,.95);border-color:rgba(180,40,40,.4)}
@@ -192,14 +280,14 @@ const el=document.createElement("style");el.textContent=S;document.head.appendCh
 function PipBar({type,hasar,onChange,disabled}){
   const c=type==="fiziksel"?"f":"z";
   return <div className="ch">
-    <span className={`cl ${c}`}>{type==="fiziksel"?"⚔ Fiziksel":"🧠 Zihinsel"}</span>
+    <span className={`cl ${c}`}>{type==="fiziksel"?"⚔ Beden":"🧠 Zihin"}</span>
     <div className="pr">{[0,1,2].map(i=><button key={i} className={`pip ${c}${i<hasar?"f":"e"}`} disabled={disabled} onClick={()=>onChange(i<hasar&&i===hasar-1?hasar-1:i+1)}/>)}</div>
   </div>;
 }
 function NpcPips({type,hasar,onChange,disabled}){
   const c=type==="fiziksel"?"f":"z";
   return <div className="ncr">
-    <span className={`ncl ${c}`}>{type==="fiziksel"?"⚔ Fiziksel":"🧠 Zihinsel"}</span>
+    <span className={`ncl ${c}`}>{type==="fiziksel"?"⚔ Beden":"🧠 Zihin"}</span>
     {[0,1,2].map(i=><button key={i} className={`np ${c}${i<hasar?"f":"e"}`} disabled={disabled} onClick={()=>onChange(i<hasar&&i===hasar-1?hasar-1:i+1)}/>)}
   </div>;
 }
@@ -210,60 +298,477 @@ function MPs({type,hasar}){
 
 function Masa({me,char,npcs,all}){
   const tl={player:"OYUNCU",ally:"MÜTTEFİK",neutral:"TARAFSIZ",enemy:"DÜŞMAN"};
-  const pc=all.map(p=>{const c=p.name===me?char:(p.char||{});return{key:`p-${p.name}`,type:"player",name:c.name||p.name,sub:[c.race,c.charClass,c.level?`Lvl ${c.level}`:null].filter(Boolean).join(" · ")||"—",fiziksel:c.fiziksel||0,zihinsel:c.zihinsel||0,ac:c.ac,dead:(c.fiziksel||0)>=3&&(c.zihinsel||0)>=3};});
-  const nc=npcs.map(n=>({key:`n-${n.id}`,type:n.type,name:n.name,sub:`ZS ${n.ac} · CR ${n.cr}`,fiziksel:n.fiziksel||0,zihinsel:n.zihinsel||0,dead:(n.fiziksel||0)>=3&&(n.zihinsel||0)>=3}));
-  const ord={player:0,ally:1,neutral:2,enemy:3};
-  const cards=[...pc,...nc].sort((a,b)=>ord[a.type]-ord[b.type]);
+
+  // Kendi kartı her zaman önce — char prop'tan anlık geliyor
+  const myCard={
+    key:`p-${me}`, type:"player", isMe:true,
+    name:char.name||me,
+    sub:[char.race,char.charClass,char.level?`Lvl ${char.level}`:null].filter(Boolean).join(" · ")||"—",
+    fiziksel:char.fiziksel||0, zihinsel:char.zihinsel||0, ac:char.ac,
+    dead:(char.fiziksel||0)<=0&&(char.zihinsel||0)<=0
+  };
+
+  // Diğer oyuncular
+  const otherPCs=all.filter(p=>p.name!==me).map(p=>{
+    const c=p.char||{};
+    return{key:`p-${p.name}`,type:"player",isMe:false,
+      name:c.name||p.name,
+      sub:[c.race,c.charClass,c.level?`Lvl ${c.level}`:null].filter(Boolean).join(" · ")||"—",
+      fiziksel:c.fiziksel||0,zihinsel:c.zihinsel||0,ac:c.ac,
+      dead:(c.fiziksel||0)<=0&&(c.zihinsel||0)<=0};
+  });
+
+  const npcCards=npcs.map(n=>({key:`n-${n.id}`,type:n.type,isMe:false,name:n.name,
+    sub:`ZS ${n.ac} · CR ${n.cr}`,fiziksel:n.fiziksel||0,zihinsel:n.zihinsel||0,
+    dead:(n.fiziksel||0)<=0&&(n.zihinsel||0)<=0}));
+
+  const ord={ally:1,neutral:2,enemy:3};
+  const others=[...otherPCs,...npcCards].sort((a,b)=>(ord[a.type]||0)-(ord[b.type]||0));
+  const cards=[myCard,...others];
+
   if(!cards.length)return null;
   return <div className="mw">
     <div className="mh">⚔ Masa Durumu</div>
-    <div className="mg">{cards.map(c=><div key={c.key} className={`mc ${c.type}${c.dead?" dead":""}`}>
-      {c.dead&&<span className="sku">💀</span>}
-      <div className="mtg">{tl[c.type]}</div>
-      <div className="mnm">{c.name}</div>
-      <div className="msb">{c.sub}</div>
+    <div className="mg">{cards.map(card=><div key={card.key} className={`mc ${card.type}${card.dead?" dead":""}${card.isMe?" me":""}`}>
+      {card.dead&&<span className="sku">💀</span>}
+      <div className="mtg">{card.isMe?"👤 SEN":tl[card.type]}</div>
+      <div className="mnm">{card.name}</div>
+      <div className="msb">{card.sub}</div>
       <div style={{display:"flex",flexDirection:"column",gap:5,marginTop:4}}>
-        <MPs type="fiziksel" hasar={c.fiziksel}/>
-        <MPs type="zihinsel" hasar={c.zihinsel}/>
+        <MPs type="fiziksel" hasar={card.fiziksel}/>
+        <MPs type="zihinsel" hasar={card.zihinsel}/>
       </div>
-      {c.ac&&<div style={{fontSize:".65rem",color:"rgba(245,230,200,.3)",marginTop:5}}>ZS {c.ac}</div>}
-    </div>)}</div>
+      {card.ac&&<div style={{fontSize:".65rem",color:"rgba(245,230,200,.3)",marginTop:5}}>ZS {card.ac}</div>}
+    </div>)}
+    </div>
   </div>;
 }
 
-function Dice({me,char,npcs,all,rolls,onRoll}){
+function Smoke(){
+  const [puffs,setPuffs]=useState([]);
+  useEffect(()=>{
+    const cx=window.innerWidth/2;
+    const cy=window.innerHeight*0.4;
+    const colors=["#1a0a0a","#2d0d0d","#3a1a1a","#1c1010","#0d0505","#2a1515","#150808","#241212"];
+    const count=28;
+    const newPuffs=Array.from({length:count},(_,i)=>{
+      const angle=(i/count)*Math.PI*2+(Math.random()-0.5)*0.6;
+      const dist=60+Math.random()*180;
+      const dx=Math.cos(angle)*dist*(0.7+Math.random()*0.6);
+      const dy=Math.sin(angle)*dist*(0.5+Math.random()*0.5)-Math.random()*60;
+      const size=40+Math.random()*90;
+      return{
+        id:i,
+        x:cx+Math.random()*80-40,
+        y:cy+Math.random()*40-20,
+        dx,dy,
+        size,
+        color:colors[i%colors.length],
+        blur:8+Math.random()*16,
+        scale:2+Math.random()*2.5,
+        dur:1.4+Math.random()*0.8,
+        delay:Math.random()*0.25,
+      };
+    });
+    setPuffs(newPuffs);
+    const t=setTimeout(()=>setPuffs([]),2400);
+    return()=>clearTimeout(t);
+  },[]);
+  return <>
+    <div className="smoke-flash"/>
+    <div className="smoke-overlay">
+      {puffs.map(p=><div key={p.id} className="smoke-puff" style={{
+        left:p.x, top:p.y,
+        width:p.size, height:p.size,
+        marginLeft:-p.size/2, marginTop:-p.size/2,
+        background:`radial-gradient(circle,${p.color} 0%,transparent 70%)`,
+        '--dx':`${p.dx}px`,'--dy':`${p.dy}px`,
+        '--blur':`${p.blur}px`,'--sc':p.scale,'--dur':`${p.dur}s`,
+        animationDelay:`${p.delay}s`,
+      }}/>)}
+    </div>
+  </>;
+}
+
+function Fireworks(){
+  const [sparks,setSparks]=useState([]);
+  useEffect(()=>{
+    const colors=["#ffd700","#ff6b35","#f7c59f","#efefd0","#4ecdc4","#ff6b6b","#c7f2a4","#e8d5b7"];
+    const count=60;
+    const cx=window.innerWidth/2, cy=window.innerHeight*0.35;
+    const newSparks=Array.from({length:count},(_,i)=>{
+      const angle=(i/count)*Math.PI*2;
+      const dist=80+Math.random()*220;
+      const dx=Math.cos(angle)*dist*(0.6+Math.random()*0.8);
+      const dy=Math.sin(angle)*dist*(0.6+Math.random()*0.8)-Math.random()*80;
+      return{id:i,x:cx+Math.random()*60-30,y:cy+Math.random()*40-20,dx,dy,color:colors[i%colors.length],size:4+Math.random()*6,delay:Math.random()*0.3};
+    });
+    setSparks(newSparks);
+    const t=setTimeout(()=>setSparks([]),1600);
+    return()=>clearTimeout(t);
+  },[]);
+  return <div className="fireworks">
+    {sparks.map(s=><div key={s.id} className="spark" style={{
+      left:s.x,top:s.y,width:s.size,height:s.size,
+      background:s.color,boxShadow:`0 0 6px ${s.color}`,
+      '--dx':`${s.dx}px`,'--dy':`${s.dy}px`,
+      animationDelay:`${s.delay}s`,animationDuration:"1.2s"
+    }}/>)}
+  </div>;
+}
+
+function HistoryModal({feed,onClose}){
+  return <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.85)",zIndex:1000,display:"flex",alignItems:"center",justifyContent:"center",padding:"20px"}} onClick={onClose}>
+    <div style={{background:"#1e1710",border:"1px solid rgba(200,149,42,0.3)",borderRadius:10,padding:"24px",width:"100%",maxWidth:520,maxHeight:"80vh",display:"flex",flexDirection:"column",gap:0}} onClick={e=>e.stopPropagation()}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
+        <span style={{fontFamily:"'Cinzel',serif",fontSize:".75rem",letterSpacing:".18em",color:"#c8952a",textTransform:"uppercase"}}>📜 Zar Geçmişi</span>
+        <button onClick={onClose} style={{background:"transparent",border:"1px solid rgba(200,149,42,0.2)",borderRadius:4,color:"rgba(245,230,200,0.5)",fontFamily:"'Cinzel',serif",fontSize:".65rem",padding:"4px 10px",cursor:"pointer"}}>✕ Kapat</button>
+      </div>
+      <div style={{overflowY:"auto",display:"flex",flexDirection:"column",gap:6}}>
+        {feed.map((r,i)=>{
+          const c=r.sides===20&&r.raw===20?"crit":r.sides===20&&r.raw===1?"fum":"";
+          return <div key={r.id} className={`fi${i===0?" nr":""}`}>
+            <span className="fdie">{DI[r.sides]||"🎲"}</span>
+            <div className="fb"><div className="fp">{r.player}<span className="ts">{fmtTime(r.time||r.id)}</span></div><div className="fd">d{r.sides} = {r.raw}{r.modifier!==0?` + (${r.modifier>0?"+":""}${r.modifier})`:""}{c==="crit"?" ✨ Crit!":c==="fum"?" 💀 Fail!":""}</div></div>
+            <div className={`fv ${c}`}>{r.total}</div>
+          </div>;
+        })}
+      </div>
+    </div>
+  </div>;
+}
+
+function Dice({me,char,npcs,all,rolls,onRoll,animOn}){
   const [mod,setMod]=useState("0");
+  const [showFW,setShowFW]=useState(false);
+  const [showSmoke,setShowSmoke]=useState(false);
+  const [showHistory,setShowHistory]=useState(false);
   const {latest,feed,akey}=rolls;
   const ic=latest?.sides===20&&latest?.raw===20;
   const fu=latest?.sides===20&&latest?.raw===1;
+
+  const prevAkey=useRef(0);
+  useEffect(()=>{
+    if(akey!==prevAkey.current){
+      prevAkey.current=akey;
+      if(ic&&animOn){ setShowFW(true); setTimeout(()=>setShowFW(false),1600); }
+      if(fu&&animOn){ setShowSmoke(true); setTimeout(()=>setShowSmoke(false),2400); }
+    }
+  },[akey,ic,fu]);
+
   const roll=async s=>{
     const raw=Math.floor(Math.random()*s)+1;
     const m=parseInt(mod)||0;
     await onRoll({sides:s,raw,modifier:m,total:raw+m});
   };
   return <div className="panel">
+    {showFW&&<Fireworks/>}
+    {showSmoke&&<Smoke/>}
     <div className="dg">{DICE.map(d=><button key={d.s} className="db" onClick={()=>roll(d.s)}><span className="di">{d.i}</span><span className="dl">d{d.s}</span></button>)}</div>
     <div className="mr"><label>Modifier</label><input className="mi" type="number" value={mod} onChange={e=>setMod(e.target.value)}/></div>
     <div className="ra">
       {latest?<>
         <div className="rw">{latest.player} — d{latest.sides}</div>
         <div key={akey} className={`rn ra2${ic?" crit":fu?" fum":""}`}>{latest.total}</div>
-        <div className="rm">{ic?"⚡ KRİTİK VURUŞ!":fu?"💀 KRİTİK HATA!":`${latest.raw}${latest.modifier!==0?` + (${latest.modifier>0?"+":""}${latest.modifier})`:""}`}</div>
+        <div className="rm">{ic?"✨ Crit Success!":fu?"💀 Crit Fail!":`${latest.raw}${latest.modifier!==0?` + (${latest.modifier>0?"+":""}${latest.modifier})`:""}`}</div>
       </>:<div className="rm">Bir zar seç ve at...</div>}
     </div>
     {feed.length>0&&<>
-      <div className="ft">Son Atışlar</div>
-      <div className="feed">{feed.map((r,i)=>{
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+        <div className="ft" style={{margin:0,border:"none",padding:0}}>Son Atışlar</div>
+        {feed.length>4&&<button onClick={()=>setShowHistory(true)} style={{background:"transparent",border:"none",color:"rgba(200,149,42,0.6)",fontFamily:"'Cinzel',serif",fontSize:".65rem",letterSpacing:".08em",cursor:"pointer",textDecoration:"underline",textUnderlineOffset:3}}>Tümünü Gör ({feed.length}) →</button>}
+      </div>
+      <div className="feed">{feed.slice(0,4).map((r,i)=>{
         const c=r.sides===20&&r.raw===20?"crit":r.sides===20&&r.raw===1?"fum":"";
         return <div key={r.id} className={`fi${i===0?" nr":""}`}>
           <span className="fdie">{DI[r.sides]||"🎲"}</span>
-          <div className="fb"><div className="fp">{r.player}</div><div className="fd">d{r.sides} = {r.raw}{r.modifier!==0?` + (${r.modifier>0?"+":""}${r.modifier})`:""}{c==="crit"?" ⚡":c==="fum"?" 💀":""}</div></div>
+          <div className="fb"><div className="fp">{r.player}<span className="ts">{fmtTime(r.time||r.id)}</span></div><div className="fd">d{r.sides} = {r.raw}{r.modifier!==0?` + (${r.modifier>0?"+":""}${r.modifier})`:""}{c==="crit"?" ✨ Crit!":c==="fum"?" 💀 Fail!":""}</div></div>
           <div className={`fv ${c}`}>{r.total}</div>
         </div>;
       })}</div>
     </>}
+    {showHistory&&<HistoryModal feed={feed} onClose={()=>setShowHistory(false)}/>}
     <div style={{height:24}}/>
     <Masa me={me} char={char} npcs={npcs} all={all}/>
+  </div>;
+}
+
+// ─── NOTEBOOKS ───────────────────────────────────────────────────────────────
+function Notebooks({me,isDM,charName}){
+  const [notebooks,setNotebooks]=useState([]);
+  const [mode,setMode]=useState(null); // null | "create" | "pickup"
+  const [activeNb,setActiveNb]=useState(null); // {id, name, owner}
+  const [unlocked,setUnlocked]=useState({}); // id -> true
+  const [form,setForm]=useState({name:"",pass:""});
+  const [passInput,setPassInput]=useState("");
+  const [passErr,setPassErr]=useState(false);
+  const [nbContent,setNbContent]=useState({});
+  const [saved,setSaved]=useState({});
+  const saveTimers=useRef({});
+
+  // Load notebooks list
+  useEffect(()=>{
+    const load=async()=>{
+      const data=await fbGet("notebooks");
+      if(!data)return;
+      setNotebooks(Object.values(data).sort((a,b)=>a.createdAt-b.createdAt));
+    };
+    load();
+    const iv=setInterval(load,4000);
+    return()=>clearInterval(iv);
+  },[]);
+
+  // Load content when notebook unlocked
+  useEffect(()=>{
+    if(!activeNb||!unlocked[activeNb.id])return;
+    const load=async()=>{
+      const data=await fbGet(`nbcontent/${activeNb.id}`);
+      setNbContent(c=>({...c,[activeNb.id]:data?.text||""}));
+    };
+    load();
+  },[activeNb,unlocked]);
+
+  const createNotebook=async()=>{
+    if(!form.name.trim()||!form.pass.trim())return;
+    const id=`nb${ts()}`;
+    const nb={id,name:form.name.trim(),owner:me,pass:form.pass.trim(),createdAt:ts(),wordCount:0};
+    try{
+      await fbSet(`notebooks/${id}`,nb);
+      await fbSet(`nbcontent/${id}`,{text:""});
+      setNotebooks(prev=>[...prev,nb]);
+      setUnlocked(u=>({...u,[id]:true}));
+      setNbContent(c=>({...c,[id]:""}));
+      setActiveNb(nb);
+      setForm({name:"",pass:""});
+      setMode(null);
+    }catch(e){
+      alert("Oluşturma hatası: "+e.message);
+    }
+  };
+
+  const tryUnlock=(nb)=>{
+    if(passInput===nb.pass||isDM){
+      setUnlocked(u=>({...u,[nb.id]:true}));
+      setPassInput("");setPassErr(false);
+      setActiveNb(nb);setMode(null);
+    } else {
+      setPassErr(true);setTimeout(()=>setPassErr(false),1800);
+    }
+  };
+
+  const countWords=text=>text.trim()?text.trim().split(/\s+/).length:0;
+
+  const handleEdit=async(id,text)=>{
+    setNbContent(c=>({...c,[id]:text}));
+    clearTimeout(saveTimers.current[id]);
+    saveTimers.current[id]=setTimeout(async()=>{
+      const wc=countWords(text);
+      try{
+        await fbSet(`nbcontent/${id}`,{text});
+        await fbPatch(`notebooks/${id}`,{wordCount:wc});
+        setNotebooks(prev=>prev.map(n=>n.id===id?{...n,wordCount:wc}:n));
+        setSaved(s=>({...s,[id]:true}));
+        setTimeout(()=>setSaved(s=>({...s,[id]:false})),1500);
+      }catch(e){console.error("Save error:",e);}
+    },700);
+  };
+
+  const exportPDF=async(nb,text,charName)=>{
+    const {jsPDF}=window.jspdf;
+    const doc=new jsPDF({orientation:"portrait",unit:"mm",format:"a4"});
+    const now=new Date();
+    const dateStr=now.toLocaleDateString("tr-TR",{year:"numeric",month:"long",day:"numeric"});
+    const timeStr=now.toLocaleTimeString("tr-TR",{hour:"2-digit",minute:"2-digit"});
+    const W=210, margin=20, contentW=W-margin*2;
+
+    // Header bg
+    doc.setFillColor(30,23,16);
+    doc.rect(0,0,W,40,"F");
+
+    // Gold line
+    doc.setDrawColor(200,149,42);
+    doc.setLineWidth(0.5);
+    doc.line(margin,40,W-margin,40);
+
+    // Title block
+    doc.setTextColor(240,192,96);
+    doc.setFontSize(18);
+    doc.setFont("helvetica","bold");
+    doc.text("İnci — Tavern Roll",margin,14);
+
+    doc.setFontSize(11);
+    doc.setTextColor(200,149,42);
+    doc.setFont("helvetica","normal");
+    doc.text(nb.name,margin,22);
+
+    doc.setFontSize(9);
+    doc.setTextColor(180,160,120);
+    doc.text(`Karakter: ${charName||nb.owner}`,margin,29);
+    doc.text(`${dateStr} · ${timeStr}`,margin,34);
+
+    // Word count right side
+    doc.setFontSize(8);
+    doc.setTextColor(140,120,80);
+    const wc=countWords(text);
+    doc.text(`${wc} kelime`,W-margin,29,{align:"right"});
+    doc.text(`${text.length} karakter`,W-margin,34,{align:"right"});
+
+    // Content
+    doc.setTextColor(30,20,10);
+    doc.setFontSize(11);
+    doc.setFont("helvetica","normal");
+
+    const lines=doc.splitTextToSize(text||"(Boş not defteri)",contentW);
+    let y=52;
+    const lineH=6;
+    const pageH=297;
+    const bottomMargin=20;
+
+    for(let i=0;i<lines.length;i++){
+      if(y+lineH>pageH-bottomMargin){
+        doc.addPage();
+        doc.setFillColor(250,245,235);
+        doc.rect(0,0,W,pageH,"F");
+        // page header
+        doc.setDrawColor(200,149,42);
+        doc.setLineWidth(0.3);
+        doc.line(margin,12,W-margin,12);
+        doc.setFontSize(8);
+        doc.setTextColor(160,130,60);
+        doc.text(`${nb.name} — ${charName||nb.owner}`,margin,10);
+        doc.text(`${doc.getCurrentPageInfo().pageNumber}. sayfa`,W-margin,10,{align:"right"});
+        y=20;
+      }
+      doc.setFontSize(11);
+      doc.setTextColor(30,20,10);
+      doc.text(lines[i],margin,y);
+      y+=lineH;
+    }
+
+    // Footer on last page
+    doc.setDrawColor(200,149,42);
+    doc.setLineWidth(0.3);
+    doc.line(margin,pageH-12,W-margin,pageH-12);
+    doc.setFontSize(7);
+    doc.setTextColor(160,130,60);
+    doc.text("İnci · Tavern Roll — tavern-roll.github.io",margin,pageH-7);
+    doc.text(`${dateStr}`,W-margin,pageH-7,{align:"right"});
+
+    const safeName=(nb.name+"-"+(charName||nb.owner)).replace(/[^a-zA-Z0-9\u00C0-\u017E\s_-]/g,"").replace(/\s+/g,"_");
+    doc.save(`InciTavernRoll_${safeName}_${now.getFullYear()}${String(now.getMonth()+1).padStart(2,"0")}${String(now.getDate()).padStart(2,"0")}.pdf`);
+  };
+
+  // DM view: all notebooks with passwords
+  const dmView=isDM&&mode==="dm";
+
+  return <div>
+    <div className="st">📓 Not Defterleri</div>
+
+    {!activeNb&&!dmView&&<div className="nb-actions">
+      <button className="nb-action-btn" onClick={()=>setMode(m=>m==="create"?null:"create")}>✦ Not Defteri Oluştur</button>
+      <button className="nb-action-btn" onClick={()=>setMode(m=>m==="pickup"?null:"pickup")}>📖 Not Defteri Teslim Al</button>
+      {isDM&&<button className="nb-action-btn" style={{borderColor:"rgba(139,26,26,.4)",color:"#ffaaaa"}} onClick={()=>setMode(m=>m==="dm"?null:"dm")}>👁 DM Görünümü</button>}
+    </div>}
+
+    {/* CREATE FORM */}
+    {mode==="create"&&!activeNb&&<div className="nb-form">
+      <h4>✦ Yeni Not Defteri</h4>
+      <input className="nb-input" placeholder="Defterin adı (ör. Gizli Planlarım)" value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))}/>
+      <input className="nb-input" type="password" placeholder="Şifre (sadece sen bileceksin)" value={form.pass} onChange={e=>setForm(f=>({...f,pass:e.target.value}))} onKeyDown={e=>e.key==="Enter"&&createNotebook()}/>
+      <div style={{display:"flex",gap:8}}>
+        <button className="nb-btn" onClick={createNotebook} disabled={!form.name.trim()||!form.pass.trim()}>Oluştur →</button>
+        <button className="nb-btn cancel" onClick={()=>setMode(null)}>İptal</button>
+      </div>
+    </div>}
+
+    {/* PICKUP LIST */}
+    {mode==="pickup"&&!activeNb&&<div className="nb-form">
+      <h4>📖 Mevcut Not Defterleri</h4>
+      {notebooks.length===0&&<div style={{color:"var(--text-dim)",fontStyle:"italic",fontSize:".9rem",padding:"8px 0"}}>Henüz hiç not defteri yok.</div>}
+      <div className="nb-list">
+        {notebooks.map(nb=>{
+          const isOwner=nb.owner===me;
+          const isOpen=unlocked[nb.id];
+          return <div key={nb.id} className={`nb-item${activeNb?.id===nb.id?" active":""}`} onClick={()=>{setActiveNb(nb);setMode(null);}}>
+            <span className="nb-item-icon">{isOpen?"📖":"📓"}</span>
+            <div className="nb-item-body">
+              <div className="nb-item-name">{nb.name}</div>
+              <div className="nb-item-meta">{nb.owner} · {nb.wordCount||0} kelime</div>
+            </div>
+            <span className="nb-item-lock">{isOpen?"🔓":isOwner?"🔑":"🔒"}</span>
+          </div>;
+        })}
+      </div>
+      <button className="nb-btn cancel" onClick={()=>setMode(null)}>Kapat</button>
+    </div>}
+
+    {/* DM VIEW */}
+    {dmView&&<div className="nb-form">
+      <h4>👁 Tüm Not Defterleri — DM Erişimi</h4>
+      {notebooks.length===0&&<div style={{color:"var(--text-dim)",fontStyle:"italic",fontSize:".9rem",padding:"8px 0"}}>Henüz not defteri yok.</div>}
+      {notebooks.map(nb=><div key={nb.id} className="nb-dm-row">
+        <span style={{fontSize:"1.3rem"}}>📓</span>
+        <div className="nb-dm-info">
+          <div className="nb-dm-name">{nb.name} <span style={{color:"var(--text-dim)",fontWeight:"normal"}}>— {nb.owner}</span></div>
+          <div className="nb-dm-pass">🔑 Şifre: <strong style={{color:"rgba(240,192,96,.7)"}}>{nb.pass}</strong> · {nb.wordCount||0} kelime</div>
+        </div>
+        <button className="nb-btn" style={{fontSize:".6rem",padding:"4px 10px"}} onClick={()=>{setUnlocked(u=>({...u,[nb.id]:true}));setActiveNb(nb);setMode(null);}}>Aç</button>
+      </div>)}
+      <button className="nb-btn cancel" style={{marginTop:8}} onClick={()=>setMode(null)}>Kapat</button>
+    </div>}
+
+    {/* EDITOR */}
+    {activeNb&&<div>
+      <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:10}}>
+        <button className="nb-btn cancel" onClick={closeEditor}>← Geri</button>
+        <span style={{fontFamily:"'Cinzel',serif",fontSize:".72rem",color:"var(--gold)",letterSpacing:".08em"}}>{activeNb.name}</span>
+        <span style={{fontSize:".7rem",color:"var(--text-dim)",fontStyle:"italic"}}>— {activeNb.owner}</span>
+      </div>
+
+      {unlocked[activeNb.id]
+        ? <div className="nb-editor">
+            <div className="nb-editor-header">
+              <div>
+                <div className="nb-editor-title">📖 {activeNb.name}</div>
+                <div className="nb-editor-meta">{countWords(nbContent[activeNb.id]||"")} kelime</div>
+              </div>
+            </div>
+            <textarea
+              className="nb-textarea"
+              placeholder="Notlarını buraya yaz..."
+              value={nbContent[activeNb.id]||""}
+              onChange={e=>handleEdit(activeNb.id,e.target.value)}
+              disabled={activeNb.owner!==me&&!isDM}
+            />
+            <div className="nb-footer">
+              <span className="nb-wordcount">{countWords(nbContent[activeNb.id]||"")} kelime · {(nbContent[activeNb.id]||"").length} karakter</span>
+              <div style={{display:"flex",gap:8,alignItems:"center"}}>
+                <button className="nb-btn" style={{fontSize:".6rem",padding:"4px 12px",borderColor:"rgba(200,149,42,.25)"}}
+                  onClick={()=>exportPDF(activeNb,nbContent[activeNb.id]||"",charName)}>
+                  ⬇ PDF
+                </button>
+                <span className={`nb-save-ind${saved[activeNb.id]?" ok":""}`}>{saved[activeNb.id]?"✓ Kaydedildi":"Kaydediliyor..."}</span>
+              </div>
+            </div>
+          </div>
+        : <div className="nb-editor">
+            <div className="nb-lock-overlay">
+              <div className="nb-lock-icon">🔒</div>
+              <div className="nb-lock-title">Şifre Gerekli</div>
+              <div style={{fontSize:".85rem",color:"var(--text-dim)",fontStyle:"italic",marginBottom:8}}>{activeNb.name} · {activeNb.owner}</div>
+              <input className="nb-input" type="password" placeholder="Şifreyi gir..." value={passInput}
+                style={{maxWidth:220,textAlign:"center",borderColor:passErr?"#c03030":undefined}}
+                onChange={e=>setPassInput(e.target.value)}
+                onKeyDown={e=>e.key==="Enter"&&tryUnlock(activeNb)}/>
+              {passErr&&<div className="nb-err">Yanlış şifre!</div>}
+              <div style={{display:"flex",gap:8,marginTop:4}}>
+                <button className="nb-btn" onClick={()=>tryUnlock(activeNb)}>Kilidi Aç →</button>
+                <button className="nb-btn cancel" onClick={closeEditor}>İptal</button>
+              </div>
+            </div>
+          </div>
+      }
+    </div>}
   </div>;
 }
 
@@ -302,6 +807,7 @@ function Char({me,isDM,char,setChar,all}){
     <div className="st">Notlar</div>
     <textarea className="na" rows={5} placeholder="Geçmiş, yetenekler, büyüler..." value={vc.notes} onChange={e=>upd("notes",e.target.value)} disabled={!can}/>
     <div className={`si${saved?" ok":""}`}>{saved?"✓ Kaydedildi":"Otomatik kaydediliyor..."}</div>
+    {self&&<Notebooks me={me} isDM={isDM} charName={vc.name||me}/>}
   </div>;
 }
 
@@ -309,7 +815,7 @@ function Npc({isDM,npcs,setNpcs,onClearRolls}){
   const [form,setForm]=useState({name:"",type:"enemy",ac:"12",cr:"1",notes:""});
   const [confirm,setConfirm]=useState(null); // "npcs" | "rolls"
   const sync=async u=>{setNpcs(u);if(!u.length){await fbSet("npcs",null);return;}const o={};u.forEach(n=>{o[n.id]=n;});await fbSet("npcs",o);};
-  const add=async()=>{if(!form.name.trim())return;await sync([...npcs,{...form,id:ts(),fiziksel:0,zihinsel:0}]);setForm({name:"",type:"enemy",ac:"12",cr:"1",notes:""});};
+  const add=async()=>{if(!form.name.trim())return;await sync([...npcs,{...form,id:ts(),fiziksel:3,zihinsel:3}]);setForm({name:"",type:"enemy",ac:"12",cr:"1",notes:""});};
   const uPip=async(id,f,v)=>sync(npcs.map(n=>n.id===id?{...n,[f]:v}:n));
   const rem=async id=>sync(npcs.filter(n=>n.id!==id));
   const doConfirm=async()=>{
@@ -335,7 +841,7 @@ function Npc({isDM,npcs,setNpcs,onClearRolls}){
     </>}
     <div className="nl">
       {!npcs.length&&<div className="em"><span>🐉</span>Henüz NPC yok.</div>}
-      {npcs.map(n=>{const dead=(n.fiziksel||0)>=3&&(n.zihinsel||0)>=3;return <div key={n.id} className={`nc${dead?" dead":""}`}>
+      {npcs.map(n=>{const dead=(n.fiziksel||0)<=0&&(n.zihinsel||0)<=0;return <div key={n.id} className={`nc${dead?" dead":""}`}>
         <div className="nr2"><div className="nn">{n.name}{dead?" 💀":""}</div>
           <span className={`badge b${n.type==="enemy"?"e":n.type==="ally"?"a":"n"}`}>{n.type==="enemy"?"DÜŞMAN":n.type==="ally"?"MÜTTEFİK":"TARAFSIZ"}</span>
         </div>
@@ -363,6 +869,81 @@ function Npc({isDM,npcs,setNpcs,onClearRolls}){
   </div>;
 }
 
+// Theme: darkness 0=koyu, 100=açık
+function applyTheme(darkness){
+  const d=darkness/100;
+  // interpolate between dark (0) and light (1)
+  const lerp=(a,b,t)=>Math.round(a+(b-a)*t);
+  const lerpHex=(r1,g1,b1,r2,g2,b2,t)=>{
+    const r=lerp(r1,r2,t),g=lerp(g1,g2,t),b=lerp(b1,b2,t);
+    return `#${r.toString(16).padStart(2,'0')}${g.toString(16).padStart(2,'0')}${b.toString(16).padStart(2,'0')}`;
+  };
+  const bg0=lerpHex(13,7,5, 245,238,225, d);
+  const bg1=lerpHex(30,23,16, 255,250,240, d);
+  const bg2=lerpHex(46,36,24, 235,225,210, d);
+  const textR=lerp(245,20,d),textG=lerp(230,12,d),textB=lerp(200,0,d);
+  const text=`rgb(${textR},${textG},${textB})`;
+  const textDim=`rgba(${textR},${textG},${textB},${lerp(40,60,d)/100})`;
+  const textMid=`rgba(${textR},${textG},${textB},${lerp(60,80,d)/100})`;
+  const r=document.documentElement;
+  r.style.setProperty('--bg0',bg0);
+  r.style.setProperty('--bg1',bg1);
+  r.style.setProperty('--bg2',bg2);
+  r.style.setProperty('--text',text);
+  r.style.setProperty('--text-dim',textDim);
+  r.style.setProperty('--text-mid',textMid);
+  document.body.style.background=bg0;
+}
+
+function SettingsPanel({onClose,darkness,setDarkness,animOn,setAnimOn}){
+  const isLight=darkness>60;
+  return <>
+    <div className="settings-overlay" onClick={onClose}>
+      <div className="settings-panel" onClick={e=>e.stopPropagation()}>
+        <div className="settings-title">
+          ⚙ Ayarlar
+          <button className="settings-close" onClick={onClose}>✕ Kapat</button>
+        </div>
+
+        <div className="settings-section">
+          <div className="settings-section-title">Site Teması</div>
+          <div className="theme-btns">
+            <button className={`theme-btn${!isLight?" on":""}`} onClick={()=>{setDarkness(0);applyTheme(0);}}>🌑 Koyu</button>
+            <button className={`theme-btn${isLight?" on":""}`} onClick={()=>{setDarkness(100);applyTheme(100);}}>☀️ Açık</button>
+          </div>
+          <div className="slider-row">
+            <div className="slider-label">
+              <span>🌑 En Koyu</span>
+              <span>☀️ En Açık</span>
+            </div>
+            <input
+              type="range" min={0} max={100} value={darkness}
+              className="theme-slider"
+              style={{background:`linear-gradient(to right,#1a0f00 0%,#f5e6c8 100%)`}}
+              onChange={e=>{const v=Number(e.target.value);setDarkness(v);applyTheme(v);}}
+            />
+          </div>
+        </div>
+
+        <div className="settings-section">
+          <div className="settings-section-title">Animasyonlar</div>
+          <div className="toggle-row">
+            <div>
+              <div className="toggle-label">✨ Crit Animasyonları</div>
+              <div className="toggle-sub">Havai fişek & duman efektleri</div>
+            </div>
+            <label className="toggle">
+              <input type="checkbox" checked={animOn} onChange={e=>setAnimOn(e.target.checked)}/>
+              <div className="toggle-track"/>
+              <div className="toggle-thumb"/>
+            </label>
+          </div>
+        </div>
+      </div>
+    </div>
+  </>;
+}
+
 function App(){
   const ss=window.sessionStorage;
   const [phase,setPhase]=useState(()=>ss.getItem("tr_phase")||"lobby");
@@ -375,6 +956,14 @@ function App(){
   const [rolls,setRolls]=useState({latest:null,feed:[],akey:0});
   const [dmPass,setDmPass]=useState("");
   const [dmErr,setDmErr]=useState(false);
+  const [showSettings,setShowSettings]=useState(false);
+  const [darkness,setDarkness]=useState(()=>{const v=localStorage.getItem("tr_dark");return v?Number(v):0;});
+  const [animOn,setAnimOn]=useState(()=>localStorage.getItem("tr_anim")!=="0");
+
+  // Apply saved theme on mount
+  useEffect(()=>{applyTheme(darkness);},[]);
+  useEffect(()=>{localStorage.setItem("tr_dark",darkness);},[darkness]);
+  useEffect(()=>{localStorage.setItem("tr_anim",animOn?"1":"0");},[animOn]);
   const lastRid=useRef(0);
   const cst=useRef(null);
 
@@ -386,11 +975,14 @@ function App(){
 
   useEffect(()=>{
     if(phase!=="game")return;
+    // Register self immediately & include self in all list right away
+    const selfEntry={name,role,lastSeen:ts(),char};
     fbSet(`players/${name}`,{name,role,lastSeen:ts()});
     fbSet(`chars/${name}`,char);
-    const hb=setInterval(()=>fbPatch(`players/${name}`,{lastSeen:ts()}),5000);
+    setAll([selfEntry]);
+    const hb=setInterval(()=>fbPatch(`players/${name}`,{lastSeen:ts()}),4000);
 
-    // Rolls: polling her 2sn - SSE'den daha güvenilir
+    // Rolls: polling her 2sn
     const pollRolls=async()=>{
       const data=await fbGet("rolls");
       if(!data)return;
@@ -398,19 +990,25 @@ function App(){
       const nw=arr.filter(r=>r.id>lastRid.current);
       if(nw.length){
         lastRid.current=Math.max(...nw.map(r=>r.id));
-        setRolls({latest:nw[nw.length-1],feed:arr.slice(-12).reverse(),akey:Date.now()});
+        setRolls({latest:nw[nw.length-1],feed:arr.slice(-30).reverse(),akey:Date.now()});
       }
     };
     pollRolls();
     const rollPoll=setInterval(pollRolls,2000);
 
-    // Players/chars/npcs: SSE
-    const unP=fbListen("players",data=>{
+    // Players: polling (SSE unreliable for this)
+    const pollPlayers=async()=>{
+      const data=await fbGet("players");
       if(!data)return;
       const now=ts();
-      const alive=Object.values(data).filter(p=>now-(p.lastSeen||0)<15000);
-      setAll(prev=>alive.map(p=>({...p,char:prev.find(x=>x.name===p.name)?.char||iChar(p.name)})));
-    });
+      const alive=Object.values(data).filter(p=>now-(p.lastSeen||0)<12000);
+      const charData=await fbGet("chars");
+      setAll(alive.map(p=>({...p,char:(charData&&charData[p.name])||iChar(p.name)})));
+    };
+    pollPlayers();
+    const playerPoll=setInterval(pollPlayers,3000);
+
+    // Chars & npcs: SSE (these work fine)
     const unC=fbListen("chars",data=>{
       if(!data)return;
       if(data[name])setChar(data[name]);
@@ -420,14 +1018,14 @@ function App(){
       if(!data){setNpcs([]);return;}
       setNpcs(Object.values(data).sort((a,b)=>a.id-b.id));
     });
-    return()=>{clearInterval(hb);clearInterval(rollPoll);unP();unC();unN();};
+    return()=>{clearInterval(hb);clearInterval(rollPoll);clearInterval(playerPoll);unC();unN();};
   },[phase,name]);
 
   const hChar=fn=>{setChar(prev=>{const u=typeof fn==="function"?fn(prev):fn;clearTimeout(cst.current);cst.current=setTimeout(()=>fbSet(`chars/${name}`,u),400);return u;});};
 
   const onRoll=async({sides,raw,modifier,total})=>{
     const id=ts();
-    const entry={id,player:name,sides,raw,modifier,total};
+    const entry={id,player:name,sides,raw,modifier,total,time:id};
     setRolls(r=>({latest:entry,feed:[entry,...r.feed].slice(0,12),akey:id}));
     lastRid.current=id;
     await fbSet(`rolls/${id}`,entry);
@@ -476,8 +1074,12 @@ function App(){
   return <div>
     <div className="hdr">
       <div className="htitle">TAVERN ROLL</div>
-      <div className="huser"><span className="pd"/><strong>{name}</strong>{role==="dm"?" · DM":""}</div>
+      <div style={{display:"flex",alignItems:"center",gap:10}}>
+        <div className="huser"><span className="pd"/><strong>{name}</strong>{role==="dm"?" · DM":""}</div>
+        <button className="gear-btn" onClick={()=>setShowSettings(s=>!s)} title="Ayarlar">⚙</button>
+      </div>
     </div>
+    {showSettings&&<SettingsPanel onClose={()=>setShowSettings(false)} darkness={darkness} setDarkness={setDarkness} animOn={animOn} setAnimOn={setAnimOn}/>}
     <div className="ob">
       <span className="ol">Çevrimiçi</span>
       {all.map(p=><span key={p.name} className={`op${p.role==="dm"?" dm":""}`}><span className="pd" style={{width:5,height:5}}/>{p.name}{p.role==="dm"?" 👁":""}</span>)}
@@ -486,7 +1088,7 @@ function App(){
     <div className="tabs">
       {TABS.map(t=><button key={t.id} className={`tb${tab===t.id?" on":""}`} onClick={()=>setTab(t.id)}>{t.l}</button>)}
     </div>
-    {tab==="dice"&&<Dice me={name} char={char} npcs={npcs} all={all} rolls={rolls} onRoll={onRoll}/>}
+    {tab==="dice"&&<Dice me={name} char={char} npcs={npcs} all={all} rolls={rolls} onRoll={onRoll} animOn={animOn}/>}
     {tab==="char"&&<Char me={name} isDM={role==="dm"} char={char} setChar={hChar} all={all}/>}
     {tab==="npc" &&<Npc isDM={role==="dm"} npcs={npcs} setNpcs={setNpcs} onClearRolls={clearRolls}/>}
   </div>;
