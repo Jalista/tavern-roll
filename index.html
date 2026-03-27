@@ -151,6 +151,16 @@ body{font-family:'Crimson Text',serif;color:#f5e6c8;background:#0d0705;backgroun
 .nct{display:flex;gap:6px;flex-wrap:wrap}
 .nbtn{background:#2e2418;border:1px solid rgba(200,149,42,.15);color:rgba(245,230,200,.65);font-family:'Cinzel',serif;font-size:.62rem;letter-spacing:.05em;padding:5px 11px;cursor:pointer;border-radius:3px;transition:all .15s}
 .nbtn.rm:hover{border-color:#8b1a1a;color:#ff9090}
+.danger-btn{background:rgba(139,26,26,.1);border:1px solid rgba(139,26,26,.35);border-radius:4px;color:#ff9090;font-family:'Cinzel',serif;font-size:.7rem;letter-spacing:.1em;padding:8px 16px;cursor:pointer;transition:all .2s;text-transform:uppercase}
+.danger-btn:hover{background:rgba(139,26,26,.2);border-color:#c03030}
+.confirm-box{background:#1e1710;border:1px solid rgba(139,26,26,.4);border-radius:8px;padding:14px 16px;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.confirm-box span{font-size:.9rem;color:rgba(245,230,200,.7);font-style:italic}
+.confirm-btns{display:flex;gap:8px}
+.yes-btn{background:rgba(139,26,26,.15);border:1px solid #c03030;border-radius:4px;color:#ff9090;font-family:'Cinzel',serif;font-size:.68rem;padding:6px 14px;cursor:pointer;transition:all .15s;text-transform:uppercase}
+.yes-btn:hover{background:rgba(139,26,26,.3)}
+.no-btn{background:rgba(200,149,42,.08);border:1px solid rgba(200,149,42,.3);border-radius:4px;color:rgba(245,230,200,.6);font-family:'Cinzel',serif;font-size:.68rem;padding:6px 14px;cursor:pointer;transition:all .15s;text-transform:uppercase}
+.no-btn:hover{border-color:#c8952a;color:#f0c060}
+.dm-tools{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;padding:12px;background:rgba(139,26,26,.05);border:1px solid rgba(139,26,26,.15);border-radius:6px}
 .an{background:#1e1710;border:1px dashed rgba(200,149,42,.2);border-radius:8px;padding:16px}
 .an h3{font-family:'Cinzel',serif;font-size:.65rem;letter-spacing:.15em;color:#c8952a;margin-bottom:12px;text-transform:uppercase}
 .f2{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px}
@@ -295,14 +305,34 @@ function Char({me,isDM,char,setChar,all}){
   </div>;
 }
 
-function Npc({isDM,npcs,setNpcs}){
+function Npc({isDM,npcs,setNpcs,onClearRolls}){
   const [form,setForm]=useState({name:"",type:"enemy",ac:"12",cr:"1",notes:""});
+  const [confirm,setConfirm]=useState(null); // "npcs" | "rolls"
   const sync=async u=>{setNpcs(u);if(!u.length){await fbSet("npcs",null);return;}const o={};u.forEach(n=>{o[n.id]=n;});await fbSet("npcs",o);};
   const add=async()=>{if(!form.name.trim())return;await sync([...npcs,{...form,id:ts(),fiziksel:0,zihinsel:0}]);setForm({name:"",type:"enemy",ac:"12",cr:"1",notes:""});};
   const uPip=async(id,f,v)=>sync(npcs.map(n=>n.id===id?{...n,[f]:v}:n));
   const rem=async id=>sync(npcs.filter(n=>n.id!==id));
+  const doConfirm=async()=>{
+    if(confirm==="npcs") await sync([]);
+    if(confirm==="rolls") await onClearRolls();
+    setConfirm(null);
+  };
   return <div className="panel">
     {!isDM&&<div className="dmo">⚔ NPC'ler DM tarafından yönetilir.</div>}
+    {isDM&&<>
+      <div className="st" style={{marginTop:0}}>DM Araçları</div>
+      <div className="dm-tools">
+        <button className="danger-btn" onClick={()=>setConfirm("npcs")}>🗑 Tüm NPC'leri Temizle</button>
+        <button className="danger-btn" onClick={()=>setConfirm("rolls")}>🗑 Tüm Zarları Temizle</button>
+      </div>
+      {confirm&&<div className="confirm-box">
+        <span>⚠ Emin misin? Bu işlem geri alınamaz.</span>
+        <div className="confirm-btns">
+          <button className="yes-btn" onClick={doConfirm}>✓ Evet, Temizle</button>
+          <button className="no-btn" onClick={()=>setConfirm(null)}>✕ İptal</button>
+        </div>
+      </div>}
+    </>}
     <div className="nl">
       {!npcs.length&&<div className="em"><span>🐉</span>Henüz NPC yok.</div>}
       {npcs.map(n=>{const dead=(n.fiziksel||0)>=3&&(n.zihinsel||0)>=3;return <div key={n.id} className={`nc${dead?" dead":""}`}>
@@ -393,25 +423,45 @@ function App(){
     if(all2){const keys=Object.keys(all2).sort((a,b)=>Number(a)-Number(b));if(keys.length>30)for(const k of keys.slice(0,keys.length-30))await fbDel(`rolls/${k}`);}
   };
 
+  const clearRolls=async()=>{
+    setRolls({latest:null,feed:[],akey:0});
+    lastRid.current=0;
+    await fbDel("rolls");
+  };
+
   const TABS=role==="dm"
     ?[{id:"dice",l:"🎲 Zar"},{id:"char",l:"📜 Karakterler"},{id:"npc",l:"⚔ NPC Yönet"}]
     :[{id:"dice",l:"🎲 Zar"},{id:"char",l:"📜 Karakter"},{id:"npc",l:"⚔ Düşmanlar"}];
 
-  if(phase==="lobby")return(
+  if(phase==="lobby"){
+    const dmSelected=role==="dm";
+    const [dmPass,setDmPass]=useState("");
+    const [dmErr,setDmErr]=useState(false);
+    const join=()=>{
+      if(!name.trim())return;
+      if(role==="dm"&&dmPass!=="05426654789"){setDmErr(true);setTimeout(()=>setDmErr(false),2000);return;}
+      setPhase("game");
+    };
+    return(
     <div className="lobby">
       <h1 className="lt">TAVERN ROLL</h1>
       <p className="ls">İnci — Companion</p>
       <div className="lc">
         <h2>Masaya Katıl</h2>
-        <input className="ii" placeholder="Adın (ör. Duncan the Tall, Kael, Revlo Krell...)" value={name} onChange={e=>setName(e.target.value)} onKeyDown={e=>e.key==="Enter"&&name.trim()&&setPhase("game")}/>
+        <input className="ii" placeholder="Adın (ör. Duncan the Tall, Kael, Revlo Krell...)" value={name} onChange={e=>setName(e.target.value)} onKeyDown={e=>e.key==="Enter"&&join()}/>
         <div className="lr">
           <button className={`rb${role==="player"?" on":""}`} onClick={()=>setRole("player")}>⚔ Oyuncu</button>
           <button className={`rb${role==="dm"?" on":""}`} onClick={()=>setRole("dm")}>👁 DM</button>
         </div>
-        <button className="jb" onClick={()=>setPhase("game")} disabled={!name.trim()}>Masaya Otur →</button>
+        {dmSelected&&<>
+          <input className="ii" type="password" placeholder="DM Şifresi..." value={dmPass} onChange={e=>setDmPass(e.target.value)} onKeyDown={e=>e.key==="Enter"&&join()} style={{borderColor:dmErr?"#c03030":undefined}}/>
+          {dmErr&&<div style={{color:"#ff6060",fontSize:".8rem",fontStyle:"italic",marginBottom:8,textAlign:"center"}}>Şifre yanlış!</div>}
+        </>}
+        <button className="jb" onClick={join} disabled={!name.trim()}>Masaya Otur →</button>
       </div>
     </div>
-  );
+  );}
+
 
   return <div>
     <div className="hdr">
@@ -428,7 +478,7 @@ function App(){
     </div>
     {tab==="dice"&&<Dice me={name} char={char} npcs={npcs} all={all} rolls={rolls} onRoll={onRoll}/>}
     {tab==="char"&&<Char me={name} isDM={role==="dm"} char={char} setChar={hChar} all={all}/>}
-    {tab==="npc" &&<Npc isDM={role==="dm"} npcs={npcs} setNpcs={setNpcs}/>}
+    {tab==="npc" &&<Npc isDM={role==="dm"} npcs={npcs} setNpcs={setNpcs} onClearRolls={clearRolls}/>}
   </div>;
 }
 
