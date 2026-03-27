@@ -304,39 +304,13 @@ function MasaDurumu({playerName,char,npcs,allPlayers}){
   );
 }
 
-function DicePanel({playerName,char,npcs,allPlayers}){
+function DicePanel({playerName,char,npcs,allPlayers,latest,feed,akey,onRoll}){
   const [modifier,setModifier]=useState("0");
-  const [latest,setLatest]=useState(null);
-  const [feed,setFeed]=useState([]);
-  const [akey,setAkey]=useState(0);
-  const lastId=useRef(0);
-  useEffect(()=>{
-    const unsub=fbListen("rolls",data=>{
-      if(!data)return;
-      const arr=Object.values(data).sort((a,b)=>a.id-b.id);
-      const nw=arr.filter(r=>r.id>lastId.current);
-      if(nw.length){
-        lastId.current=Math.max(...nw.map(r=>r.id));
-        setFeed(arr.slice(-12).reverse());
-        setLatest(nw[nw.length-1]);
-        setAkey(k=>k+1);
-      }
-    });
-    return unsub;
-  },[]);
   const roll=async(sides)=>{
     const raw=Math.floor(Math.random()*sides)+1;
     const m=parseInt(modifier)||0;
     const total=raw+m;
-    const id=ts();
-    const entry={id,player:playerName,sides,raw,modifier:m,total};
-    setLatest(entry);setAkey(k=>k+1);
-    await fbSet(`rolls/${id}`,entry);
-    const all=await fbGet("rolls");
-    if(all){
-      const keys=Object.keys(all).sort((a,b)=>Number(a)-Number(b));
-      if(keys.length>30) for(const k of keys.slice(0,keys.length-30)) await fbDelete(`rolls/${k}`);
-    }
+    await onRoll({sides,raw,modifier:m,total});
   };
   const ic=latest?.sides===20&&latest?.raw===20;
   const if_=latest?.sides===20&&latest?.raw===1;
@@ -537,6 +511,8 @@ function App(){
   const [char,setChar]=useState(()=>initChar());
   const [npcs,setNpcs]=useState([]);
   const [allPlayers,setAll]=useState([]);
+  const [rolls,setRolls]=useState({latest:null,feed:[],akey:0});
+  const lastRollId=useRef(0);
   const st=useRef(null);
 
   useEffect(()=>{
@@ -544,6 +520,15 @@ function App(){
     fbSet(`players/${playerName}`,{name:playerName,role,lastSeen:ts()});
     fbSet(`chars/${playerName}`,char);
     const hb=setInterval(()=>fbPatch(`players/${playerName}`,{lastSeen:ts()}),5000);
+    const unR=fbListen("rolls",data=>{
+      if(!data)return;
+      const arr=Object.values(data).sort((a,b)=>a.id-b.id);
+      const nw=arr.filter(r=>r.id>lastRollId.current);
+      if(nw.length){
+        lastRollId.current=Math.max(...nw.map(r=>r.id));
+        setRolls({latest:nw[nw.length-1],feed:arr.slice(-12).reverse(),akey:Date.now()});
+      }
+    });
     const unP=fbListen("players",data=>{
       if(!data)return;
       const now=ts();
@@ -559,7 +544,7 @@ function App(){
       if(!data){setNpcs([]);return;}
       setNpcs(Object.values(data).sort((a,b)=>a.id-b.id));
     });
-    return()=>{clearInterval(hb);unP();unC();unN();};
+    return()=>{clearInterval(hb);unR();unP();unC();unN();};
   },[phase,playerName]);
 
   const hsc=fn=>{
@@ -571,7 +556,18 @@ function App(){
     });
   };
 
-  const TABS=role==="dm"
+  const onRoll=async({sides,raw,modifier,total})=>{
+    const id=ts();
+    const entry={id,player:playerName,sides,raw,modifier,total};
+    setRolls(r=>({latest:entry,feed:[entry,...r.feed].slice(0,12),akey:Date.now()}));
+    lastRollId.current=id;
+    await fbSet(`rolls/${id}`,entry);
+    const all=await fbGet("rolls");
+    if(all){
+      const keys=Object.keys(all).sort((a,b)=>Number(a)-Number(b));
+      if(keys.length>30) for(const k of keys.slice(0,keys.length-30)) await fbDelete(`rolls/${k}`);
+    }
+  };
     ?[{id:"dice",l:"🎲 Zar"},{id:"character",l:"📜 Karakterler"},{id:"npc",l:"⚔ NPC Yönet"}]
     :[{id:"dice",l:"🎲 Zar"},{id:"character",l:"📜 Karakter"},{id:"npc",l:"⚔ Düşmanlar"}];
 
@@ -612,7 +608,7 @@ function App(){
           <button key={t.id} className={`tb${tab===t.id?" active":""}`} onClick={()=>setTab(t.id)}>{t.l}</button>
         ))}
       </div>
-      {tab==="dice"      &&<DicePanel      playerName={playerName} char={char} npcs={npcs} allPlayers={allPlayers}/>}
+      {tab==="dice"      &&<DicePanel      playerName={playerName} char={char} npcs={npcs} allPlayers={allPlayers} latest={rolls.latest} feed={rolls.feed} akey={rolls.akey} onRoll={onRoll}/>}
       {tab==="character" &&<CharacterPanel playerName={playerName} isDM={role==="dm"} char={char} setChar={hsc} allPlayers={allPlayers}/>}
       {tab==="npc"       &&<NpcPanel       isDM={role==="dm"} npcs={npcs} setNpcs={setNpcs}/>}
     </div>
