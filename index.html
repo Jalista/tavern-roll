@@ -1188,82 +1188,277 @@ function Chat({me,role,all,avatars}){
 }
 
 // ─── AMBİYANS ────────────────────────────────────────────────────────────────
+// Web Audio API ile sentezlenmiş sesler — dış bağımlılık yok, her zaman çalışır
 const SCENES=[
-  {id:"tavern",   icon:"🍺", label:"Tavern",   url:"https://assets.mixkit.co/active_storage/sfx/2581/2581-preview.mp3"},
-  {id:"battle",   icon:"⚔️",  label:"Savaş",    url:"https://assets.mixkit.co/active_storage/sfx/1084/1084-preview.mp3"},
-  {id:"forest",   icon:"🌲", label:"Orman",    url:"https://assets.mixkit.co/active_storage/sfx/2516/2516-preview.mp3"},
-  {id:"dungeon",  icon:"🕯️", label:"Zindan",   url:"https://assets.mixkit.co/active_storage/sfx/2520/2520-preview.mp3"},
-  {id:"storm",    icon:"⛈️",  label:"Fırtına",  url:"https://assets.mixkit.co/active_storage/sfx/1247/1247-preview.mp3"},
-  {id:"village",  icon:"🏘️", label:"Köy",      url:"https://assets.mixkit.co/active_storage/sfx/2583/2583-preview.mp3"},
-  {id:"travel",   icon:"🐴", label:"Yolculuk", url:"https://assets.mixkit.co/active_storage/sfx/2582/2582-preview.mp3"},
+  {id:"tavern",  icon:"🍺", label:"Tavern"},
+  {id:"battle",  icon:"⚔️",  label:"Savaş"},
+  {id:"forest",  icon:"🌲", label:"Orman"},
+  {id:"dungeon", icon:"🕯️", label:"Zindan"},
+  {id:"storm",   icon:"⛈️",  label:"Fırtına"},
+  {id:"village", icon:"🏘️", label:"Köy"},
+  {id:"travel",  icon:"🐴", label:"Yolculuk"},
 ];
+
+// Her sahne için Web Audio sentezi
+function createAmbiance(sceneId, volume=0.4){
+  const ctx=new (window.AudioContext||window.webkitAudioContext)();
+  const nodes=[];
+  const master=ctx.createGain();
+  master.gain.value=volume;
+  master.connect(ctx.destination);
+
+  const noise=(type="white")=>{
+    const buf=ctx.createBuffer(1,ctx.sampleRate*2,ctx.sampleRate);
+    const d=buf.getChannelData(0);
+    for(let i=0;i<d.length;i++) d[i]=(Math.random()*2-1);
+    const src=ctx.createBufferSource();
+    src.buffer=buf; src.loop=true;
+    return src;
+  };
+
+  const osc=(freq,type="sine",gainVal=0.1)=>{
+    const o=ctx.createOscillator();
+    const g=ctx.createGain();
+    o.type=type; o.frequency.value=freq;
+    g.gain.value=gainVal;
+    o.connect(g);
+    return{osc:o,gain:g};
+  };
+
+  const filter=(src,type,freq,Q=1)=>{
+    const f=ctx.createBiquadFilter();
+    f.type=type; f.frequency.value=freq; f.Q.value=Q;
+    src.connect(f); return f;
+  };
+
+  const lfo=(target,min,max,rate)=>{
+    const l=ctx.createOscillator();
+    const lg=ctx.createGain();
+    l.frequency.value=rate;
+    lg.gain.value=(max-min)/2;
+    l.connect(lg);
+    lg.connect(target);
+    target.value=(min+max)/2;
+    l.start();
+    nodes.push(l);
+  };
+
+  if(sceneId==="tavern"){
+    // Crowd murmur: filtered noise + low rumble
+    const n=noise(); const f=filter(n,"bandpass",400,0.5);
+    const g=ctx.createGain(); g.gain.value=0.15;
+    f.connect(g); g.connect(master); n.start(); nodes.push(n);
+    lfo(g.gain,0.08,0.22,0.3);
+    // Fire crackle
+    const fn=noise(); const ff=filter(fn,"highpass",2000,1);
+    const fg=ctx.createGain(); fg.gain.value=0.05;
+    ff.connect(fg); fg.connect(master); fn.start(); nodes.push(fn);
+    lfo(fg.gain,0.02,0.08,4.7);
+    // Low bass hum
+    const{osc:bo,gain:bg}=osc(80,"sine",0.05);
+    bg.connect(master); bo.start(); nodes.push(bo);
+  }
+  else if(sceneId==="battle"){
+    // Tension drone
+    const{osc:o1,gain:g1}=osc(55,"sawtooth",0.04);
+    const f1=filter(g1,"lowpass",300,2);
+    f1.connect(master); o1.start(); nodes.push(o1);
+    lfo(o1.frequency,50,65,0.15);
+    const{osc:o2,gain:g2}=osc(110,"square",0.02);
+    const f2=filter(g2,"lowpass",200,1);
+    f2.connect(master); o2.start(); nodes.push(o2);
+    // Distant rumble
+    const n=noise(); const fn=filter(n,"lowpass",150,0.5);
+    const ng=ctx.createGain(); ng.gain.value=0.1;
+    fn.connect(ng); ng.connect(master); n.start(); nodes.push(n);
+    lfo(ng.gain,0.05,0.2,0.8);
+  }
+  else if(sceneId==="forest"){
+    // Wind
+    const n=noise(); const f=filter(n,"bandpass",600,0.3);
+    const g=ctx.createGain(); g.gain.value=0.08;
+    f.connect(g); g.connect(master); n.start(); nodes.push(n);
+    lfo(g.gain,0.03,0.15,0.2);
+    // Birds (random chirps)
+    const chirp=()=>{
+      const{osc:o,gain:g2}=osc(2400+Math.random()*800,"sine",0);
+      g2.connect(master); o.start();
+      const t=ctx.currentTime;
+      g2.gain.setValueAtTime(0,t);
+      g2.gain.linearRampToValueAtTime(0.06,t+0.05);
+      g2.gain.linearRampToValueAtTime(0,t+0.15);
+      o.frequency.linearRampToValueAtTime(3200,t+0.1);
+      o.stop(t+0.2); nodes.push(o);
+      setTimeout(chirp,1500+Math.random()*4000);
+    };
+    setTimeout(chirp,500);
+    // Leaves
+    const ln=noise(); const lf=filter(ln,"highpass",3000,1);
+    const lg=ctx.createGain(); lg.gain.value=0.04;
+    lf.connect(lg); lg.connect(master); ln.start(); nodes.push(ln);
+  }
+  else if(sceneId==="dungeon"){
+    // Drips
+    const drip=()=>{
+      const{osc:o,gain:g2}=osc(1200+Math.random()*400,"sine",0);
+      g2.connect(master); o.start();
+      const t=ctx.currentTime;
+      g2.gain.setValueAtTime(0.08,t);
+      g2.gain.exponentialRampToValueAtTime(0.001,t+0.4);
+      o.frequency.exponentialRampToValueAtTime(400,t+0.3);
+      o.stop(t+0.5); nodes.push(o);
+      setTimeout(drip,2000+Math.random()*5000);
+    };
+    setTimeout(drip,300);
+    // Eerie hum
+    const{osc:o1,gain:g1}=osc(65,"sine",0.03);
+    const f1=filter(g1,"lowpass",200,5);
+    f1.connect(master); o1.start(); nodes.push(o1);
+    lfo(o1.frequency,60,75,0.05);
+    // Cave ambience noise
+    const n=noise(); const f2=filter(n,"bandpass",200,0.2);
+    const ng=ctx.createGain(); ng.gain.value=0.04;
+    f2.connect(ng); ng.connect(master); n.start(); nodes.push(n);
+  }
+  else if(sceneId==="storm"){
+    // Rain
+    const rn=noise(); const rf=filter(rn,"bandpass",1200,0.4);
+    const rg=ctx.createGain(); rg.gain.value=0.18;
+    rf.connect(rg); rg.connect(master); rn.start(); nodes.push(rn);
+    lfo(rg.gain,0.12,0.25,0.6);
+    // Thunder (random)
+    const thunder=()=>{
+      const tn=noise(); const tf=filter(tn,"lowpass",80,2);
+      const tg=ctx.createGain(); tg.gain.value=0;
+      tf.connect(tg); tg.connect(master); tn.start();
+      const t=ctx.currentTime;
+      tg.gain.linearRampToValueAtTime(0.3,t+0.1);
+      tg.gain.exponentialRampToValueAtTime(0.001,t+2.5);
+      tn.stop(t+3); nodes.push(tn);
+      setTimeout(thunder,8000+Math.random()*15000);
+    };
+    setTimeout(thunder,2000);
+    // Wind
+    const wn=noise(); const wf=filter(wn,"lowpass",400,0.5);
+    const wg=ctx.createGain(); wg.gain.value=0.12;
+    wf.connect(wg); wg.connect(master); wn.start(); nodes.push(wn);
+    lfo(wg.gain,0.06,0.2,0.15);
+  }
+  else if(sceneId==="village"){
+    // Crowd
+    const n=noise(); const f=filter(n,"bandpass",500,0.4);
+    const g=ctx.createGain(); g.gain.value=0.1;
+    f.connect(g); g.connect(master); n.start(); nodes.push(n);
+    lfo(g.gain,0.06,0.16,0.4);
+    // Birds
+    const chirp=()=>{
+      const{osc:o,gain:g2}=osc(2800+Math.random()*600,"sine",0);
+      g2.connect(master); o.start();
+      const t=ctx.currentTime;
+      g2.gain.setValueAtTime(0,t);
+      g2.gain.linearRampToValueAtTime(0.05,t+0.05);
+      g2.gain.linearRampToValueAtTime(0,t+0.2);
+      o.stop(t+0.25); nodes.push(o);
+      setTimeout(chirp,800+Math.random()*2500);
+    };
+    setTimeout(chirp,400);
+    // Bell (distant)
+    const bell=()=>{
+      const{osc:o,gain:g2}=osc(520,"sine",0);
+      g2.connect(master); o.start();
+      const t=ctx.currentTime;
+      g2.gain.setValueAtTime(0.08,t);
+      g2.gain.exponentialRampToValueAtTime(0.001,t+1.5);
+      o.stop(t+2); nodes.push(o);
+      setTimeout(bell,12000+Math.random()*20000);
+    };
+    setTimeout(bell,5000);
+  }
+  else if(sceneId==="travel"){
+    // Hoofbeats rhythm
+    const beat=()=>{
+      [0,0.25,0.5,0.75].forEach(delay=>{
+        const{osc:o,gain:g2}=osc(120+Math.random()*30,"sine",0);
+        g2.connect(master); o.start();
+        const t=ctx.currentTime+delay;
+        g2.gain.setValueAtTime(0.12,t);
+        g2.gain.exponentialRampToValueAtTime(0.001,t+0.15);
+        o.stop(t+0.2); nodes.push(o);
+      });
+      setTimeout(beat,1000);
+    };
+    beat();
+    // Wind
+    const wn=noise(); const wf=filter(wn,"bandpass",700,0.3);
+    const wg=ctx.createGain(); wg.gain.value=0.07;
+    wf.connect(wg); wg.connect(master); wn.start(); nodes.push(wn);
+    lfo(wg.gain,0.04,0.12,0.5);
+  }
+
+  return{
+    setVolume:(v)=>{master.gain.value=v;},
+    stop:()=>{
+      nodes.forEach(n=>{try{n.stop();}catch{}});
+      setTimeout(()=>{try{ctx.close();}catch{}},200);
+    }
+  };
+}
 
 function Ambiance({isDM}){
   const [open,setOpen]=useState(false);
-  const [activeId,setActiveId]=useState(null);  // local playing
+  const [activeId,setActiveId]=useState(null);
   const [volume,setVolume]=useState(0.4);
-  const audioRef=useRef(null);
+  const engineRef=useRef(null);
   const lastSceneRef=useRef(null);
 
-  // DM: push to Firebase; Player: poll Firebase
+  const startScene=(sceneId,vol)=>{
+    if(engineRef.current){engineRef.current.stop();engineRef.current=null;}
+    if(!sceneId)return;
+    try{
+      const eng=createAmbiance(sceneId,vol);
+      engineRef.current=eng;
+    }catch(e){console.error("Ambiance error:",e);}
+  };
+
+  // Player: poll Firebase
   useEffect(()=>{
-    if(isDM)return; // DM'in kendi UI'ı var
+    if(isDM)return;
     const poll=async()=>{
       const data=await fbGet("ambiance");
-      if(!data)return;
-      const sceneId=data.scene||null;
+      const sceneId=(data&&data.scene)||null;
       if(sceneId===lastSceneRef.current)return;
       lastSceneRef.current=sceneId;
       setActiveId(sceneId);
-      if(!sceneId){
-        if(audioRef.current){audioRef.current.pause();audioRef.current=null;}
-        return;
-      }
-      const scene=SCENES.find(s=>s.id===sceneId);
-      if(!scene)return;
-      if(audioRef.current){audioRef.current.pause();}
-      const audio=new Audio(scene.url);
-      audio.loop=true;
-      audio.volume=volume;
-      audio.play().catch(()=>{});
-      audioRef.current=audio;
+      startScene(sceneId,volume);
     };
     poll();
     const iv=setInterval(poll,3000);
-    return()=>{clearInterval(iv);if(audioRef.current){audioRef.current.pause();audioRef.current=null;}};
-  },[isDM,volume]);
+    return()=>{clearInterval(iv);if(engineRef.current){engineRef.current.stop();engineRef.current=null;}};
+  },[isDM]);
 
   const selectScene=async(sceneId)=>{
-    const same=activeId===sceneId;
-    const newId=same?null:sceneId;
+    const newId=activeId===sceneId?null:sceneId;
     setActiveId(newId);
-    // push to Firebase
     await fbSet("ambiance",{scene:newId,updatedAt:ts()});
-    // play locally
-    if(audioRef.current){audioRef.current.pause();audioRef.current=null;}
-    if(newId){
-      const scene=SCENES.find(s=>s.id===newId);
-      const audio=new Audio(scene.url);
-      audio.loop=true; audio.volume=volume;
-      audio.play().catch(e=>alert("Ses yüklenemedi: "+e.message));
-      audioRef.current=audio;
-    }
+    startScene(newId,volume);
   };
 
   const changeVolume=v=>{
     setVolume(v);
-    if(audioRef.current)audioRef.current.volume=v;
+    if(engineRef.current)engineRef.current.setVolume(v);
   };
+
+  // Cleanup on unmount
+  useEffect(()=>()=>{if(engineRef.current)engineRef.current.stop();},[]);
 
   const activeScene=SCENES.find(s=>s.id===activeId);
 
-  // Players: just show now-playing indicator
   if(!isDM){
     if(!activeId)return null;
     return(
       <div style={{position:"fixed",bottom:22,left:22,zIndex:500}}>
         <div style={{background:"rgba(91,155,213,.12)",border:"1px solid rgba(91,155,213,.3)",borderRadius:24,padding:"6px 14px",display:"flex",alignItems:"center",gap:8,boxShadow:"0 4px 16px rgba(0,0,0,.4)"}}>
-          <span style={{fontSize:"1rem",animation:"amb-pulse 2.5s infinite"}}>{activeScene&&activeScene.icon}</span>
+          <span style={{fontSize:"1rem"}}>{activeScene&&activeScene.icon}</span>
           <span style={{fontFamily:"'Cinzel',serif",fontSize:".6rem",letterSpacing:".1em",color:"#90b8f0"}}>{activeScene&&activeScene.label}</span>
           <input type="range" min={0} max={1} step={0.05} value={volume} className="amb-vol-slider" style={{width:60}} onChange={e=>changeVolume(Number(e.target.value))}/>
         </div>
