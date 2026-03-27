@@ -364,16 +364,25 @@ function Npc({isDM,npcs,setNpcs,onClearRolls}){
 }
 
 function App(){
-  const [phase,setPhase]=useState("lobby");
-  const [name,setName]=useState("");
-  const [role,setRole]=useState("player");
+  const ss=window.sessionStorage;
+  const [phase,setPhase]=useState(()=>ss.getItem("tr_phase")||"lobby");
+  const [name,setName]=useState(()=>ss.getItem("tr_name")||"");
+  const [role,setRole]=useState(()=>ss.getItem("tr_role")||"player");
   const [tab,setTab]=useState("dice");
-  const [char,setChar]=useState(()=>iChar());
+  const [char,setChar]=useState(()=>{try{const c=ss.getItem("tr_char");return c?JSON.parse(c):iChar();}catch{return iChar();}});
   const [npcs,setNpcs]=useState([]);
   const [all,setAll]=useState([]);
   const [rolls,setRolls]=useState({latest:null,feed:[],akey:0});
+  const [dmPass,setDmPass]=useState("");
+  const [dmErr,setDmErr]=useState(false);
   const lastRid=useRef(0);
   const cst=useRef(null);
+
+  // Persist session (survives F5, cleared on tab close)
+  useEffect(()=>{ss.setItem("tr_phase",phase);},[phase]);
+  useEffect(()=>{ss.setItem("tr_name",name);},[name]);
+  useEffect(()=>{ss.setItem("tr_role",role);},[role]);
+  useEffect(()=>{try{ss.setItem("tr_char",JSON.stringify(char));}catch{}},[char]);
 
   useEffect(()=>{
     if(phase!=="game")return;
@@ -381,8 +390,9 @@ function App(){
     fbSet(`chars/${name}`,char);
     const hb=setInterval(()=>fbPatch(`players/${name}`,{lastSeen:ts()}),5000);
 
-    // Rolls listener — at App level so tab changes don't break it
-    const unR=fbListen("rolls",data=>{
+    // Rolls: polling her 2sn - SSE'den daha güvenilir
+    const pollRolls=async()=>{
+      const data=await fbGet("rolls");
       if(!data)return;
       const arr=Object.values(data).sort((a,b)=>a.id-b.id);
       const nw=arr.filter(r=>r.id>lastRid.current);
@@ -390,7 +400,11 @@ function App(){
         lastRid.current=Math.max(...nw.map(r=>r.id));
         setRolls({latest:nw[nw.length-1],feed:arr.slice(-12).reverse(),akey:Date.now()});
       }
-    });
+    };
+    pollRolls();
+    const rollPoll=setInterval(pollRolls,2000);
+
+    // Players/chars/npcs: SSE
     const unP=fbListen("players",data=>{
       if(!data)return;
       const now=ts();
@@ -406,7 +420,7 @@ function App(){
       if(!data){setNpcs([]);return;}
       setNpcs(Object.values(data).sort((a,b)=>a.id-b.id));
     });
-    return()=>{clearInterval(hb);unR();unP();unC();unN();};
+    return()=>{clearInterval(hb);clearInterval(rollPoll);unP();unC();unN();};
   },[phase,name]);
 
   const hChar=fn=>{setChar(prev=>{const u=typeof fn==="function"?fn(prev):fn;clearTimeout(cst.current);cst.current=setTimeout(()=>fbSet(`chars/${name}`,u),400);return u;});};
@@ -414,27 +428,22 @@ function App(){
   const onRoll=async({sides,raw,modifier,total})=>{
     const id=ts();
     const entry={id,player:name,sides,raw,modifier,total};
-    // optimistic update
     setRolls(r=>({latest:entry,feed:[entry,...r.feed].slice(0,12),akey:id}));
     lastRid.current=id;
     await fbSet(`rolls/${id}`,entry);
-    // trim
     const all2=await fbGet("rolls");
     if(all2){const keys=Object.keys(all2).sort((a,b)=>Number(a)-Number(b));if(keys.length>30)for(const k of keys.slice(0,keys.length-30))await fbDel(`rolls/${k}`);}
   };
-
-  const [dmPass,setDmPass]=useState("");
-  const [dmErr,setDmErr]=useState(false);
-
-  const TABS=role==="dm"
-    ?[{id:"dice",l:"🎲 Zar"},{id:"char",l:"📜 Karakterler"},{id:"npc",l:"⚔ NPC Yönet"}]
-    :[{id:"dice",l:"🎲 Zar"},{id:"char",l:"📜 Karakter"},{id:"npc",l:"⚔ Düşmanlar"}];
 
   const clearRolls=async()=>{
     setRolls({latest:null,feed:[],akey:0});
     lastRid.current=0;
     await fbDel("rolls");
   };
+
+  const TABS=role==="dm"
+    ?[{id:"dice",l:"🎲 Zar"},{id:"char",l:"📜 Karakterler"},{id:"npc",l:"⚔ NPC Yönet"}]
+    :[{id:"dice",l:"🎲 Zar"},{id:"char",l:"📜 Karakter"},{id:"npc",l:"⚔ Düşmanlar"}];
 
   if(phase==="lobby"){
     const dmSelected=role==="dm";
@@ -444,25 +453,25 @@ function App(){
       setPhase("game");
     };
     return(
-    <div className="lobby">
-      <h1 className="lt">TAVERN ROLL</h1>
-      <p className="ls">İnci — Companion</p>
-      <div className="lc">
-        <h2>Masaya Katıl</h2>
-        <input className="ii" placeholder="Adın (ör. Duncan the Tall, Kael, Revlo Krell...)" value={name} onChange={e=>setName(e.target.value)} onKeyDown={e=>e.key==="Enter"&&join()}/>
-        <div className="lr">
-          <button className={`rb${role==="player"?" on":""}`} onClick={()=>setRole("player")}>⚔ Oyuncu</button>
-          <button className={`rb${role==="dm"?" on":""}`} onClick={()=>setRole("dm")}>👁 DM</button>
+      <div className="lobby">
+        <h1 className="lt">TAVERN ROLL</h1>
+        <p className="ls">İnci — Companion</p>
+        <div className="lc">
+          <h2>Masaya Katıl</h2>
+          <input className="ii" placeholder="Adın (ör. Duncan the Tall, Kael, Revlo Krell...)" value={name} onChange={e=>setName(e.target.value)} onKeyDown={e=>e.key==="Enter"&&join()}/>
+          <div className="lr">
+            <button className={`rb${role==="player"?" on":""}`} onClick={()=>setRole("player")}>⚔ Oyuncu</button>
+            <button className={`rb${role==="dm"?" on":""}`} onClick={()=>setRole("dm")}>👁 DM</button>
+          </div>
+          {dmSelected&&<>
+            <input className="ii" type="password" placeholder="DM Şifresi..." value={dmPass} onChange={e=>setDmPass(e.target.value)} onKeyDown={e=>e.key==="Enter"&&join()} style={{borderColor:dmErr?"#c03030":undefined}}/>
+            {dmErr&&<div style={{color:"#ff6060",fontSize:".8rem",fontStyle:"italic",marginBottom:8,textAlign:"center"}}>Şifre yanlış!</div>}
+          </>}
+          <button className="jb" onClick={join} disabled={!name.trim()}>Masaya Otur →</button>
         </div>
-        {dmSelected&&<>
-          <input className="ii" type="password" placeholder="DM Şifresi..." value={dmPass} onChange={e=>setDmPass(e.target.value)} onKeyDown={e=>e.key==="Enter"&&join()} style={{borderColor:dmErr?"#c03030":undefined}}/>
-          {dmErr&&<div style={{color:"#ff6060",fontSize:".8rem",fontStyle:"italic",marginBottom:8,textAlign:"center"}}>Şifre yanlış!</div>}
-        </>}
-        <button className="jb" onClick={join} disabled={!name.trim()}>Masaya Otur →</button>
       </div>
-    </div>
-  );}
-
+    );
+  }
 
   return <div>
     <div className="hdr">
