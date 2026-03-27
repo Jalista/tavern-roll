@@ -423,20 +423,21 @@ function App(){
     if(all2){const keys=Object.keys(all2).sort((a,b)=>Number(a)-Number(b));if(keys.length>30)for(const k of keys.slice(0,keys.length-30))await fbDel(`rolls/${k}`);}
   };
 
+  const [dmPass,setDmPass]=useState("");
+  const [dmErr,setDmErr]=useState(false);
+
+  const TABS=role==="dm"
+    ?[{id:"dice",l:"🎲 Zar"},{id:"char",l:"📜 Karakterler"},{id:"npc",l:"⚔ NPC Yönet"}]
+    :[{id:"dice",l:"🎲 Zar"},{id:"char",l:"📜 Karakter"},{id:"npc",l:"⚔ Düşmanlar"}];
+
   const clearRolls=async()=>{
     setRolls({latest:null,feed:[],akey:0});
     lastRid.current=0;
     await fbDel("rolls");
   };
 
-  const TABS=role==="dm"
-    ?[{id:"dice",l:"🎲 Zar"},{id:"char",l:"📜 Karakterler"},{id:"npc",l:"⚔ NPC Yönet"}]
-    :[{id:"dice",l:"🎲 Zar"},{id:"char",l:"📜 Karakter"},{id:"npc",l:"⚔ Düşmanlar"}];
-
   if(phase==="lobby"){
     const dmSelected=role==="dm";
-    const [dmPass,setDmPass]=useState("");
-    const [dmErr,setDmErr]=useState(false);
     const join=()=>{
       if(!name.trim())return;
       if(role==="dm"&&dmPass!=="05426654789"){setDmErr(true);setTimeout(()=>setDmErr(false),2000);return;}
