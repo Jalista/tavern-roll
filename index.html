@@ -42,7 +42,7 @@ class ErrorBoundary extends Component{
         <div style={{background:"#1e1710",border:"1px solid rgba(139,26,26,.5)",borderRadius:10,padding:32,maxWidth:500,width:"100%",boxShadow:"0 8px 40px rgba(0,0,0,.6)"}}>
           <div style={{fontFamily:"'Cinzel',serif",fontSize:"1.1rem",color:"#ff6060",marginBottom:12,letterSpacing:".1em"}}>⚠ Bir Hata Oluştu</div>
           <div style={{fontFamily:"'Cinzel',serif",fontSize:".65rem",letterSpacing:".15em",color:"rgba(200,149,42,.6)",textTransform:"uppercase",marginBottom:8}}>Hata Detayı</div>
-          <pre style={{background:"#0d0705",border:"1px solid rgba(200,149,42,.15)",borderRadius:6,padding:12,fontSize:".78rem",color:"rgba(245,230,200,.6)",overflowX:"auto",marginBottom:16,whiteSpace:"pre-wrap",wordBreak:"break-all"}}>
+          <pre style={{background:"#0d0705",border:"1px solid rgba(200,149,42,.15)",borderRadius:6,padding:12,fontSize:".78rem",color:"rgba(var(--text-rgb,245,230,200),.6)",overflowX:"auto",marginBottom:16,whiteSpace:"pre-wrap",wordBreak:"break-all"}}>
             {error.toString()}
             {info&&info.componentStack?"\n\nKonum:"+info.componentStack.split("\n").slice(0,5).join("\n"):""}
           </pre>
@@ -82,7 +82,7 @@ const iChar=(n="")=>({
 const S=`*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
   --bg0:#0d0705;--bg1:#1e1710;--bg2:#2e2418;
-  --text:#f5e6c8;--text-dim:rgba(245,230,200,.4);--text-mid:rgba(245,230,200,.6);
+  --text:var(--parchment);--text-dim:rgba(var(--text-rgb,245,230,200),.4);--text-mid:rgba(var(--text-rgb,245,230,200),.6);
   --gold:#c8952a;--gold-light:#f0c060;--blood:#8b1a1a;
   --border:rgba(200,149,42,.2);--border-gold:rgba(200,149,42,.35);
 }
@@ -99,7 +99,7 @@ body{font-family:'Crimson Text',serif;color:var(--text);background:var(--bg0);ba
 .rb.on{background:rgba(200,149,42,.12);border-color:var(--gold);color:var(--gold-light)}
 .jb{width:100%;background:rgba(200,149,42,.12);border:1px solid rgba(200,149,42,.4);border-radius:5px;color:var(--gold-light);font-family:'Cinzel',serif;font-size:.8rem;letter-spacing:.15em;padding:13px;cursor:pointer;transition:all .2s;text-transform:uppercase;margin-top:6px}
 .jb:hover{background:rgba(200,149,42,.2)}.jb:disabled{opacity:.4;cursor:not-allowed}
-.hdr{display:flex;align-items:center;justify-content:space-between;padding:14px 20px;border-bottom:1px solid rgba(200,149,42,.15);position:sticky;top:0;z-index:100;background:rgba(13,7,5,.96);backdrop-filter:blur(8px)}
+.hdr{display:flex;align-items:center;justify-content:space-between;padding:14px 20px;border-bottom:1px solid rgba(200,149,42,.15);position:sticky;top:0;z-index:100;background:var(--hdr-bg,rgba(13,7,5,.96));backdrop-filter:blur(8px)}
 .htitle{font-family:'Cinzel',serif;font-size:1.1rem;font-weight:900;color:#f0c060;letter-spacing:.12em}
 .huser{font-size:.8rem;color:var(--text-dim);font-style:italic}
 .huser strong{color:var(--gold);font-style:normal;font-family:'Cinzel',serif;font-size:.75rem}
@@ -109,12 +109,12 @@ body{font-family:'Crimson Text',serif;color:var(--text);background:var(--bg0);ba
 .op.away{border-color:rgba(240,192,96,.3);color:rgba(240,192,96,.7)}
 .op.away .pd{background:#f0c060}
 @keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(.8)}}
-.ob{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:8px 18px;border-bottom:1px solid rgba(200,149,42,.08);background:rgba(0,0,0,.2)}
+.ob{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:8px 18px;border-bottom:1px solid var(--border);background:rgba(0,0,0,.08)}
 .ol{font-family:'Cinzel',serif;font-size:.58rem;letter-spacing:.12em;color:rgba(200,149,42,.5);text-transform:uppercase}
-.op{background:rgba(200,149,42,.08);border:1px solid rgba(200,149,42,.2);border-radius:20px;padding:2px 10px;font-size:.72rem;color:rgba(245,230,200,.6);display:flex;align-items:center;gap:5px}
+.op{background:rgba(200,149,42,.08);border:1px solid rgba(200,149,42,.2);border-radius:20px;padding:2px 10px;font-size:.72rem;color:rgba(var(--text-rgb,245,230,200),.6);display:flex;align-items:center;gap:5px}
 .op.dm{border-color:rgba(139,26,26,.4);color:#ffaaaa}
 .tabs{display:flex;justify-content:center;gap:6px;padding:16px 16px 10px;flex-wrap:wrap}
-.tb{background:transparent;border:1px solid rgba(200,149,42,.2);color:rgba(245,230,200,.5);font-family:'Cinzel',serif;font-size:.68rem;letter-spacing:.1em;padding:7px 16px;cursor:pointer;border-radius:3px;transition:all .2s;text-transform:uppercase}
+.tb{background:transparent;border:1px solid rgba(200,149,42,.2);color:rgba(var(--text-rgb,245,230,200),.5);font-family:'Cinzel',serif;font-size:.68rem;letter-spacing:.1em;padding:7px 16px;cursor:pointer;border-radius:3px;transition:all .2s;text-transform:uppercase}
 .tb:hover{border-color:#c8952a;color:#f0c060}.tb.on{background:rgba(200,149,42,.1);border-color:#c8952a;color:#f0c060}
 .panel{padding:10px 18px 50px;max-width:860px;margin:0 auto}
 .dg{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:22px}
@@ -156,7 +156,7 @@ body{font-family:'Crimson Text',serif;color:var(--text);background:var(--bg0);ba
 .cg{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
 @media(min-width:560px){.cg{grid-template-columns:repeat(4,1fr)}}
 .cf label{display:block;font-family:'Cinzel',serif;font-size:.55rem;letter-spacing:.12em;color:#c8952a;margin-bottom:4px}
-.cf input,.cf select{width:100%;background:var(--bg1);border:1px solid rgba(200,149,42,.2);border-radius:4px;color:#f5e6c8;font-family:'Crimson Text',serif;font-size:1rem;padding:6px 8px;outline:none}
+.cf input,.cf select{width:100%;background:var(--bg1);border:1px solid rgba(200,149,42,.2);border-radius:4px;color:var(--parchment);font-family:'Crimson Text',serif;font-size:1rem;padding:6px 8px;outline:none}
 .cf input:focus,.cf select:focus{border-color:var(--gold)}.cf select option{background:var(--bg1)}
 .sg{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px}
 @media(min-width:460px){.sg{grid-template-columns:repeat(6,1fr)}}
@@ -167,7 +167,7 @@ body{font-family:'Crimson Text',serif;color:var(--text);background:var(--bg0);ba
 .vr{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px}
 .vb{background:var(--bg1);border:1px solid rgba(200,149,42,.18);border-radius:6px;padding:10px;text-align:center}
 .vb label{display:block;font-family:'Cinzel',serif;font-size:.52rem;letter-spacing:.1em;color:var(--gold);margin-bottom:5px}
-.vb input{background:transparent;border:none;border-bottom:1px solid rgba(200,149,42,.25);color:#f5e6c8;font-family:'Cinzel',serif;font-size:1.3rem;font-weight:600;width:100%;text-align:center;outline:none}
+.vb input{background:transparent;border:none;border-bottom:1px solid rgba(200,149,42,.25);color:var(--parchment);font-family:'Cinzel',serif;font-size:1.3rem;font-weight:600;width:100%;text-align:center;outline:none}
 .na{width:100%;background:var(--bg1);border:1px solid rgba(200,149,42,.2);border-radius:4px;color:var(--text);font-family:'Crimson Text',serif;font-size:1rem;padding:10px;resize:vertical;outline:none;min-height:80px;line-height:1.5}
 .na:focus{border-color:#c8952a}
 .si{font-size:.75rem;color:rgba(200,149,42,.5);font-style:italic;margin-top:6px;text-align:right;transition:color .3s}
@@ -203,8 +203,8 @@ body{font-family:'Crimson Text',serif;color:var(--text);background:var(--bg0);ba
 .moves-info{background:rgba(200,149,42,.06);border:1px solid rgba(200,149,42,.15);border-radius:6px;padding:10px 12px;margin-bottom:12px;display:flex;gap:16px;flex-wrap:wrap}
 .moves-item{font-family:'Cinzel',serif;font-size:.62rem;letter-spacing:.08em}
 .moves-item span{color:var(--gold-light);font-size:.9rem;font-weight:700;margin-right:4px}
-.moves-item.used span{color:rgba(245,230,200,.3)}
-.moves-label{color:rgba(245,230,200,.5)}
+.moves-item.used span{color:rgba(var(--text-rgb,245,230,200),.3)}
+.moves-label{color:rgba(var(--text-rgb,245,230,200),.5)}
 /* Notebooks */
 .nb-actions{display:flex;gap:10px;margin-bottom:18px;flex-wrap:wrap}
 .nb-action-btn{flex:1;min-width:140px;background:var(--bg2);border:1px solid var(--border-gold);border-radius:6px;color:var(--gold-light);font-family:'Cinzel',serif;font-size:.68rem;letter-spacing:.1em;padding:12px 8px;cursor:pointer;transition:all .2s;text-transform:uppercase;text-align:center}
@@ -245,8 +245,8 @@ body{font-family:'Crimson Text',serif;color:var(--text);background:var(--bg0);ba
 .nb-dm-row{display:flex;align-items:flex-start;gap:10px;padding:8px 12px;background:rgba(139,26,26,.06);border:1px solid rgba(139,26,26,.15);border-radius:5px;margin-bottom:6px}
 .nb-dm-info{flex:1}
 .nb-dm-name{font-family:'Cinzel',serif;font-size:.75rem;color:#ffaaaa;font-weight:600}
-.nb-dm-pass{font-size:.78rem;color:rgba(245,230,200,.45);font-style:italic;margin-top:2px}
-.dmo{background:rgba(139,26,26,.08);border:1px solid rgba(139,26,26,.2);border-radius:5px;padding:8px 14px;margin-bottom:16px;font-size:.8rem;color:rgba(245,230,200,.45);font-style:italic;text-align:center}
+.nb-dm-pass{font-size:.78rem;color:rgba(var(--text-rgb,245,230,200),.45);font-style:italic;margin-top:2px}
+.dmo{background:rgba(139,26,26,.08);border:1px solid rgba(139,26,26,.2);border-radius:5px;padding:8px 14px;margin-bottom:16px;font-size:.8rem;color:rgba(var(--text-rgb,245,230,200),.45);font-style:italic;text-align:center}
 .cb{background:var(--bg1);border:1px solid rgba(200,149,42,.18);border-radius:8px;padding:14px;margin-bottom:12px}
 .cr{display:flex;gap:14px;align-items:flex-start;flex-wrap:wrap}
 .ch{flex:1;min-width:120px}
@@ -283,19 +283,19 @@ body{font-family:'Crimson Text',serif;color:var(--text);background:var(--bg0);ba
 .be{border-color:#8b1a1a;color:#ff8080;background:rgba(139,26,26,.12)}
 .ba{border-color:rgba(60,180,80,.4);color:#7ef0a0;background:rgba(60,180,80,.07)}
 .bn{border-color:rgba(200,149,42,.4);color:#c8952a;background:rgba(200,149,42,.07)}
-.ns{font-size:.78rem;color:rgba(245,230,200,.4);margin-bottom:8px}
-.nnt{font-size:.82rem;color:rgba(245,230,200,.45);font-style:italic;margin-bottom:8px}
+.ns{font-size:.78rem;color:rgba(var(--text-rgb,245,230,200),.4);margin-bottom:8px}
+.nnt{font-size:.82rem;color:rgba(var(--text-rgb,245,230,200),.45);font-style:italic;margin-bottom:8px}
 .nct{display:flex;gap:6px;flex-wrap:wrap}
-.nbtn{background:var(--bg2);border:1px solid rgba(200,149,42,.15);color:rgba(245,230,200,.65);font-family:'Cinzel',serif;font-size:.62rem;letter-spacing:.05em;padding:5px 11px;cursor:pointer;border-radius:3px;transition:all .15s}
+.nbtn{background:var(--bg2);border:1px solid rgba(200,149,42,.15);color:rgba(var(--text-rgb,245,230,200),.65);font-family:'Cinzel',serif;font-size:.62rem;letter-spacing:.05em;padding:5px 11px;cursor:pointer;border-radius:3px;transition:all .15s}
 .nbtn.rm:hover{border-color:#8b1a1a;color:#ff9090}
 .danger-btn{background:rgba(139,26,26,.1);border:1px solid rgba(139,26,26,.35);border-radius:4px;color:#ff9090;font-family:'Cinzel',serif;font-size:.7rem;letter-spacing:.1em;padding:8px 16px;cursor:pointer;transition:all .2s;text-transform:uppercase}
 .danger-btn:hover{background:rgba(139,26,26,.2);border-color:#c03030}
 .confirm-box{background:#1e1710;border:1px solid rgba(139,26,26,.4);border-radius:8px;padding:14px 16px;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
-.confirm-box span{font-size:.9rem;color:rgba(245,230,200,.7);font-style:italic}
+.confirm-box span{font-size:.9rem;color:rgba(var(--text-rgb,245,230,200),.7);font-style:italic}
 .confirm-btns{display:flex;gap:8px}
 .yes-btn{background:rgba(139,26,26,.15);border:1px solid #c03030;border-radius:4px;color:#ff9090;font-family:'Cinzel',serif;font-size:.68rem;padding:6px 14px;cursor:pointer;transition:all .15s;text-transform:uppercase}
 .yes-btn:hover{background:rgba(139,26,26,.3)}
-.no-btn{background:rgba(200,149,42,.08);border:1px solid rgba(200,149,42,.3);border-radius:4px;color:rgba(245,230,200,.6);font-family:'Cinzel',serif;font-size:.68rem;padding:6px 14px;cursor:pointer;transition:all .15s;text-transform:uppercase}
+.no-btn{background:rgba(200,149,42,.08);border:1px solid rgba(200,149,42,.3);border-radius:4px;color:rgba(var(--text-rgb,245,230,200),.6);font-family:'Cinzel',serif;font-size:.68rem;padding:6px 14px;cursor:pointer;transition:all .15s;text-transform:uppercase}
 .no-btn:hover{border-color:#c8952a;color:#f0c060}
 .dm-tools{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;padding:12px;background:rgba(139,26,26,.05);border:1px solid rgba(139,26,26,.15);border-radius:6px}
 .an{background:var(--bg1);border:1px dashed rgba(200,149,42,.2);border-radius:8px;padding:16px}
@@ -305,7 +305,7 @@ body{font-family:'Crimson Text',serif;color:var(--text);background:var(--bg0);ba
 .fin:focus{border-color:var(--gold)}.fin option{background:var(--bg1)}
 .ab{background:rgba(200,149,42,.1);border:1px solid rgba(200,149,42,.35);border-radius:4px;color:#f0c060;font-family:'Cinzel',serif;font-size:.72rem;letter-spacing:.12em;padding:9px 20px;cursor:pointer;transition:all .2s;text-transform:uppercase}
 .ab:hover{background:rgba(200,149,42,.18)}
-.em{text-align:center;padding:28px;color:rgba(245,230,200,.25);font-style:italic}
+.em{text-align:center;padding:28px;color:rgba(var(--text-rgb,245,230,200),.25);font-style:italic}
 .floating-nb{position:fixed;bottom:148px;right:22px;width:320px;max-height:480px;background:#1a120c;border:1px solid rgba(200,149,42,.35);border-radius:12px;box-shadow:0 8px 40px rgba(0,0,0,.7);z-index:498;display:flex;flex-direction:column;animation:chat-in .2s ease-out;overflow:hidden}
 .floating-nb-header{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:1px solid rgba(200,149,42,.12);flex-shrink:0;cursor:move;background:rgba(200,149,42,.04)}
 .floating-nb-title{font-family:'Cinzel',serif;font-size:.68rem;letter-spacing:.12em;color:var(--gold);text-transform:uppercase}
@@ -340,7 +340,7 @@ body{font-family:'Crimson Text',serif;color:var(--text);background:var(--bg0);ba
 .mc:hover{transform:translateY(-1px)}
 .mc.player{background:var(--bg1);border-color:rgba(200,149,42,.35)}
 .mc.player.me{border-color:#f0c060;border-width:2px;box-shadow:0 0 12px rgba(240,192,96,.2)}
-.ts{font-size:.62rem;color:rgba(245,230,200,.3);margin-left:auto;white-space:nowrap}
+.ts{font-size:.62rem;color:rgba(var(--text-rgb,245,230,200),.3);margin-left:auto;white-space:nowrap}
 
 /* Avatar */
 .avatar-wrap{display:flex;flex-direction:column;align-items:center;gap:10px;margin-bottom:16px}
@@ -393,7 +393,7 @@ body{font-family:'Crimson Text',serif;color:var(--text);background:var(--bg0);ba
 .chat-empty{text-align:center;padding:24px;color:var(--text-dim);font-style:italic;font-size:.85rem}
 
 /* Initiative Tracker */
-.init-bar{background:rgba(10,6,4,.95);border-bottom:1px solid rgba(200,149,42,.2);padding:6px 16px;display:flex;align-items:center;gap:8px;overflow-x:auto;flex-wrap:nowrap;position:sticky;top:57px;z-index:90;backdrop-filter:blur(6px)}
+.init-bar{background:var(--hdr-bg,rgba(10,6,4,.95));border-bottom:1px solid rgba(200,149,42,.2);padding:6px 16px;display:flex;align-items:center;gap:8px;overflow-x:auto;flex-wrap:nowrap;position:sticky;top:57px;z-index:90;backdrop-filter:blur(6px)}
 .init-bar::-webkit-scrollbar{height:3px}
 .init-bar::-webkit-scrollbar-thumb{background:rgba(200,149,42,.3);border-radius:2px}
 .init-label{font-family:'Cinzel',serif;font-size:.55rem;letter-spacing:.15em;color:rgba(200,149,42,.5);text-transform:uppercase;white-space:nowrap;flex-shrink:0}
@@ -412,9 +412,9 @@ body{font-family:'Crimson Text',serif;color:var(--text);background:var(--bg0);ba
 .init-card.enemy .init-name{color:#ffa0a0}
 .init-card.ally  .init-name{color:#a0f0b8}
 .init-arrow{font-size:.8rem;color:rgba(200,149,42,.4);flex-shrink:0;margin:0 2px}
-.init-empty{font-size:.75rem;color:rgba(245,230,200,.25);font-style:italic;padding:0 8px}
+.init-empty{font-size:.75rem;color:rgba(var(--text-rgb,245,230,200),.25);font-style:italic;padding:0 8px}
 .init-controls{display:flex;gap:5px;align-items:center;flex-shrink:0;margin-left:6px}
-.init-btn{background:transparent;border:1px solid rgba(200,149,42,.2);border-radius:4px;color:rgba(245,230,200,.5);font-family:'Cinzel',serif;font-size:.55rem;letter-spacing:.06em;padding:3px 8px;cursor:pointer;transition:all .15s;white-space:nowrap;text-transform:uppercase}
+.init-btn{background:transparent;border:1px solid rgba(200,149,42,.2);border-radius:4px;color:rgba(var(--text-rgb,245,230,200),.5);font-family:'Cinzel',serif;font-size:.55rem;letter-spacing:.06em;padding:3px 8px;cursor:pointer;transition:all .15s;white-space:nowrap;text-transform:uppercase}
 .init-btn:hover{border-color:var(--gold);color:var(--gold-light)}
 .init-btn.next{border-color:rgba(200,149,42,.35);color:var(--gold)}
 .init-btn.next:hover{background:rgba(200,149,42,.12)}
@@ -422,7 +422,7 @@ body{font-family:'Crimson Text',serif;color:var(--text);background:var(--bg0);ba
 .init-turn{font-family:'Cinzel',serif;font-size:.6rem;color:rgba(200,149,42,.5);white-space:nowrap;flex-shrink:0;padding:0 4px}
 
 /* Settings */
-.gear-btn{background:transparent;border:1px solid rgba(200,149,42,.2);border-radius:6px;color:rgba(245,230,200,.45);font-size:1rem;width:32px;height:32px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .2s;flex-shrink:0}
+.gear-btn{background:transparent;border:1px solid rgba(200,149,42,.2);border-radius:6px;color:rgba(var(--text-rgb,245,230,200),.45);font-size:1rem;width:32px;height:32px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .2s;flex-shrink:0}
 .gear-btn:hover{border-color:var(--gold);color:var(--gold-light)}
 
 /* Jukebox */
@@ -449,27 +449,27 @@ body{font-family:'Crimson Text',serif;color:var(--text);background:var(--bg0);ba
 .settings-overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:200;display:flex;align-items:flex-start;justify-content:flex-end;padding:60px 16px 0}
 .settings-panel{background:var(--bg1);border:1px solid rgba(200,149,42,.3);border-radius:10px;padding:24px;width:100%;max-width:300px;box-shadow:0 8px 40px rgba(0,0,0,.6)}
 .settings-title{font-family:'Cinzel',serif;font-size:.7rem;letter-spacing:.2em;color:var(--gold);text-transform:uppercase;margin-bottom:20px;display:flex;justify-content:space-between;align-items:center}
-.settings-close{background:transparent;border:1px solid rgba(200,149,42,.2);border-radius:4px;color:rgba(245,230,200,.4);font-size:.7rem;padding:3px 9px;cursor:pointer;font-family:'Cinzel',serif}
+.settings-close{background:transparent;border:1px solid rgba(200,149,42,.2);border-radius:4px;color:rgba(var(--text-rgb,245,230,200),.4);font-size:.7rem;padding:3px 9px;cursor:pointer;font-family:'Cinzel',serif}
 .settings-close:hover{border-color:var(--gold);color:var(--gold-light)}
 .settings-section{margin-bottom:20px}
 .settings-section-title{font-family:'Cinzel',serif;font-size:.58rem;letter-spacing:.15em;color:rgba(200,149,42,.6);text-transform:uppercase;margin-bottom:12px;border-bottom:1px solid rgba(200,149,42,.1);padding-bottom:5px}
 .theme-btns{display:flex;gap:8px;margin-bottom:14px}
-.theme-btn{flex:1;background:rgba(200,149,42,.06);border:1px solid rgba(200,149,42,.2);border-radius:5px;color:rgba(245,230,200,.5);font-family:'Cinzel',serif;font-size:.62rem;letter-spacing:.08em;padding:8px 6px;cursor:pointer;transition:all .2s;text-transform:uppercase;text-align:center}
+.theme-btn{flex:1;background:rgba(200,149,42,.06);border:1px solid rgba(200,149,42,.2);border-radius:5px;color:rgba(var(--text-rgb,245,230,200),.5);font-family:'Cinzel',serif;font-size:.62rem;letter-spacing:.08em;padding:8px 6px;cursor:pointer;transition:all .2s;text-transform:uppercase;text-align:center}
 .theme-btn.on{background:rgba(200,149,42,.14);border-color:var(--gold);color:var(--gold-light)}
 .slider-row{margin-top:8px}
-.slider-label{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;font-size:.75rem;color:rgba(245,230,200,.45)}
+.slider-label{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;font-size:.75rem;color:rgba(var(--text-rgb,245,230,200),.45)}
 .slider-label span{font-family:'Cinzel',serif;font-size:.58rem;letter-spacing:.08em;color:var(--gold)}
 .theme-slider{-webkit-appearance:none;width:100%;height:5px;border-radius:3px;outline:none;cursor:pointer}
 .theme-slider::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;border-radius:50%;background:var(--gold-light);border:2px solid var(--gold);cursor:pointer;box-shadow:0 0 6px rgba(200,149,42,.4)}
 .theme-slider::-moz-range-thumb{width:16px;height:16px;border-radius:50%;background:var(--gold-light);border:2px solid var(--gold);cursor:pointer}
 .toggle-row{display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid rgba(200,149,42,.07)}
-.toggle-label{font-size:.82rem;color:rgba(245,230,200,.65)}
-.toggle-sub{font-size:.7rem;color:rgba(245,230,200,.3);margin-top:2px}
+.toggle-label{font-size:.82rem;color:rgba(var(--text-rgb,245,230,200),.65)}
+.toggle-sub{font-size:.7rem;color:rgba(var(--text-rgb,245,230,200),.3);margin-top:2px}
 .toggle{position:relative;width:42px;height:22px;flex-shrink:0}
 .toggle input{opacity:0;width:0;height:0}
 .toggle-track{position:absolute;inset:0;background:rgba(200,149,42,.12);border:1px solid rgba(200,149,42,.2);border-radius:11px;cursor:pointer;transition:all .25s}
 .toggle input:checked+.toggle-track{background:rgba(200,149,42,.35);border-color:var(--gold)}
-.toggle-thumb{position:absolute;top:2px;left:2px;width:16px;height:16px;background:rgba(245,230,200,.4);border-radius:50%;transition:transform .25s}
+.toggle-thumb{position:absolute;top:2px;left:2px;width:16px;height:16px;background:rgba(var(--text-rgb,245,230,200),.4);border-radius:50%;transition:transform .25s}
 .toggle input:checked~.toggle-thumb{transform:translateX(20px);background:var(--gold-light)}
 .mc.ally{background:rgba(10,30,14,.9);border-color:rgba(60,180,80,.35)}
 .mc.neutral{background:rgba(10,18,32,.9);border-color:rgba(80,130,200,.35)}
@@ -479,7 +479,7 @@ body{font-family:'Crimson Text',serif;color:var(--text);background:var(--bg0);ba
 .mc.player .mtg{color:#c8952a}.mc.ally .mtg{color:#7ef0a0}.mc.neutral .mtg{color:#90b8f0}.mc.enemy .mtg{color:#ff9090}
 .mnm{font-family:'Cinzel',serif;font-size:.82rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:4px}
 .mc.player .mnm{color:#f0c060}.mc.ally .mnm{color:#a0f0b8}.mc.neutral .mnm{color:#a8c8f8}.mc.enemy .mnm{color:#ffa0a0}
-.msb{font-size:.68rem;color:rgba(245,230,200,.3);font-style:italic;margin-bottom:7px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.msb{font-size:.68rem;color:rgba(var(--text-rgb,245,230,200),.3);font-style:italic;margin-bottom:7px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .sku{position:absolute;top:6px;right:8px;font-size:.9rem;opacity:.6}`;
 const el=document.createElement("style");el.textContent=S;document.head.appendChild(el);
 
@@ -583,7 +583,7 @@ function Masa({me,role,char,npcs,all,avatars,onPipChange,onNpcPipChange}){
           <MPs type="fiziksel" saglik={card.fiziksel} maxPips={card.fizMax||3} onChange={onFiz} disabled={!canEdit}/>
           <MPs type="zihinsel" saglik={card.zihinsel} maxPips={card.zihMax||3} onChange={onZih} disabled={!canEdit}/>
         </div>
-        {card.ac&&<div style={{fontSize:".65rem",color:"rgba(245,230,200,.3)",marginTop:5}}>ZS {card.ac}</div>}
+        {card.ac&&<div style={{fontSize:".65rem",color:"rgba(var(--text-rgb,245,230,200),.3)",marginTop:5}}>ZS {card.ac}</div>}
       </div>;
     })}
     </div>
@@ -668,14 +668,14 @@ function HistoryModal({feed,onClose}){
     <div style={{background:"#1e1710",border:"1px solid rgba(200,149,42,0.3)",borderRadius:10,padding:"24px",width:"100%",maxWidth:520,maxHeight:"80vh",display:"flex",flexDirection:"column",gap:0}} onClick={e=>e.stopPropagation()}>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
         <span style={{fontFamily:"'Cinzel',serif",fontSize:".75rem",letterSpacing:".18em",color:"#c8952a",textTransform:"uppercase"}}>📜 Zar Geçmişi</span>
-        <button onClick={onClose} style={{background:"transparent",border:"1px solid rgba(200,149,42,0.2)",borderRadius:4,color:"rgba(245,230,200,0.5)",fontFamily:"'Cinzel',serif",fontSize:".65rem",padding:"4px 10px",cursor:"pointer"}}>✕ Kapat</button>
+        <button onClick={onClose} style={{background:"transparent",border:"1px solid rgba(200,149,42,0.2)",borderRadius:4,color:"rgba(var(--text-rgb,245,230,200),0.5)",fontFamily:"'Cinzel',serif",fontSize:".65rem",padding:"4px 10px",cursor:"pointer"}}>✕ Kapat</button>
       </div>
       <div style={{overflowY:"auto",display:"flex",flexDirection:"column",gap:6}}>
         {feed.map((r,i)=>{
           const c=r.sides===20&&r.raw===20?"crit":r.sides===20&&r.raw===1?"fum":"";
           return <div key={r.id} className={`fi${i===0?" nr":""}`}>
             <span className="fdie">{DI[r.sides]||"🎲"}</span>
-            <div className="fb"><div className="fp">{r.player}<span className="ts">{fmtTime(r.time||r.id)}</span></div><div className="fd">d{r.sides} = {r.raw}{r.modifier!==0?` + (${r.modifier>0?"+":""}${r.modifier})`:""}{c==="crit"?" ✨ Crit!":c==="fum"?" 💀 Fail!":""}</div></div>
+            <div className="fb"><div className="fp">{r.skillName||r.player}<span className="ts">{fmtTime(r.time||r.id)}</span></div><div className="fd">{r.skillName?r.player+" · ":""}d{r.sides} = {r.raw}{r.modifier!==0?` + (${r.modifier>0?"+":""}${r.modifier})`:""}{c==="crit"?" ✨ Crit!":c==="fum"?" 💀 Fail!":""}</div></div>
             <div className={`fv ${c}`}>{r.total}</div>
           </div>;
         })}
@@ -689,11 +689,14 @@ function Dice({me,role,char,npcs,all,rolls,onRoll,animOn,avatars,onPipChange,onN
   const [showFW,setShowFW]=useState(false);
   const [showSmoke,setShowSmoke]=useState(false);
   const [showHistory,setShowHistory]=useState(false);
+  const [showSkillPicker,setShowSkillPicker]=useState(false);
   const {latest,feed,akey}=rolls;
   const ic=(latest&&latest.sides)===20&&(latest&&latest.raw)===20;
   const fu=(latest&&latest.sides)===20&&(latest&&latest.raw)===1;
 
   const prevAkey=useRef(0);
+  const clickTimer=useRef(null);
+
   useEffect(()=>{
     if(akey!==prevAkey.current){
       prevAkey.current=akey;
@@ -702,25 +705,96 @@ function Dice({me,role,char,npcs,all,rolls,onRoll,animOn,avatars,onPipChange,onN
     }
   },[akey,ic,fu]);
 
-  const roll=async s=>{
+  const roll=async(s,skillMod,skillName)=>{
     const raw=Math.floor(Math.random()*s)+1;
-    const m=parseInt(mod)||0;
-    await onRoll({sides:s,raw,modifier:m,total:raw+m});
+    const m=skillMod!=null?skillMod:(parseInt(mod)||0);
+    const label=skillName||null;
+    await onRoll({sides:s,raw,modifier:m,total:raw+m,skillName:label});
+    setShowSkillPicker(false);
   };
+
+  // d20 tek tık → skill picker aç, çift tık → düz at
+  const handleD20Click=()=>{
+    if(clickTimer.current){
+      // Çift tık
+      clearTimeout(clickTimer.current);
+      clickTimer.current=null;
+      roll(20,parseInt(mod)||0,null);
+    } else {
+      clickTimer.current=setTimeout(()=>{
+        clickTimer.current=null;
+        setShowSkillPicker(s=>!s);
+      },250);
+    }
+  };
+
+  // Karakterin tüm skill'leri modifier ile
+  const charSkills=Object.entries((char&&char.skills)||{})
+    .sort((a,b)=>b[1]-a[1])
+    .map(([name,lv])=>({name,lv}));
 
   const isDM=role==="dm";
 
   return <div className="panel">
     {showFW&&<Fireworks/>}
     {showSmoke&&<Smoke/>}
-    <div className="dg">{DICE.map(d=><button key={d.s} className="db" onClick={()=>roll(d.s)}><span className="di">{d.i}</span><span className="dl">d{d.s}</span></button>)}</div>
+    <div className="dg">
+      {DICE.map(d=>{
+        if(d.s===20){
+          return <button key={d.s} className="db" onClick={handleD20Click} title="Tek tık: Skill seç | Çift tık: Düz at">
+            <span className="di">{d.i}</span>
+            <span className="dl">d20</span>
+          </button>;
+        }
+        return <button key={d.s} className="db" onClick={()=>roll(d.s)}><span className="di">{d.i}</span><span className="dl">d{d.s}</span></button>;
+      })}
+    </div>
+
+    {/* d20 Skill Picker */}
+    {showSkillPicker&&(
+      <div style={{background:"var(--bg1)",border:"1px solid rgba(200,149,42,.25)",borderRadius:8,padding:12,marginBottom:12,animation:"fp .2s ease-out"}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+          <span style={{fontFamily:"'Cinzel',serif",fontSize:".65rem",letterSpacing:".12em",color:"var(--gold)",textTransform:"uppercase"}}>⚔ d20 — Skill Seç</span>
+          <button onClick={()=>setShowSkillPicker(false)} style={{background:"transparent",border:"none",color:"var(--text-dim)",cursor:"pointer",fontSize:".9rem"}}>✕</button>
+        </div>
+        {charSkills.length===0&&<div style={{color:"var(--text-dim)",fontStyle:"italic",fontSize:".85rem",marginBottom:8}}>Henüz skill eklenmemiş.</div>}
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6,marginBottom:10}}>
+          {charSkills.map(({name,lv})=>{
+            const isFiz=FIZIKSEL_SKILLS.includes(name);
+            const isPos=lv>0;
+            return(
+              <button key={name} onClick={()=>roll(20,lv,name)}
+                style={{
+                  background:isFiz?"rgba(76,175,125,.08)":"rgba(91,155,213,.08)",
+                  border:`1px solid ${isFiz?"rgba(76,175,125,.3)":"rgba(91,155,213,.3)"}`,
+                  borderRadius:6,padding:"8px 10px",cursor:"pointer",textAlign:"left",
+                  transition:"all .15s",display:"flex",justifyContent:"space-between",alignItems:"center"
+                }}
+                onMouseEnter={e=>{e.currentTarget.style.background=isFiz?"rgba(76,175,125,.18)":"rgba(91,155,213,.18)";}}
+                onMouseLeave={e=>{e.currentTarget.style.background=isFiz?"rgba(76,175,125,.08)":"rgba(91,155,213,.08)";}}
+              >
+                <span style={{fontFamily:"'Crimson Text',serif",fontSize:".9rem",color:"var(--parchment)"}}>{name}</span>
+                <span style={{fontFamily:"'Cinzel',serif",fontSize:".75rem",fontWeight:"700",color:isPos?"#7ef0a0":"#ff9090",marginLeft:8}}>
+                  {lv>0?"+":""}{lv}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+        <button onClick={()=>roll(20,parseInt(mod)||0,null)}
+          style={{width:"100%",background:"rgba(200,149,42,.08)",border:"1px solid rgba(200,149,42,.2)",borderRadius:6,padding:"7px",fontFamily:"'Cinzel',serif",fontSize:".65rem",letterSpacing:".1em",color:"var(--gold)",cursor:"pointer",textTransform:"uppercase"}}>
+          Modifier ile At ({parseInt(mod)||0 >= 0 ? "+" : ""}{parseInt(mod)||0})
+        </button>
+      </div>
+    )}
+
     <div className="mr"><label>Modifier</label><input className="mi" type="number" value={mod} onChange={e=>setMod(e.target.value)}/></div>
     <div className="ra">
       {latest?<>
-        <div className="rw">{latest.player} — d{latest.sides}</div>
+        <div className="rw">{latest.player}{latest.skillName?` — ${latest.skillName}`:` — d${latest.sides}`}</div>
         <div key={akey} className={`rn ra2${ic?" crit":fu?" fum":""}`}>{latest.total}</div>
-        <div className="rm">{ic?"✨ Crit Success!":fu?"💀 Crit Fail!":`${latest.raw}${latest.modifier!==0?` + (${latest.modifier>0?"+":""}${latest.modifier})`:""}` }</div>
-      </>:<div className="rm">Bir zar seç ve at...</div>}
+        <div className="rm">{ic?"✨ Crit Success!":fu?"💀 Crit Fail!":`${latest.raw}${latest.modifier!==0?` + (${latest.modifier>0?"+":""}${latest.modifier})`:""}`}</div>
+      </>:<div className="rm">Bir zar seç ve at... (d20'ye çift tık = düz at)</div>}
     </div>
 
     {feed.length>0&&<>
@@ -732,7 +806,7 @@ function Dice({me,role,char,npcs,all,rolls,onRoll,animOn,avatars,onPipChange,onN
         const c=r.sides===20&&r.raw===20?"crit":r.sides===20&&r.raw===1?"fum":"";
         return <div key={r.id} className={`fi${i===0?" nr":""}`}>
           <span className="fdie">{DI[r.sides]||"🎲"}</span>
-          <div className="fb"><div className="fp">{r.player}<span className="ts">{fmtTime(r.time||r.id)}</span></div><div className="fd">d{r.sides} = {r.raw}{r.modifier!==0?` + (${r.modifier>0?"+":""}${r.modifier})`:""}{c==="crit"?" ✨ Crit!":c==="fum"?" 💀 Fail!":""}</div></div>
+          <div className="fb"><div className="fp">{r.skillName||r.player}<span className="ts">{fmtTime(r.time||r.id)}</span></div><div className="fd">{r.skillName?r.player+" · ":""}d{r.sides} = {r.raw}{r.modifier!==0?` + (${r.modifier>0?"+":""}${r.modifier})`:""}{c==="crit"?" ✨ Crit!":c==="fum"?" 💀 Fail!":""}</div></div>
           <div className={`fv ${c}`}>{r.total}</div>
         </div>;
       })}</div>
@@ -1187,7 +1261,7 @@ function Char({me,isDM,char,setChar,all,avatars,onUploadAvatar}){
     <div className="moves-info">
       <div className="moves-item"><span>{remPos}</span><span className="moves-label">Pozitif hamle kaldı</span></div>
       <div className="moves-item"><span>{remNeg}</span><span className="moves-label">Negatif hamle kaldı</span></div>
-      <div className="moves-item" style={{color:"rgba(245,230,200,.4)",fontSize:".7rem",alignSelf:"center",fontStyle:"italic"}}>
+      <div className="moves-item" style={{color:"rgba(var(--text-rgb,245,230,200),.4)",fontSize:".7rem",alignSelf:"center",fontStyle:"italic"}}>
         Seviye {level} → {level} pozitif{usedNegMoves>0?` + ${usedNegMoves} bonus`:""} · {level} negatif hakkı
       </div>
     </div>
@@ -1215,7 +1289,7 @@ function Char({me,isDM,char,setChar,all,avatars,onUploadAvatar}){
                           {can&&<button className="pyramid-slot-remove" onClick={e=>{e.stopPropagation();removeSkill(skill);}}>✕</button>}
                         </>
                       ):(
-                        <span style={{fontSize:".68rem",color:canAdd?"rgba(200,149,42,.4)":"rgba(245,230,200,.15)"}}>
+                        <span style={{fontSize:".68rem",color:canAdd?"rgba(200,149,42,.4)":"rgba(var(--text-rgb,245,230,200),.15)"}}>
                           {canAdd?"+ ekle":"—"}
                         </span>
                       )}
@@ -1402,6 +1476,7 @@ function Npc({isDM,npcs,setNpcs,onClearRolls,allPlayers}){
           const cd=allChars[pname];
           const acc=allAccounts[pname];
           const playerData=allPlayersData[pname];
+          const onlinePlayer=(allPlayers||[]).find(p=>p.name===pname);
           const onlineDur=isOnline&&onlinePlayer&&onlinePlayer.loginAt
             ?(()=>{const s=Math.floor((ts()-onlinePlayer.loginAt)/1000);const h=Math.floor(s/3600);const m=Math.floor((s%3600)/60);return h>0?h+'s '+m+'dk':m+'dk';})()
             :null;
@@ -1410,7 +1485,7 @@ function Npc({isDM,npcs,setNpcs,onClearRolls,allPlayers}){
             :null;
           return <div key={pname} style={{padding:"8px 0",borderBottom:"1px solid rgba(139,26,26,.12)"}}>
             <div style={{display:"flex",alignItems:"center",gap:8}}>
-              <span style={{width:8,height:8,borderRadius:"50%",background:isOnline?"#3cb454":"rgba(245,230,200,.2)",flexShrink:0,display:"inline-block"}}/>
+              <span style={{width:8,height:8,borderRadius:"50%",background:isOnline?"#3cb454":"rgba(var(--text-rgb,245,230,200),.2)",flexShrink:0,display:"inline-block"}}/>
               <span style={{fontFamily:"'Cinzel',serif",fontSize:".75rem",color:"var(--parchment)",flex:1}}>
                 {cd&&cd.name?cd.name:pname}
                 <span style={{fontSize:".65rem",color:"var(--text-dim)",marginLeft:6}}>{isOnline?"çevrimiçi":"çevrimdışı"}</span>
@@ -1424,7 +1499,7 @@ function Npc({isDM,npcs,setNpcs,onClearRolls,allPlayers}){
               Şifre: <span style={{color:"rgba(200,149,42,.7)",fontFamily:"monospace"}}>{acc.pass}</span>
               <button className="nbtn" style={{fontSize:".55rem",padding:"2px 7px"}} onClick={()=>{setChangePassTarget({type:"player",id:pname,name:cd&&cd.name?cd.name:pname});setNewPass("");}}>✏</button>
             </div>}
-            {!acc&&<div style={{fontSize:".65rem",color:"rgba(245,230,200,.25)",fontStyle:"italic",paddingLeft:16,marginTop:2}}>Kayıt yok</div>}
+            {!acc&&<div style={{fontSize:".65rem",color:"rgba(var(--text-rgb,245,230,200),.25)",fontStyle:"italic",paddingLeft:16,marginTop:2}}>Kayıt yok</div>}
           </div>;
         })}
         {kickConfirm&&<div className="confirm-box" style={{marginTop:8}}>
@@ -1589,7 +1664,7 @@ function LobbyScreen({role,setRole,dmPass,setDmPass,dmErr,setDmErr,setName,setPh
           <h2 style={{marginBottom:14}}>Kayit Ol</h2>
           <input className="ii" placeholder="Karakter adin..." value={regName} onChange={e=>{setRegName(e.target.value);setRegErr("");}}/>
           <input className="ii" type="password" placeholder="Sifre belirle..." value={regPass} onChange={e=>{setRegPass(e.target.value);setRegErr("");}} onKeyDown={e=>e.key==="Enter"&&register()}/>
-          <div style={{background:"rgba(200,149,42,.06)",border:"1px solid rgba(200,149,42,.15)",borderRadius:5,padding:"8px 12px",marginBottom:10,fontSize:".75rem",color:"rgba(245,230,200,.5)",fontStyle:"italic",lineHeight:1.5}}>
+          <div style={{background:"rgba(200,149,42,.06)",border:"1px solid rgba(200,149,42,.15)",borderRadius:5,padding:"8px 12px",marginBottom:10,fontSize:".75rem",color:"rgba(var(--text-rgb,245,230,200),.5)",fontStyle:"italic",lineHeight:1.5}}>
             Kendi sahsi sifrenizi kullanmayiniz.
           </div>
           {regErr&&<div style={{color:"#ff6060",fontSize:".78rem",marginBottom:8,textAlign:"center"}}>{regErr}</div>}
@@ -1695,27 +1770,54 @@ function exportCharPDF(char, avatarB64){
 
 function applyTheme(darkness){
   const d=darkness/100;
-  // interpolate between dark (0) and light (1)
   const lerp=(a,b,t)=>Math.round(a+(b-a)*t);
   const lerpHex=(r1,g1,b1,r2,g2,b2,t)=>{
     const r=lerp(r1,r2,t),g=lerp(g1,g2,t),b=lerp(b1,b2,t);
-    return `#${r.toString(16).padStart(2,'0')}${g.toString(16).padStart(2,'0')}${b.toString(16).padStart(2,'0')}`;
+    return "#"+r.toString(16).padStart(2,"0")+g.toString(16).padStart(2,"0")+b.toString(16).padStart(2,"0");
   };
-  const bg0=lerpHex(13,7,5, 245,238,225, d);
-  const bg1=lerpHex(30,23,16, 255,250,240, d);
-  const bg2=lerpHex(46,36,24, 235,225,210, d);
-  const textR=lerp(245,20,d),textG=lerp(230,12,d),textB=lerp(200,0,d);
-  const text=`rgb(${textR},${textG},${textB})`;
-  const textDim=`rgba(${textR},${textG},${textB},${lerp(40,60,d)/100})`;
-  const textMid=`rgba(${textR},${textG},${textB},${lerp(60,80,d)/100})`;
+  // Dark: warm dark browns | Light: warm parchment/cream
+  const bg0=lerpHex(13,7,5,   232,220,200, d); // body bg
+  const bg1=lerpHex(30,23,16, 245,235,218, d); // card bg
+  const bg2=lerpHex(46,36,24, 220,208,190, d); // input bg
+  // Text: dark parchment → rich dark brown (not black)
+  const textR=lerp(245,50,d),textG=lerp(230,32,d),textB=lerp(200,18,d);
+  const text="rgb("+textR+","+textG+","+textB+")";
+  const textDim="rgba("+textR+","+textG+","+textB+","+(lerp(40,55,d)/100)+")";
+  const textMid="rgba("+textR+","+textG+","+textB+","+(lerp(60,75,d)/100)+")";
+  // Gold: stays warm, slightly darker in light mode
+  const goldR=lerp(200,160,d),goldG=lerp(149,110,d),goldB=lerp(42,20,d);
+  const gold="rgb("+goldR+","+goldG+","+goldB+")";
+  const goldLight=lerpHex(240,192,96, 180,130,40, d);
+  // Border: more visible in light
+  const borderA=lerp(20,35,d)/100;
+  const border="rgba("+goldR+","+goldG+","+goldB+","+borderA+")";
+  const borderGold="rgba("+goldR+","+goldG+","+goldB+","+(borderA*1.7)+")";
+
   const r=document.documentElement;
-  r.style.setProperty('--bg0',bg0);
-  r.style.setProperty('--bg1',bg1);
-  r.style.setProperty('--bg2',bg2);
-  r.style.setProperty('--text',text);
-  r.style.setProperty('--text-dim',textDim);
-  r.style.setProperty('--text-mid',textMid);
+  r.style.setProperty("--bg0",bg0);
+  r.style.setProperty("--bg1",bg1);
+  r.style.setProperty("--bg2",bg2);
+  r.style.setProperty("--text",text);
+  r.style.setProperty("--text-dim",textDim);
+  r.style.setProperty("--text-mid",textMid);
+  r.style.setProperty("--gold",gold);
+  r.style.setProperty("--gold-light",goldLight);
+  r.style.setProperty("--border",border);
+  r.style.setProperty("--border-gold",borderGold);
   document.body.style.background=bg0;
+
+  // Extra light mode adjustments
+  if(d>0.5){
+    r.style.setProperty("--blood","#6b0f0f");
+    r.style.setProperty("--parchment","rgb("+textR+","+textG+","+textB+")");
+    // Header needs to stay readable
+    const hdrBg="rgba("+lerp(13,225,d)+","+lerp(7,215,d)+","+lerp(5,198,d)+",.97)";
+    document.documentElement.style.setProperty("--hdr-bg",hdrBg);
+  } else {
+    r.style.setProperty("--blood","#8b1a1a");
+    r.style.setProperty("--parchment","rgb(245,230,200)");
+    document.documentElement.style.setProperty("--hdr-bg","rgba(13,7,5,.96)");
+  }
 }
 
 // ─── INITIATIVE TRACKER ──────────────────────────────────────────────────────
@@ -1847,7 +1949,7 @@ function InitiativeBar({isDM,all,npcs,avatars}){
                   ?<img src={av} className="init-avatar" alt=""/>
                   :<div className="init-avatar-ph">{entry.name[0]||"?"}</div>}
                 <span className="init-name">{entry.name}</span>
-                {isDM&&<button style={{background:"transparent",border:"none",color:"rgba(245,230,200,.3)",cursor:"pointer",fontSize:".7rem",padding:"0 0 0 2px",lineHeight:1}} onClick={()=>removeFromOrder(entry.id)}>✕</button>}
+                {isDM&&<button style={{background:"transparent",border:"none",color:"rgba(var(--text-rgb,245,230,200),.3)",cursor:"pointer",fontSize:".7rem",padding:"0 0 0 2px",lineHeight:1}} onClick={()=>removeFromOrder(entry.id)}>✕</button>}
               </div>
             </React.Fragment>
           );
@@ -2463,7 +2565,7 @@ function Ambiance({isDM}){
   );
 }
 
-function SettingsPanel({onClose,darkness,setDarkness,animOn,setAnimOn}){
+function SettingsPanel({onClose,darkness,setDarkness,animOn,setAnimOn,onLogout}){
   const isLight=darkness>60;
   return <>
     <div className="settings-overlay" onClick={onClose}>
@@ -2487,7 +2589,7 @@ function SettingsPanel({onClose,darkness,setDarkness,animOn,setAnimOn}){
             <input
               type="range" min={0} max={100} value={darkness}
               className="theme-slider"
-              style={{background:`linear-gradient(to right,#1a0f00 0%,#f5e6c8 100%)`}}
+              style={{background:`linear-gradient(to right,#1a0f00 0%,var(--parchment) 100%)`}}
               onChange={e=>{const v=Number(e.target.value);setDarkness(v);applyTheme(v);}}
             />
           </div>
@@ -2506,6 +2608,19 @@ function SettingsPanel({onClose,darkness,setDarkness,animOn,setAnimOn}){
               <div className="toggle-thumb"/>
             </label>
           </div>
+        </div>
+
+        <div style={{borderTop:"1px solid rgba(200,149,42,.1)",paddingTop:16,marginTop:4}}>
+          <button onClick={onLogout} style={{
+            width:"100%",background:"rgba(139,26,26,.1)",border:"1px solid rgba(139,26,26,.35)",
+            borderRadius:6,color:"#ff9090",fontFamily:"'Cinzel',serif",fontSize:".72rem",
+            letterSpacing:".12em",padding:"10px",cursor:"pointer",textTransform:"uppercase",
+            transition:"all .2s"
+          }}
+          onMouseEnter={e=>e.currentTarget.style.background="rgba(139,26,26,.2)"}
+          onMouseLeave={e=>e.currentTarget.style.background="rgba(139,26,26,.1)"}>
+            ⇠ Çıkış Yap
+          </button>
         </div>
       </div>
     </div>
@@ -2633,9 +2748,9 @@ function App(){
     await fbSet("npcs",o);
   };
 
-  const onRoll=async({sides,raw,modifier,total})=>{
+  const onRoll=async({sides,raw,modifier,total,skillName})=>{
     const id=ts();
-    const entry={id,player:name,sides,raw,modifier,total,time:id};
+    const entry={id,player:name,sides,raw,modifier,total,time:id,skillName:skillName||null};
     setRolls(r=>({latest:entry,feed:[entry,...r.feed].slice(0,12),akey:id}));
     lastRid.current=id;
     await fbSet(`rolls/${id}`,entry);
@@ -2671,11 +2786,17 @@ function App(){
         <button className="gear-btn" onClick={()=>setShowSettings(s=>!s)} title="Ayarlar">⚙</button>
       </div>
     </div>
-    {showSettings&&<SettingsPanel onClose={()=>setShowSettings(false)} darkness={darkness} setDarkness={setDarkness} animOn={animOn} setAnimOn={setAnimOn}/>}
+    {showSettings&&<SettingsPanel onClose={()=>setShowSettings(false)} darkness={darkness} setDarkness={setDarkness} animOn={animOn} setAnimOn={setAnimOn} onLogout={()=>{
+      // Firebase'den çıkış
+      fbDel(`players/${name}`);
+      // Session sıfırla
+      window.sessionStorage.clear();
+      setPhase("lobby");setName("");setRole("player");setShowSettings(false);
+    }}/>}
     <div className="ob">
       <span className="ol">Çevrimiçi</span>
       {all.map(p=><span key={p.name} className={`op${p.role==="dm"?" dm":p.away?" away":""}`}><span className={`pd${p.away?" away":""}`} style={{width:5,height:5}}/>{p.name}{p.role==="dm"?" 👁":p.away?" 💤":""}</span>)}
-      {!all.length&&<span style={{fontSize:".72rem",color:"rgba(245,230,200,.25)",fontStyle:"italic"}}>bağlanıyor...</span>}
+      {!all.length&&<span style={{fontSize:".72rem",color:"rgba(var(--text-rgb,245,230,200),.25)",fontStyle:"italic"}}>bağlanıyor...</span>}
     </div>
     <InitiativeBar isDM={role==="dm"} all={all} npcs={npcs} avatars={avatars}/>
     <div className="tabs">
