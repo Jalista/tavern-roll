@@ -4,6 +4,7 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>Tavern Roll — İnci Companion</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%230d0705'/%3E%3Cpolygon points='16,4 28,10 28,22 16,28 4,22 4,10' fill='%231e1710' stroke='%23c8952a' stroke-width='1.5'/%3E%3Ccircle cx='16' cy='16' r='3' fill='%23f0c060'/%3E%3Ccircle cx='11' cy='13' r='1.5' fill='%23c8952a'/%3E%3Ccircle cx='21' cy='13' r='1.5' fill='%23c8952a'/%3E%3Ccircle cx='11' cy='19' r='1.5' fill='%23c8952a'/%3E%3Ccircle cx='21' cy='19' r='1.5' fill='%23c8952a'/%3E%3C/svg%3E">
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;900&family=Crimson+Text:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
 </head>
 <body style="margin:0;background:#0d0705">
@@ -401,7 +402,7 @@ body{font-family:'Crimson Text',serif;color:var(--text);background:var(--bg0);ba
 .gear-btn{background:transparent;border:1px solid rgba(200,149,42,.2);border-radius:6px;color:rgba(245,230,200,.45);font-size:1rem;width:32px;height:32px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .2s;flex-shrink:0}
 .gear-btn:hover{border-color:var(--gold);color:var(--gold-light)}
 
-/* Ambiyans */
+/* Jukebox */
 .amb-bar{position:fixed;bottom:22px;left:22px;z-index:500}
 .amb-toggle{background:rgba(91,155,213,.12);border:2px solid rgba(91,155,213,.5);border-radius:50%;width:52px;height:52px;color:#a8c8f8;font-size:1.3rem;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 20px rgba(0,0,0,.5);transition:all .2s;position:relative}
 .amb-toggle:hover{background:rgba(91,155,213,.22);transform:scale(1.05)}
@@ -634,11 +635,12 @@ function HistoryModal({feed,onClose}){
   </div>;
 }
 
-function Dice({me,role,char,npcs,all,rolls,onRoll,animOn,avatars}){
+function Dice({me,role,char,npcs,all,rolls,onRoll,animOn,avatars,onPipChange,onNpcPipChange}){
   const [mod,setMod]=useState("0");
   const [showFW,setShowFW]=useState(false);
   const [showSmoke,setShowSmoke]=useState(false);
   const [showHistory,setShowHistory]=useState(false);
+  const [showPips,setShowPips]=useState(false);
   const {latest,feed,akey}=rolls;
   const ic=(latest&&latest.sides)===20&&(latest&&latest.raw)===20;
   const fu=(latest&&latest.sides)===20&&(latest&&latest.raw)===1;
@@ -657,6 +659,9 @@ function Dice({me,role,char,npcs,all,rolls,onRoll,animOn,avatars}){
     const m=parseInt(mod)||0;
     await onRoll({sides:s,raw,modifier:m,total:raw+m});
   };
+
+  const isDM=role==="dm";
+
   return <div className="panel">
     {showFW&&<Fireworks/>}
     {showSmoke&&<Smoke/>}
@@ -666,9 +671,42 @@ function Dice({me,role,char,npcs,all,rolls,onRoll,animOn,avatars}){
       {latest?<>
         <div className="rw">{latest.player} — d{latest.sides}</div>
         <div key={akey} className={`rn ra2${ic?" crit":fu?" fum":""}`}>{latest.total}</div>
-        <div className="rm">{ic?"✨ Crit Success!":fu?"💀 Crit Fail!":`${latest.raw}${latest.modifier!==0?` + (${latest.modifier>0?"+":""}${latest.modifier})`:""}`}</div>
+        <div className="rm">{ic?"✨ Crit Success!":fu?"💀 Crit Fail!":`${latest.raw}${latest.modifier!==0?` + (${latest.modifier>0?"+":""}${latest.modifier})`:""}` }</div>
       </>:<div className="rm">Bir zar seç ve at...</div>}
     </div>
+
+    {/* Pip Hızlı Erişim */}
+    <div style={{marginBottom:10}}>
+      <button onClick={()=>setShowPips(p=>!p)} style={{background:"transparent",border:"1px solid rgba(200,149,42,.2)",borderRadius:5,color:"rgba(200,149,42,.6)",fontFamily:"'Cinzel',serif",fontSize:".62rem",letterSpacing:".1em",padding:"5px 12px",cursor:"pointer",width:"100%",transition:"all .2s"}}>
+        {showPips?"▲ Pip Panelini Gizle":"▼ Pip Paneli"}
+      </button>
+      {showPips&&<div style={{marginTop:8,background:"var(--bg1)",border:"1px solid rgba(200,149,42,.15)",borderRadius:8,padding:12,display:"flex",flexDirection:"column",gap:10}}>
+        {/* Kendi pipleri — her zaman */}
+        <div style={{borderBottom:"1px solid rgba(200,149,42,.08)",paddingBottom:10}}>
+          <div style={{fontFamily:"'Cinzel',serif",fontSize:".6rem",color:"var(--gold)",letterSpacing:".1em",marginBottom:6}}>👤 {char.name||me}</div>
+          <PipBar type="fiziksel" saglik={char.fiziksel!=null?char.fiziksel:3} maxPips={3} disabled={false} onChange={v=>onPipChange(me,"fiziksel",v)}/>
+          <PipBar type="zihinsel" saglik={char.zihinsel!=null?char.zihinsel:3} maxPips={3} disabled={false} onChange={v=>onPipChange(me,"zihinsel",v)}/>
+        </div>
+        {/* DM: tüm oyuncular + NPC'ler */}
+        {isDM&&all.filter(p=>p.name!==me&&p.role!=="dm").map(p=>{
+          const c=p.char||{};
+          return <div key={p.name} style={{borderBottom:"1px solid rgba(200,149,42,.08)",paddingBottom:10}}>
+            <div style={{fontFamily:"'Cinzel',serif",fontSize:".6rem",color:"var(--gold)",letterSpacing:".1em",marginBottom:6}}>👤 {c.name||p.name}</div>
+            <PipBar type="fiziksel" saglik={c.fiziksel!=null?c.fiziksel:3} maxPips={3} disabled={false} onChange={v=>onPipChange(p.name,"fiziksel",v)}/>
+            <PipBar type="zihinsel" saglik={c.zihinsel!=null?c.zihinsel:3} maxPips={3} disabled={false} onChange={v=>onPipChange(p.name,"zihinsel",v)}/>
+          </div>;
+        })}
+        {isDM&&npcs.map(n=>{
+          const fmax=n.fizMax||3; const zmax=n.zihMax||3;
+          return <div key={n.id}>
+            <div style={{fontFamily:"'Cinzel',serif",fontSize:".6rem",color:n.boss?"#ffaaaa":"var(--gold)",letterSpacing:".1em",marginBottom:6}}>{n.boss?"💀 ":""}{n.name}</div>
+            <NpcPips type="fiziksel" saglik={n.fiziksel!=null?n.fiziksel:fmax} maxPips={fmax} disabled={false} onChange={v=>onNpcPipChange(n.id,"fiziksel",v)}/>
+            <NpcPips type="zihinsel" saglik={n.zihinsel!=null?n.zihinsel:zmax} maxPips={zmax} disabled={false} onChange={v=>onNpcPipChange(n.id,"zihinsel",v)}/>
+          </div>;
+        })}
+      </div>}
+    </div>
+
     {feed.length>0&&<>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
         <div className="ft" style={{margin:0,border:"none",padding:0}}>Son Atışlar</div>
@@ -1390,7 +1428,7 @@ function LobbyScreen({role,setRole,dmPass,setDmPass,dmErr,setDmErr,setName,setPh
           <input className="ii" placeholder="Karakter adin..." value={regName} onChange={e=>{setRegName(e.target.value);setRegErr("");}}/>
           <input className="ii" type="password" placeholder="Sifre belirle..." value={regPass} onChange={e=>{setRegPass(e.target.value);setRegErr("");}} onKeyDown={e=>e.key==="Enter"&&register()}/>
           <div style={{background:"rgba(200,149,42,.06)",border:"1px solid rgba(200,149,42,.15)",borderRadius:5,padding:"8px 12px",marginBottom:10,fontSize:".75rem",color:"rgba(245,230,200,.5)",fontStyle:"italic",lineHeight:1.5}}>
-            Sifren sadece sana ait. Kimseyle paylasmak zorunda degilsin.
+            Kendi sahsi sifrenizi kullanmayiniz.
           </div>
           {regErr&&<div style={{color:"#ff6060",fontSize:".78rem",marginBottom:8,textAlign:"center"}}>{regErr}</div>}
           <button className="jb" onClick={register} disabled={!regName.trim()}>Kayit Ol ve Giris Yap</button>
@@ -1672,8 +1710,11 @@ function InitiativeBar({isDM,all,npcs,avatars}){
 
       {/* Add dropdown */}
       {isDM&&showAdd&&(
-        <div style={{position:"absolute",top:"100%",right:16,background:"#1a120c",border:"1px solid rgba(200,149,42,.3)",borderRadius:8,padding:10,zIndex:200,minWidth:180,boxShadow:"0 8px 30px rgba(0,0,0,.6)"}}>
-          <div style={{fontFamily:"'Cinzel',serif",fontSize:".58rem",letterSpacing:".12em",color:"rgba(200,149,42,.6)",marginBottom:8,textTransform:"uppercase"}}>Sıraya Ekle</div>
+        <div style={{position:"fixed",bottom:80,right:16,background:"#1a120c",border:"1px solid rgba(200,149,42,.3)",borderRadius:8,padding:12,zIndex:500,minWidth:220,maxHeight:"60vh",overflowY:"auto",boxShadow:"0 -4px 30px rgba(0,0,0,.7)"}}>
+          <div style={{fontFamily:"'Cinzel',serif",fontSize:".58rem",letterSpacing:".12em",color:"rgba(200,149,42,.6)",marginBottom:8,textTransform:"uppercase",display:"flex",justifyContent:"space-between"}}>
+            Sıraya Ekle
+            <button onClick={()=>setShowAdd(false)} style={{background:"transparent",border:"none",color:"var(--text-dim)",cursor:"pointer",fontSize:".8rem"}}>✕</button>
+          </div>
           {candidates.length===0&&<div style={{fontSize:".78rem",color:"var(--text-dim)",fontStyle:"italic"}}>Hepsi sıraya eklendi</div>}
           {candidates.map(c=>(
             <div key={c.id} onClick={()=>addToOrder(c)}
@@ -1844,15 +1885,15 @@ const ytIdFromUrl=url=>{
 function Ambiance({isDM}){
   const [open,setOpen]=useState(false);
   const [url,setUrl]=useState("");
-  const [activeVid,setActiveVid]=useState(null); // {ytId, startedAt}
+  const [activeVid,setActiveVid]=useState(null);
   const [volume,setVolume]=useState(50);
-  const [status,setStatus]=useState("idle"); // idle|loading|playing|error
+  const [dmVolume,setDmVolume]=useState(null); // DM's suggested volume
+  const [synced,setSynced]=useState(false); // player sync toggle
+  const [status,setStatus]=useState("idle");
   const playerRef=useRef(null);
-  const containerRef=useRef(null);
   const lastVidRef=useRef(null);
   const pollRef=useRef(null);
 
-  // Load YT API once
   useEffect(()=>{
     if(window.YT)return;
     const tag=document.createElement("script");
@@ -1861,15 +1902,11 @@ function Ambiance({isDM}){
   },[]);
 
   const destroyPlayer=()=>{
-    if(playerRef.current){
-      try{playerRef.current.destroy();}catch{}
-      playerRef.current=null;
-    }
+    if(playerRef.current){try{playerRef.current.destroy();}catch{}playerRef.current=null;}
   };
 
-  const startPlayer=(ytId,seekTo=0)=>{
-    destroyPlayer();
-    setStatus("loading");
+  const startPlayer=(ytId,seekTo)=>{
+    destroyPlayer();setStatus("loading");
     const div=document.createElement("div");
     div.id="yt-player-"+Date.now();
     div.style.cssText="position:absolute;width:1px;height:1px;opacity:0;pointer-events:none;";
@@ -1877,7 +1914,7 @@ function Ambiance({isDM}){
     const create=()=>{
       playerRef.current=new window.YT.Player(div.id,{
         videoId:ytId,
-        playerVars:{autoplay:1,loop:1,playlist:ytId,start:Math.floor(seekTo),controls:0,disablekb:1},
+        playerVars:{autoplay:1,loop:1,playlist:ytId,start:Math.floor(seekTo||0),controls:0,disablekb:1},
         events:{
           onReady:e=>{e.target.setVolume(volume);e.target.playVideo();setStatus("playing");},
           onError:()=>setStatus("error"),
@@ -1889,22 +1926,23 @@ function Ambiance({isDM}){
     else{window.onYouTubeIframeAPIReady=create;}
   };
 
-  // DM: push to Firebase
   const activate=async()=>{
     const ytId=ytIdFromUrl(url);
     if(!ytId){setStatus("error");return;}
-    const data={ytId,startedAt:ts()};
+    const data={ytId,startedAt:ts(),dmVol:volume};
     await fbSet("ambiance",data);
-    setActiveVid(data);
-    startPlayer(ytId,0);
+    setActiveVid(data);startPlayer(ytId,0);
   };
 
   const stop=async()=>{
     await fbSet("ambiance",{ytId:null,startedAt:0});
-    setActiveVid(null);
-    destroyPlayer();
-    setStatus("idle");
-    setUrl("");
+    setActiveVid(null);destroyPlayer();setStatus("idle");setUrl("");
+  };
+
+  const changeDMVolume=async(v)=>{
+    setVolume(v);
+    if(playerRef.current)try{playerRef.current.setVolume(v);}catch{}
+    if(activeVid){await fbPatch("ambiance",{dmVol:v});}
   };
 
   // Player: poll Firebase
@@ -1916,38 +1954,77 @@ function Ambiance({isDM}){
         if(lastVidRef.current){lastVidRef.current=null;destroyPlayer();setActiveVid(null);setStatus("idle");}
         return;
       }
+      // Update DM volume indicator
+      if(data.dmVol!=null) setDmVolume(data.dmVol);
+      // Sync volume if synced
+      if(synced&&data.dmVol!=null){
+        setVolume(data.dmVol);
+        if(playerRef.current)try{playerRef.current.setVolume(data.dmVol);}catch{}
+      }
       if(data.ytId===lastVidRef.current)return;
       lastVidRef.current=data.ytId;
       setActiveVid(data);
-      // Seek to approximate current position
       const elapsed=(ts()-data.startedAt)/1000;
       startPlayer(data.ytId,elapsed%3600);
     };
     poll();
-    pollRef.current=setInterval(poll,4000);
+    pollRef.current=setInterval(poll,3000);
     return()=>{clearInterval(pollRef.current);destroyPlayer();};
-  },[isDM]);
+  },[isDM,synced]);
 
   const changeVolume=v=>{
     setVolume(v);
     if(playerRef.current)try{playerRef.current.setVolume(v);}catch{}
   };
 
-  // Player bar (both DM and player when active)
+  useEffect(()=>()=>{if(playerRef.current)destroyPlayer();},[]);
+
   const nowPlaying=activeVid&&activeVid.ytId;
 
   if(!isDM){
     if(!nowPlaying) return null;
     return(
       <div style={{position:"fixed",bottom:22,left:22,zIndex:500}}>
-        <div style={{background:"rgba(91,155,213,.12)",border:"1px solid rgba(91,155,213,.3)",borderRadius:24,padding:"6px 14px",display:"flex",alignItems:"center",gap:8,boxShadow:"0 4px 16px rgba(0,0,0,.4)"}}>
-          <span style={{fontSize:"1rem",animation:status==="playing"?"amb-pulse 2.5s infinite":undefined}}>🎵</span>
-          <span style={{fontFamily:"'Cinzel',serif",fontSize:".6rem",letterSpacing:".1em",color:"#90b8f0"}}>
-            {status==="loading"?"Yükleniyor...":status==="playing"?"Ambiyans çalıyor":"Bağlanıyor..."}
-          </span>
-          <input type="range" min={0} max={100} value={volume} className="amb-vol-slider" style={{width:64}}
-            onChange={e=>changeVolume(Number(e.target.value))}/>
-        </div>
+        <button className={"amb-toggle"+(nowPlaying?" playing":"")} onClick={()=>setOpen(o=>!o)} title="Jukebox" style={{marginBottom:open?8:0}}>
+          🎵
+        </button>
+        {open&&<div className="amb-panel" style={{bottom:82,top:"auto"}}>
+          <div className="amb-title">🎵 Jukebox
+            <button className="amb-close" onClick={()=>setOpen(false)}>✕</button>
+          </div>
+          <div style={{fontSize:".72rem",color:"#90b8f0",fontStyle:"italic",marginBottom:10}}>
+            {status==="loading"?"Yükleniyor...":status==="playing"?"Çalıyor":"Bağlanıyor..."}
+          </div>
+          <div className="amb-volume" style={{marginBottom:10}}>
+            <label style={{fontSize:".7rem",color:"var(--text-dim)"}}>🔊</label>
+            <div style={{flex:1,position:"relative"}}>
+              <input type="range" min={0} max={100} value={volume} className="amb-vol-slider"
+                onChange={e=>changeVolume(Number(e.target.value))}/>
+              {dmVolume!=null&&!synced&&<div style={{
+                position:"absolute",top:-8,
+                left:(dmVolume/100*100)+"%",
+                transform:"translateX(-50%)",
+                width:12,height:12,borderRadius:"50%",
+                background:"var(--gold)",
+                border:"2px solid var(--gold-light)",
+                boxShadow:"0 0 6px rgba(200,149,42,.6)",
+                pointerEvents:"none"
+              }} title={"DM'in önerisi: "+dmVolume}/>}
+            </div>
+            <span style={{fontSize:".7rem",color:"var(--text-dim)",minWidth:28}}>{volume}</span>
+          </div>
+          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"6px 0",borderTop:"1px solid rgba(91,155,213,.15)"}}>
+            <span style={{fontSize:".72rem",color:"var(--text-dim)"}}>DM ile senkron</span>
+            <label className="toggle" style={{flexShrink:0}}>
+              <input type="checkbox" checked={synced} onChange={e=>setSynced(e.target.checked)}/>
+              <div className="toggle-track"/>
+              <div className="toggle-thumb"/>
+            </label>
+          </div>
+          {dmVolume!=null&&<div style={{fontSize:".68rem",color:"rgba(200,149,42,.6)",fontStyle:"italic",marginTop:6}}>
+            DM seviyesi: <span style={{color:"var(--gold)"}}>{dmVolume}</span> (🔴 çizgi)
+          </div>}
+        </div>}
       </div>
     );
   }
@@ -1958,36 +2035,28 @@ function Ambiance({isDM}){
       {open&&(
         <div className="amb-panel" style={{width:280}}>
           <div className="amb-title">
-            🎵 Ambiyans
+            🎵 Jukebox
             <button className="amb-close" onClick={()=>setOpen(false)}>✕</button>
           </div>
-
           {!nowPlaying?(
             <>
               <div style={{fontSize:".78rem",color:"var(--text-dim)",fontStyle:"italic",marginBottom:10,lineHeight:1.5}}>
                 YouTube linki yapıştır, tüm oyuncular senkron duyar.
               </div>
-              <input
-                className="nb-input"
-                placeholder="https://youtube.com/watch?v=..."
-                value={url}
-                onChange={e=>setUrl(e.target.value)}
-                onKeyDown={e=>e.key==="Enter"&&activate()}
-                style={{marginBottom:8}}
-              />
+              <input className="nb-input" placeholder="https://youtube.com/watch?v=..."
+                value={url} onChange={e=>setUrl(e.target.value)} onKeyDown={e=>e.key==="Enter"&&activate()}
+                style={{marginBottom:8}}/>
               {status==="error"&&<div style={{color:"#ff6060",fontSize:".75rem",marginBottom:8}}>Geçersiz YouTube linki!</div>}
-              <button className="nb-btn" style={{width:"100%"}} onClick={activate} disabled={!url.trim()}>
-                ▶ Başlat
-              </button>
+              <button className="nb-btn" style={{width:"100%"}} onClick={activate} disabled={!url.trim()}>▶ Başlat</button>
               <div style={{marginTop:10,fontSize:".7rem",color:"var(--text-dim)",fontStyle:"italic"}}>
-                💡 İpucu: Tavern, forest, battle ambient için YouTube'da ara.
+                💡 YouTube'da ambient müzik ara
               </div>
             </>
           ):(
             <>
               <div style={{background:"rgba(91,155,213,.08)",border:"1px solid rgba(91,155,213,.2)",borderRadius:6,padding:"8px 10px",marginBottom:12}}>
-                <div style={{fontFamily:"'Cinzel',serif",fontSize:".6rem",color:"#90b8f0",marginBottom:4,letterSpacing:".1em"}}>ÇALIYOR</div>
-                <a href={`https://youtube.com/watch?v=${activeVid.ytId}`} target="_blank" rel="noopener noreferrer"
+                <div style={{fontFamily:"'Cinzel',serif",fontSize:".6rem",color:"#90b8f0",marginBottom:4}}>ÇALIYOR</div>
+                <a href={"https://youtube.com/watch?v="+activeVid.ytId} target="_blank" rel="noopener noreferrer"
                   style={{fontSize:".75rem",color:"#a8c8f8",wordBreak:"break-all",textDecoration:"none"}}>
                   youtu.be/{activeVid.ytId}
                 </a>
@@ -1995,8 +2064,11 @@ function Ambiance({isDM}){
               <div className="amb-volume" style={{marginBottom:12}}>
                 <label style={{fontSize:".72rem",color:"var(--text-dim)"}}>🔊</label>
                 <input type="range" min={0} max={100} value={volume} className="amb-vol-slider"
-                  onChange={e=>changeVolume(Number(e.target.value))}/>
+                  onChange={e=>changeDMVolume(Number(e.target.value))}/>
                 <span style={{fontSize:".7rem",color:"var(--text-dim)",minWidth:28}}>{volume}%</span>
+              </div>
+              <div style={{fontSize:".68rem",color:"rgba(200,149,42,.5)",fontStyle:"italic",marginBottom:10}}>
+                Ses seviyesi oyunculara gösteriliyor
               </div>
               <button className="nb-btn cancel" style={{width:"100%"}} onClick={stop}>⏹ Durdur</button>
             </>
@@ -2004,7 +2076,7 @@ function Ambiance({isDM}){
         </div>
       )}
       <div className="amb-bar">
-        <button className={`amb-toggle${nowPlaying?" playing":""}`} onClick={()=>setOpen(o=>!o)} title="Ambiyans">
+        <button className={"amb-toggle"+(nowPlaying?" playing":"")} onClick={()=>setOpen(o=>!o)} title="Jukebox">
           🎵
         </button>
       </div>
@@ -2161,6 +2233,23 @@ function App(){
 
   const hChar=fn=>{setChar(prev=>{const u=typeof fn==="function"?fn(prev):fn;clearTimeout(cst.current);cst.current=setTimeout(()=>fbSet(`chars/${name}`,u),400);return u;});};
 
+  const onPipChange=async(playerName,field,val)=>{
+    if(playerName===name){
+      hChar(c=>({...c,[field]:val}));
+    } else {
+      const cur=all.find(p=>p.name===playerName);
+      const updated={...((cur&&cur.char)||{}), [field]:val};
+      await fbSet(`chars/${playerName}`,updated);
+    }
+  };
+
+  const onNpcPipChange=async(npcId,field,val)=>{
+    const updated=npcs.map(n=>n.id===npcId?{...n,[field]:val}:n);
+    setNpcs(updated);
+    const o={};updated.forEach(n=>{o[n.id]=n;});
+    await fbSet("npcs",o);
+  };
+
   const onRoll=async({sides,raw,modifier,total})=>{
     const id=ts();
     const entry={id,player:name,sides,raw,modifier,total,time:id};
@@ -2209,7 +2298,7 @@ function App(){
     <div className="tabs">
       {TABS.map(t=><button key={t.id} className={`tb${tab===t.id?" on":""}`} onClick={()=>setTab(t.id)}>{t.l}</button>)}
     </div>
-    {tab==="dice"&&<Dice me={name} role={role} char={char} npcs={npcs} all={all} rolls={rolls} onRoll={onRoll} animOn={animOn} avatars={avatars}/>}
+    {tab==="dice"&&<Dice me={name} role={role} char={char} npcs={npcs} all={all} rolls={rolls} onRoll={onRoll} animOn={animOn} avatars={avatars} onPipChange={onPipChange} onNpcPipChange={onNpcPipChange}/>}
     {tab==="char"&&<Char me={name} isDM={role==="dm"} char={char} setChar={hChar} all={all} avatars={avatars} onUploadAvatar={uploadAvatar}/>}
     {tab==="npc" &&<Npc isDM={role==="dm"} npcs={npcs} setNpcs={setNpcs} onClearRolls={clearRolls} allPlayers={all}/>}
     <Chat me={name} role={role} all={all} avatars={avatars}/>
