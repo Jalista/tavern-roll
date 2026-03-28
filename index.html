@@ -1326,6 +1326,96 @@ function Npc({isDM,npcs,setNpcs,onClearRolls,allPlayers}){
   </div>;
 }
 
+function LobbyScreen({role,setRole,dmPass,setDmPass,dmErr,setDmErr,setName,setPhase}){
+  const [lobbyMode,setLobbyMode]=useState("select");
+  const [accounts,setAccounts]=useState({});
+  const [regName,setRegName]=useState("");
+  const [regPass,setRegPass]=useState("");
+  const [regErr,setRegErr]=useState("");
+  const [loginSel,setLoginSel]=useState("");
+  const [loginPass,setLoginPass]=useState("");
+  const [loginErr,setLoginErr]=useState("");
+
+  useEffect(()=>{
+    fbGet("accounts").then(data=>{ if(data) setAccounts(data); });
+  },[]);
+
+  const dmSelected=role==="dm";
+
+  const register=async()=>{
+    if(!regName.trim()){setRegErr("Isim gir!");return;}
+    if(regPass.length<3){setRegErr("Sifre en az 3 karakter!");return;}
+    if(accounts[regName]){setRegErr("Bu isim zaten kayitli!");return;}
+    await fbSet("accounts/"+regName,{name:regName,pass:regPass});
+    setName(regName);
+    setPhase("game");
+  };
+
+  const loginAccount=async()=>{
+    if(!loginSel){setLoginErr("Bir karakter sec!");return;}
+    const acc=accounts[loginSel];
+    if(!acc||acc.pass!==loginPass){setLoginErr("Sifre yanlis!");setTimeout(()=>setLoginErr(""),2000);return;}
+    setName(acc.name);
+    setPhase("game");
+  };
+
+  const joinDM=()=>{
+    if(dmPass!=="05426654789"){setDmErr(true);setTimeout(()=>setDmErr(false),2000);return;}
+    setName("DM");
+    setPhase("game");
+  };
+
+  const accountList=Object.values(accounts);
+
+  return(
+    <div className="lobby">
+      <h1 className="lt">TAVERN ROLL</h1>
+      <p className="ls">Inci Companion</p>
+      <div className="lc">
+        <div className="lr" style={{marginBottom:16}}>
+          <button className={"rb"+(role==="player"?" on":"")} onClick={()=>{setRole("player");setLobbyMode("select");}}>Oyuncu</button>
+          <button className={"rb"+(role==="dm"?" on":"")} onClick={()=>setRole("dm")}>DM</button>
+        </div>
+        {dmSelected&&<>
+          <input className="ii" type="password" placeholder="DM Sifresi..." value={dmPass} onChange={e=>setDmPass(e.target.value)} onKeyDown={e=>e.key==="Enter"&&joinDM()} style={{borderColor:dmErr?"#c03030":undefined}}/>
+          {dmErr&&<div style={{color:"#ff6060",fontSize:".8rem",fontStyle:"italic",marginBottom:8,textAlign:"center"}}>Sifre yanlis!</div>}
+          <button className="jb" onClick={joinDM}>Masaya Otur</button>
+        </>}
+        {!dmSelected&&lobbyMode==="select"&&<div style={{display:"flex",gap:8,marginBottom:16}}>
+          <button className="jb" style={{flex:1,marginTop:0}} onClick={()=>setLobbyMode("register")}>Kayit Ol</button>
+          <button className="jb" style={{flex:1,marginTop:0,background:"rgba(200,149,42,.08)"}} onClick={()=>setLobbyMode("login")}>Giris Yap</button>
+        </div>}
+        {!dmSelected&&lobbyMode==="register"&&<>
+          <h2 style={{marginBottom:14}}>Kayit Ol</h2>
+          <input className="ii" placeholder="Karakter adin..." value={regName} onChange={e=>{setRegName(e.target.value);setRegErr("");}}/>
+          <input className="ii" type="password" placeholder="Sifre belirle..." value={regPass} onChange={e=>{setRegPass(e.target.value);setRegErr("");}} onKeyDown={e=>e.key==="Enter"&&register()}/>
+          <div style={{background:"rgba(200,149,42,.06)",border:"1px solid rgba(200,149,42,.15)",borderRadius:5,padding:"8px 12px",marginBottom:10,fontSize:".75rem",color:"rgba(245,230,200,.5)",fontStyle:"italic",lineHeight:1.5}}>
+            Sifren sadece sana ait. Kimseyle paylasmak zorunda degilsin.
+          </div>
+          {regErr&&<div style={{color:"#ff6060",fontSize:".78rem",marginBottom:8,textAlign:"center"}}>{regErr}</div>}
+          <button className="jb" onClick={register} disabled={!regName.trim()}>Kayit Ol ve Giris Yap</button>
+          <button className="rb" style={{width:"100%",marginTop:8}} onClick={()=>setLobbyMode("select")}>Geri</button>
+        </>}
+        {!dmSelected&&lobbyMode==="login"&&<>
+          <h2 style={{marginBottom:14}}>Giris Yap</h2>
+          {accountList.length===0&&<div style={{color:"var(--text-dim)",fontStyle:"italic",fontSize:".85rem",marginBottom:12,textAlign:"center"}}>Kayitli karakter yok.</div>}
+          {accountList.length>0&&<>
+            <select className="ii" style={{marginBottom:8}} value={loginSel} onChange={e=>setLoginSel(e.target.value)}>
+              <option value="">-- Karakter sec --</option>
+              {accountList.map(a=><option key={a.name} value={a.name}>{a.name}</option>)}
+            </select>
+            <input className="ii" type="password" placeholder="Sifren..." value={loginPass} onChange={e=>{setLoginPass(e.target.value);setLoginErr("");}} onKeyDown={e=>e.key==="Enter"&&loginAccount()}/>
+            {loginErr&&<div style={{color:"#ff6060",fontSize:".78rem",marginBottom:8,textAlign:"center"}}>{loginErr}</div>}
+            <button className="jb" onClick={loginAccount} disabled={!loginSel}>Giris Yap</button>
+          </>}
+          <button className="rb" style={{width:"100%",marginTop:8}} onClick={()=>setLobbyMode("select")}>Geri</button>
+        </>}
+      </div>
+    </div>
+  );
+}
+
+
 function exportCharPDF(char, avatarB64){
   const {jsPDF}=window.jspdf;
   const doc=new jsPDF({orientation:"portrait",unit:"mm",format:"a4"});
@@ -1333,157 +1423,72 @@ function exportCharPDF(char, avatarB64){
   const dateStr=now.toLocaleDateString("tr-TR",{year:"numeric",month:"long",day:"numeric"});
   const timeStr=now.toLocaleTimeString("tr-TR",{hour:"2-digit",minute:"2-digit"});
   const W=210, M=18, CW=W-M*2;
-
-  // ── Background ──
-  doc.setFillColor(13,7,5);
-  doc.rect(0,0,W,297,"F");
-
-  // ── Header band ──
-  doc.setFillColor(30,23,16);
-  doc.rect(0,0,W,52,"F");
-  doc.setDrawColor(200,149,42);
-  doc.setLineWidth(0.6);
-  doc.line(M,52,W-M,52);
-
-  // Avatar circle (if exists)
-  let avatarY=0;
-  if(avatarB64){
-    try{
-      doc.addImage(avatarB64,"JPEG",M,8,36,36);
-      // Gold circle border
-      doc.setDrawColor(200,149,42);
-      doc.setLineWidth(0.5);
-      doc.circle(M+18,26,18,"S");
-      avatarY=36+M;
-    }catch(e){}
-  }
-
+  doc.setFillColor(13,7,5); doc.rect(0,0,W,297,"F");
+  doc.setFillColor(30,23,16); doc.rect(0,0,W,52,"F");
+  doc.setDrawColor(200,149,42); doc.setLineWidth(0.6); doc.line(M,52,W-M,52);
+  if(avatarB64){try{doc.addImage(avatarB64,"JPEG",M,8,36,36);doc.setDrawColor(200,149,42);doc.setLineWidth(0.5);doc.circle(M+18,26,18,"S");}catch(e){}}
   const tx=avatarB64?M+44:M;
-
-  // Title
-  doc.setFontSize(22);
-  doc.setFont("helvetica","bold");
-  doc.setTextColor(240,192,96);
-  doc.text("Inci — Tavern Roll",tx,18);
-
-  // Char name
-  doc.setFontSize(15);
-  doc.setTextColor(245,230,200);
-  doc.text(char.name||"—",tx,28);
-
-  // Sub info
-  doc.setFontSize(9);
-  doc.setTextColor(160,130,80);
-  const sub=[char.race,char.level?"Seviye "+char.level:null,char.age?"Yas: "+char.age:null].filter(Boolean).join("  ·  ");
-  doc.text(sub||"—",tx,36);
-  doc.text(dateStr+" · "+timeStr,tx,43);
-
-  // ── Gold divider ──
+  doc.setFontSize(22);doc.setFont("helvetica","bold");doc.setTextColor(240,192,96);doc.text("Inci - Tavern Roll",tx,18);
+  doc.setFontSize(15);doc.setTextColor(245,230,200);doc.text(char.name||"—",tx,28);
+  doc.setFontSize(9);doc.setTextColor(160,130,80);
+  const sub=[char.race,char.level?"Seviye "+char.level:null,char.age?"Yas: "+char.age:null].filter(Boolean).join("  -  ");
+  doc.text(sub||"—",tx,36);doc.text(dateStr+" - "+timeStr,tx,43);
   let y=62;
-
   const section=(title)=>{
-    doc.setFillColor(30,23,16);
-    doc.roundedRect(M,y,CW,7,1,1,"F");
-    doc.setDrawColor(200,149,42);
-    doc.setLineWidth(0.3);
-    doc.roundedRect(M,y,CW,7,1,1,"S");
-    doc.setFontSize(7);
-    doc.setFont("helvetica","bold");
-    doc.setTextColor(200,149,42);
-    doc.text(title.toUpperCase(),M+4,y+4.8);
-    y+=11;
+    doc.setFillColor(30,23,16);doc.roundedRect(M,y,CW,7,1,1,"F");
+    doc.setDrawColor(200,149,42);doc.setLineWidth(0.3);doc.roundedRect(M,y,CW,7,1,1,"S");
+    doc.setFontSize(7);doc.setFont("helvetica","bold");doc.setTextColor(200,149,42);
+    doc.text(title.toUpperCase(),M+4,y+4.8);y+=11;
   };
-
-  const field=(label,val,x,w,inlineY)=>{
-    const fy=inlineY||y;
-    doc.setFontSize(6.5);
-    doc.setFont("helvetica","normal");
-    doc.setTextColor(120,100,60);
-    doc.text(label,x,fy);
-    doc.setFontSize(10);
-    doc.setFont("helvetica","bold");
-    doc.setTextColor(245,230,200);
-    doc.text(String(val||"—"),x,fy+5.5);
-    doc.setDrawColor(200,149,42);
-    doc.setLineWidth(0.2);
-    doc.line(x,fy+7,x+w-2,fy+7);
-  };
-
-  // ── Kondisyon ──
   section("Kondisyon");
-  const pipDraw=(label,saglik,max,px,py)=>{
-    doc.setFontSize(7);
-    doc.setFont("helvetica","normal");
-    doc.setTextColor(140,120,80);
-    doc.text(label,px,py);
-    for(let i=0;i<max;i++){
-      const filled=i<saglik;
-      if(filled){doc.setFillColor(76,175,125);doc.circle(px+18+i*8,py-1.5,2.5,"F");}
-      doc.setDrawColor(76,175,125);doc.setLineWidth(0.4);
-      doc.circle(px+18+i*8,py-1.5,2.5,"S");
-    }
-  };
   const fiz=char.fiziksel!=null?char.fiziksel:3;
   const zih=char.zihinsel!=null?char.zihinsel:3;
-  pipDraw("Fiziksel",fiz,3,M,y+3);
-  pipDraw("Zihinsel",zih,3,M+CW/2,y+3);
+  ["Fiziksel","Zihinsel"].forEach((lbl,idx)=>{
+    const sag=idx===0?fiz:zih;
+    const px=idx===0?M:M+CW/2;
+    doc.setFontSize(7);doc.setFont("helvetica","normal");doc.setTextColor(140,120,80);doc.text(lbl,px,y+3);
+    for(let i=0;i<3;i++){
+      if(i<sag){doc.setFillColor(76,175,125);doc.circle(px+18+i*8,y+1.5,2.5,"F");}
+      doc.setDrawColor(76,175,125);doc.setLineWidth(0.4);doc.circle(px+18+i*8,y+1.5,2.5,"S");
+    }
+  });
   y+=12;
-
-  // ── Saving Throwlar ──
   section("Saving Throwlar");
   const attrs=char.attrs||{};
-  const attrList=["Guc","Ceviklik","Dayaniklilik","Zeka","Irfan","Karizma"];
-  const attrKeys=["Güç","Çeviklik","Dayanıklılık","Zeka","İrfan","Karizma"];
+  const attrKeys=["Guc","Ceviklik","Dayaniklilik","Zeka","Irfan","Karizma"];
+  const attrReal=["Güç","Çeviklik","Dayanıklılık","Zeka","İrfan","Karizma"];
   const colW=CW/3;
   for(let i=0;i<6;i++){
-    const col=i%3; const row=Math.floor(i/3);
-    field(attrList[i],attrs[attrKeys[i]]||"—",M+col*colW,colW,y+row*16);
+    const col=i%3;const row=Math.floor(i/3);const fy=y+row*16;const fx=M+col*colW;
+    doc.setFontSize(6.5);doc.setFont("helvetica","normal");doc.setTextColor(120,100,60);doc.text(attrKeys[i],fx,fy);
+    doc.setFontSize(10);doc.setFont("helvetica","bold");doc.setTextColor(245,230,200);doc.text(String(attrs[attrReal[i]]||"—"),fx,fy+5.5);
+    doc.setDrawColor(200,149,42);doc.setLineWidth(0.2);doc.line(fx,fy+7,fx+colW-2,fy+7);
   }
   y+=34;
-
-  // ── Skill Piramidi ──
   section("Skill Piramidi");
   const skills=char.skills||{};
-  const levels=[5,4,3,2,1,-1,-2,-3,-4,-5];
-  const FIZIKSEL=["Nisancilik","Yakin Donus","Performans","Gizlilik","Atletik","Binicilik","Denizcilik"];
-  levels.forEach(lv=>{
+  [5,4,3,2,1,-1,-2,-3,-4,-5].forEach(lv=>{
     const placed=Object.entries(skills).filter(([,v])=>v===lv).map(([k])=>k);
     if(!placed.length)return;
-    doc.setFontSize(7.5);
-    doc.setFont("helvetica","bold");
+    doc.setFontSize(7.5);doc.setFont("helvetica","bold");
     if(lv>0){doc.setTextColor(76,175,125);}else{doc.setTextColor(180,40,40);}
     doc.text((lv>0?"+":"")+lv,M,y+4);
-    doc.setFont("helvetica","normal");
-    doc.setTextColor(200,200,200);
-    doc.text(placed.join(", "),M+10,y+4);
-    y+=7;
+    doc.setFont("helvetica","normal");doc.setTextColor(200,200,200);
+    doc.text(placed.join(", "),M+10,y+4);y+=7;
   });
   y+=4;
-
-  // ── Notlar ──
   if(char.notes&&char.notes.trim()){
     if(y>240){doc.addPage();doc.setFillColor(13,7,5);doc.rect(0,0,W,297,"F");y=20;}
     section("Notlar");
-    doc.setFontSize(9);
-    doc.setFont("helvetica","normal");
-    doc.setTextColor(200,185,155);
-    const noteLines=doc.splitTextToSize(char.notes,CW);
-    noteLines.forEach(line=>{
+    doc.setFontSize(9);doc.setFont("helvetica","normal");doc.setTextColor(200,185,155);
+    doc.splitTextToSize(char.notes,CW).forEach(line=>{
       if(y>280){doc.addPage();doc.setFillColor(13,7,5);doc.rect(0,0,W,297,"F");y=20;}
-      doc.text(line,M,y); y+=5.5;
+      doc.text(line,M,y);y+=5.5;
     });
   }
-
-  // ── Footer ──
-  doc.setDrawColor(200,149,42);
-  doc.setLineWidth(0.3);
-  doc.line(M,290,W-M,290);
-  doc.setFontSize(7);
-  doc.setFont("helvetica","normal");
-  doc.setTextColor(100,80,40);
-  doc.text("Inci · Tavern Roll",M,295);
-  doc.text(dateStr,W-M,295,{align:"right"});
-
+  doc.setDrawColor(200,149,42);doc.setLineWidth(0.3);doc.line(M,290,W-M,290);
+  doc.setFontSize(7);doc.setFont("helvetica","normal");doc.setTextColor(100,80,40);
+  doc.text("Inci - Tavern Roll",M,295);doc.text(dateStr,W-M,295,{align:"right"});
   const safeName=(char.name||"karakter").replace(/[^a-zA-Z0-9\s_-]/g,"").replace(/\s+/g,"_")||"karakter";
   doc.save("InciTavernRoll_"+safeName+"_"+now.getFullYear()+String(now.getMonth()+1).padStart(2,"0")+String(now.getDate()).padStart(2,"0")+".pdf");
 }
@@ -2182,99 +2187,7 @@ function App(){
     :[{id:"dice",l:"🎲 Zar"},{id:"char",l:"📜 Karakter"},{id:"npc",l:"⚔ Düşmanlar"}];
 
   if(phase==="lobby"){
-    const dmSelected=role==="dm";
-    const [lobbyMode,setLobbyMode]=React.useState("select"); // select | register | login
-    const [accounts,setAccounts]=React.useState({});
-    const [regName,setRegName]=React.useState("");
-    const [regPass,setRegPass]=React.useState("");
-    const [regErr,setRegErr]=React.useState("");
-    const [loginSel,setLoginSel]=React.useState("");
-    const [loginPass,setLoginPass]=React.useState("");
-    const [loginErr,setLoginErr]=React.useState("");
-
-    React.useEffect(()=>{
-      fbGet("accounts").then(data=>{ if(data) setAccounts(data); });
-    },[]);
-
-    const register=async()=>{
-      if(!regName.trim()){setRegErr("Isim gir!");return;}
-      if(regPass.length<3){setRegErr("Sifre en az 3 karakter!");return;}
-      if(accounts[regName]){setRegErr("Bu isim zaten kayitli!");return;}
-      await fbSet("accounts/"+regName,{name:regName,pass:regPass});
-      setName(regName);
-      setPhase("game");
-    };
-
-    const loginAccount=async()=>{
-      if(!loginSel){setLoginErr("Bir karakter sec!");return;}
-      const acc=accounts[loginSel];
-      if(!acc||acc.pass!==loginPass){setLoginErr("Sifre yanlis!");setTimeout(()=>setLoginErr(""),2000);return;}
-      setName(acc.name);
-      setPhase("game");
-    };
-
-    const join=()=>{
-      if(role==="dm"){
-        if(dmPass!=="05426654789"){setDmErr(true);setTimeout(()=>setDmErr(false),2000);return;}
-        setName("DM");
-        setPhase("game");
-      }
-    };
-
-    const accountList=Object.values(accounts);
-
-    return(
-      <div className="lobby">
-        <h1 className="lt">TAVERN ROLL</h1>
-        <p className="ls">Inci Companion</p>
-        <div className="lc">
-          <div className="lr" style={{marginBottom:16}}>
-            <button className={"rb"+(role==="player"?" on":"")} onClick={()=>setRole("player")}>Oyuncu</button>
-            <button className={"rb"+(role==="dm"?" on":"")} onClick={()=>setRole("dm")}>DM</button>
-          </div>
-
-          {dmSelected&&<>
-            <input className="ii" type="password" placeholder="DM Sifresi..." value={dmPass} onChange={e=>setDmPass(e.target.value)} onKeyDown={e=>e.key==="Enter"&&join()} style={{borderColor:dmErr?"#c03030":undefined}}/>
-            {dmErr&&<div style={{color:"#ff6060",fontSize:".8rem",fontStyle:"italic",marginBottom:8,textAlign:"center"}}>Sifre yanlis!</div>}
-            <button className="jb" onClick={join}>Masaya Otur</button>
-          </>}
-
-          {!dmSelected&&lobbyMode==="select"&&<>
-            <div style={{display:"flex",gap:8,marginBottom:16}}>
-              <button className="jb" style={{flex:1,marginTop:0}} onClick={()=>setLobbyMode("register")}>Kayit Ol</button>
-              <button className="jb" style={{flex:1,marginTop:0,background:"rgba(200,149,42,.08)"}} onClick={()=>setLobbyMode("login")}>Giris Yap</button>
-            </div>
-          </>}
-
-          {!dmSelected&&lobbyMode==="register"&&<>
-            <h2 style={{marginBottom:14}}>Kayit Ol</h2>
-            <input className="ii" placeholder="Karakter adin..." value={regName} onChange={e=>{setRegName(e.target.value);setRegErr("");}}/>
-            <input className="ii" type="password" placeholder="Sifre belirle..." value={regPass} onChange={e=>{setRegPass(e.target.value);setRegErr("");}} onKeyDown={e=>e.key==="Enter"&&register()}/>
-            <div style={{background:"rgba(200,149,42,.06)",border:"1px solid rgba(200,149,42,.15)",borderRadius:5,padding:"8px 12px",marginBottom:10,fontSize:".75rem",color:"rgba(245,230,200,.5)",fontStyle:"italic",lineHeight:1.5}}>
-              Sifren sadece sana aittir. Kimseyle paylasmak zorunda degilsin.
-            </div>
-            {regErr&&<div style={{color:"#ff6060",fontSize:".78rem",marginBottom:8,textAlign:"center"}}>{regErr}</div>}
-            <button className="jb" onClick={register} disabled={!regName.trim()}>Kayit Ol ve Giris Yap</button>
-            <button className="rb" style={{width:"100%",marginTop:8}} onClick={()=>setLobbyMode("select")}>Geri</button>
-          </>}
-
-          {!dmSelected&&lobbyMode==="login"&&<>
-            <h2 style={{marginBottom:14}}>Giris Yap</h2>
-            {accountList.length===0&&<div style={{color:"var(--text-dim)",fontStyle:"italic",fontSize:".85rem",marginBottom:12,textAlign:"center"}}>Kayitli karakter yok.</div>}
-            {accountList.length>0&&<>
-              <select className="ii" style={{marginBottom:8}} value={loginSel} onChange={e=>setLoginSel(e.target.value)}>
-                <option value="">-- Karakter sec --</option>
-                {accountList.map(a=><option key={a.name} value={a.name}>{a.name}</option>)}
-              </select>
-              <input className="ii" type="password" placeholder="Sifren..." value={loginPass} onChange={e=>{setLoginPass(e.target.value);setLoginErr("");}} onKeyDown={e=>e.key==="Enter"&&loginAccount()}/>
-              {loginErr&&<div style={{color:"#ff6060",fontSize:".78rem",marginBottom:8,textAlign:"center"}}>{loginErr}</div>}
-              <button className="jb" onClick={loginAccount} disabled={!loginSel}>Giris Yap</button>
-            </>}
-            <button className="rb" style={{width:"100%",marginTop:8}} onClick={()=>setLobbyMode("select")}>Geri</button>
-          </>}
-        </div>
-      </div>
-    );
+    return <LobbyScreen role={role} setRole={setRole} dmPass={dmPass} setDmPass={setDmPass} dmErr={dmErr} setDmErr={setDmErr} setName={setName} setPhase={setPhase}/>;
   }
 
 
