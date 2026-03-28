@@ -14,7 +14,7 @@
 <script src="https://unpkg.com/@babel/standalone@7.23.10/babel.min.js"></script>
 <script src="https://unpkg.com/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 <script type="text/babel">
-const {useState,useEffect,useRef,Component}=React;
+const {useState,useEffect,useRef,useCallback,Component}=React;
 const FB="https://incitavernroll-default-rtdb.europe-west1.firebasedatabase.app";
 const fbGet=async p=>{try{const r=await fetch(`${FB}/${p}.json`);return await r.json();}catch(e){console.error("fbGet",p,e);return null;}};
 const fbSet=async(p,v)=>{try{const r=await fetch(`${FB}/${p}.json`,{method:"PUT",body:JSON.stringify(v)});if(!r.ok)throw new Error(`HTTP ${r.status}`);return true;}catch(e){console.error("fbSet",p,e);return false;}};
@@ -63,6 +63,15 @@ const DI={4:"🗡️",6:"🛡️",8:"🪄",10:"🔮",12:"💀",20:"⚔️",100:"
 const STATS=["STR","DEX","CON","INT","WIS","CHA"];
 const CLASSES=["Barbarian","Bard","Cleric","Druid","Fighter","Monk","Paladin","Ranger","Rogue","Sorcerer","Warlock","Wizard"];
 const RACES=["İnsan","Aguslu","Kuzeyli","Sisicalı","Farterli","İnsulamlı","Alalı"];
+const STATUSES=[
+  {id:"zehirli",  label:"Zehirli",  icon:"☠️",  cls:"sb-zehirli",  animCls:"st-zehirli"},
+  {id:"baygın",   label:"Baygın",   icon:"💫",  cls:"sb-baygın",   animCls:"st-baygın"},
+  {id:"panik",    label:"Panik",    icon:"😱",  cls:"sb-panik",    animCls:"st-panik"},
+  {id:"kör",      label:"Kör",      icon:"🙈",  cls:"sb-kör",      animCls:"st-kör"},
+  {id:"sağır",    label:"Sağır",    icon:"🙉",  cls:"sb-sağır",    animCls:"st-sağır"},
+  {id:"şaşkın",   label:"Şaşkın",  icon:"❓",  cls:"sb-şaşkın",   animCls:"st-şaşkın"},
+  {id:"sıkıştı",  label:"Sıkıştı", icon:"⛓️",  cls:"sb-sıkıştı",  animCls:"st-sıkıştı"},
+];
 const smod=s=>{const m=Math.floor(((parseInt(s)||10)-10)/2);return(m>=0?"+":"")+m};
 const ts=()=>Date.now();
 const fmtTime=id=>{if(!id)return"";const d=new Date(id);return d.toLocaleTimeString("tr-TR",{hour:"2-digit",minute:"2-digit"});};
@@ -334,6 +343,28 @@ body{font-family:'Crimson Text',serif;color:var(--text);background:var(--bg0);ba
 .mh{font-family:'Cinzel',serif;font-size:.58rem;letter-spacing:.22em;color:rgba(200,149,42,.5);text-transform:uppercase;border-bottom:1px solid rgba(200,149,42,.1);padding-bottom:5px;margin-bottom:10px}
 .mg{display:grid;grid-template-columns:repeat(auto-fill,minmax(148px,1fr));gap:8px}
 .mc{border-radius:7px;padding:10px 12px 9px;border:1px solid;position:relative;overflow:hidden;transition:all .3s}
+/* Durum animasyonları */
+.mc.st-zehirli{animation:st-poison 2s ease-in-out infinite}
+@keyframes st-poison{0%,100%{box-shadow:inset 0 0 12px rgba(80,180,40,.2)}50%{box-shadow:inset 0 0 24px rgba(80,180,40,.5);border-color:rgba(80,180,40,.6)!important}}
+.mc.st-baygın{animation:st-stun 1.5s ease-in-out infinite;filter:brightness(.85)}
+@keyframes st-stun{0%,100%{box-shadow:inset 0 0 10px rgba(240,200,50,.2)}50%{box-shadow:inset 0 0 22px rgba(240,200,50,.5);border-color:rgba(240,200,50,.5)!important}}
+.mc.st-panik{animation:st-panic .8s ease-in-out infinite}
+@keyframes st-panic{0%,100%{transform:translateX(0)}25%{transform:translateX(-2px)}75%{transform:translateX(2px)}}
+.mc.st-kör{filter:contrast(.7) brightness(.8)}
+.mc.st-sağır{opacity:.85}
+.mc.st-şaşkın{animation:st-confuse 3s linear infinite}
+@keyframes st-confuse{0%{box-shadow:inset 0 0 10px rgba(180,80,220,.2)}50%{box-shadow:inset 0 0 20px rgba(80,160,220,.3)}100%{box-shadow:inset 0 0 10px rgba(180,80,220,.2)}}
+.mc.st-sıkıştı{box-shadow:inset 0 0 18px rgba(160,100,40,.4);border-color:rgba(160,100,40,.6)!important}
+/* Status badges */
+.status-badges{display:flex;flex-wrap:wrap;gap:3px;margin-top:5px}
+.status-badge{font-size:.65rem;padding:1px 5px;border-radius:3px;cursor:default;border:1px solid;white-space:nowrap}
+.sb-zehirli{background:rgba(80,180,40,.15);border-color:rgba(80,180,40,.4);color:#7ef07e}
+.sb-baygın{background:rgba(240,200,50,.12);border-color:rgba(240,200,50,.4);color:#f0e050}
+.sb-panik{background:rgba(220,60,60,.12);border-color:rgba(220,60,60,.4);color:#ff9090}
+.sb-kör{background:rgba(60,60,60,.2);border-color:rgba(120,120,120,.4);color:#aaa}
+.sb-sağır{background:rgba(80,80,120,.15);border-color:rgba(80,80,180,.3);color:#a0a8f0}
+.sb-şaşkın{background:rgba(180,80,220,.12);border-color:rgba(180,80,220,.4);color:#d090f0}
+.sb-sıkıştı{background:rgba(160,100,40,.15);border-color:rgba(160,100,40,.4);color:#c8a070}
 /* Hasar rengi — 0 pip kaldıkça koyulaşır */
 .mc.dmg1{box-shadow:inset 0 0 12px rgba(180,40,40,.15)}
 .mc.dmg2{box-shadow:inset 0 0 20px rgba(180,40,40,.3);border-color:rgba(180,40,40,.5)!important}
@@ -519,6 +550,33 @@ function NpcPips({type,saglik,maxPips,onChange,disabled}){
     })}
   </div>;
 }
+function StatusPicker({statuses,onChange,disabled}){
+  const active=statuses||[];
+  const toggle=id=>{
+    if(disabled)return;
+    const has=active.includes(id);
+    onChange(has?active.filter(s=>s!==id):[...active,id]);
+  };
+  return <div className="status-badges" style={{marginTop:6}}>
+    {STATUSES.map(s=>(
+      <button key={s.id}
+        className={"status-badge "+(active.includes(s.id)?s.cls:"" )}
+        style={{
+          background:active.includes(s.id)?undefined:"transparent",
+          borderColor:active.includes(s.id)?undefined:"rgba(245,230,200,.12)",
+          color:active.includes(s.id)?undefined:"rgba(245,230,200,.25)",
+          cursor:disabled?"default":"pointer",
+          transition:"all .2s"
+        }}
+        onClick={()=>toggle(s.id)}
+        title={s.label}
+      >
+        {s.icon} {s.label}
+      </button>
+    ))}
+  </div>;
+}
+
 function MPs({type,saglik,maxPips,onChange,disabled}){
   const c=type==="fiziksel"?"f":"z";
   const max=maxPips||3;
@@ -544,6 +602,7 @@ function Masa({me,role,char,npcs,all,avatars,onPipChange,onNpcPipChange}){
     sub:[char.race,char.level?`Seviye ${char.level}`:null].filter(Boolean).join(" · ")||"—",
     fiziksel:char.fiziksel!=null?char.fiziksel:3, zihinsel:char.zihinsel!=null?char.zihinsel:3,
     fizMax:3, zihMax:3, pname:me,
+    statuses:char.statuses||[],
     dead:(char.fiziksel!=null?char.fiziksel:3)<=0&&(char.zihinsel!=null?char.zihinsel:3)<=0
   };
 
@@ -553,7 +612,7 @@ function Masa({me,role,char,npcs,all,avatars,onPipChange,onNpcPipChange}){
       name:c.name||p.name,
       sub:[c.race,c.level?`Seviye ${c.level}`:null].filter(Boolean).join(" · ")||"—",
       fiziksel:c.fiziksel!=null?c.fiziksel:3,zihinsel:c.zihinsel!=null?c.zihinsel:3,
-      fizMax:3,zihMax:3,pname:p.name,
+      fizMax:3,zihMax:3,pname:p.name,statuses:c.statuses||[],
       dead:(c.fiziksel!=null?c.fiziksel:3)<=0&&(c.zihinsel!=null?c.zihinsel:3)<=0};
   });
 
@@ -561,7 +620,7 @@ function Masa({me,role,char,npcs,all,avatars,onPipChange,onNpcPipChange}){
     sub:`ZS ${n.ac} · CR ${n.cr}${n.boss?" · BOSS":""}`,
     fiziksel:n.fiziksel!=null?n.fiziksel:(n.fizMax||3),
     zihinsel:n.zihinsel!=null?n.zihinsel:(n.zihMax||3),
-    fizMax:n.fizMax||3,zihMax:n.zihMax||3,npcId:n.id,
+    fizMax:n.fizMax||3,zihMax:n.zihMax||3,npcId:n.id,statuses:n.statuses||[],
     dead:(n.fiziksel!=null?n.fiziksel:(n.fizMax||3))<=0&&(n.zihinsel!=null?n.zihinsel:(n.zihMax||3))<=0}));
 
   const ord={ally:1,neutral:2,enemy:3};
@@ -576,12 +635,18 @@ function Masa({me,role,char,npcs,all,avatars,onPipChange,onNpcPipChange}){
       const canEdit=isDM||(card.isMe&&onPipChange);
       const onFiz=canEdit?(v=>card.npcId?onNpcPipChange&&onNpcPipChange(card.npcId,"fiziksel",v):onPipChange&&onPipChange(card.pname||me,"fiziksel",v)):null;
       const onZih=canEdit?(v=>card.npcId?onNpcPipChange&&onNpcPipChange(card.npcId,"zihinsel",v):onPipChange&&onPipChange(card.pname||me,"zihinsel",v)):null;
+      const onStatus=isDM?(newStatuses=>{
+        if(card.npcId&&onNpcPipChange) onNpcPipChange(card.npcId,"statuses",newStatuses);
+        else if(card.pname&&onPipChange) onPipChange(card.pname,"statuses",newStatuses);
+      }):null;
       const fiz=card.fiziksel!=null?card.fiziksel:(card.fizMax||3);
       const zih=card.zihinsel!=null?card.zihinsel:(card.zihMax||3);
       const fmax=card.fizMax||3; const zmax=card.zihMax||3;
       const healthPct=((fiz+zih)/(fmax+zmax));
       const dmgClass=card.dead?"":(healthPct<=0.33?" dmg3":healthPct<=0.66?" dmg2":healthPct<1?" dmg1":"");
-      return <div key={card.key} className={`mc ${card.type}${card.dead?" dead":""}${card.isMe?" me":""}${card.boss?" boss-card":""}${dmgClass}`}>
+      const cardStatuses=card.statuses||[];
+      const statusAnimClasses=cardStatuses.map(sid=>{const s=STATUSES.find(x=>x.id===sid);return s?" "+s.animCls:"";}).join("");
+      return <div key={card.key} className={`mc ${card.type}${card.dead?" dead":""}${card.isMe?" me":""}${card.boss?" boss-card":""}${dmgClass}${statusAnimClasses}`}>
         {card.dead&&<span className="sku">💀</span>}
         {card.type==="player"&&avatars&&avatars[card.key.replace("p-","")]&&
           <img src={avatars[card.key.replace("p-","")]} style={{width:32,height:32,borderRadius:"50%",objectFit:"cover",border:"1px solid rgba(200,149,42,.4)",marginBottom:5}} alt=""/>}
@@ -593,6 +658,10 @@ function Masa({me,role,char,npcs,all,avatars,onPipChange,onNpcPipChange}){
           <MPs type="zihinsel" saglik={card.zihinsel} maxPips={card.zihMax||3} onChange={onZih} disabled={!canEdit}/>
         </div>
         {card.ac&&<div style={{fontSize:".65rem",color:"rgba(var(--text-rgb,245,230,200),.3)",marginTop:5}}>ZS {card.ac}</div>}
+        {cardStatuses.length>0&&<div className="status-badges">
+          {cardStatuses.map(sid=>{const s=STATUSES.find(x=>x.id===sid);return s?<span key={sid} className={"status-badge "+s.cls}>{s.icon} {s.label}</span>:null;})}
+        </div>}
+        {isDM&&onStatus&&<StatusPicker statuses={cardStatuses} onChange={onStatus} disabled={false}/>}
       </div>;
     })}
     </div>
@@ -722,17 +791,18 @@ function Dice({me,role,char,npcs,all,rolls,onRoll,animOn,avatars,onPipChange,onN
     setShowSkillPicker(false);
   };
 
-  // d20 tek tık → skill picker aç, çift tık → düz at
+  // d20 tek tık → düz at, çift tık → skill picker
   const handleD20Click=()=>{
     if(clickTimer.current){
-      // Çift tık
+      // Çift tık → skill picker aç
       clearTimeout(clickTimer.current);
       clickTimer.current=null;
-      roll(20,parseInt(mod)||0,null);
+      setShowSkillPicker(s=>!s);
     } else {
+      // Tek tık → düz at (250ms içinde çift tık gelmezse)
       clickTimer.current=setTimeout(()=>{
         clickTimer.current=null;
-        setShowSkillPicker(s=>!s);
+        roll(20,parseInt(mod)||0,null);
       },250);
     }
   };
@@ -750,7 +820,7 @@ function Dice({me,role,char,npcs,all,rolls,onRoll,animOn,avatars,onPipChange,onN
     <div className="dg">
       {DICE.map(d=>{
         if(d.s===20){
-          return <button key={d.s} className="db" onClick={handleD20Click} title="Tek tık: Skill seç | Çift tık: Düz at">
+          return <button key={d.s} className="db" onClick={handleD20Click} title="Tek tık: Düz at | Çift tık: Skill seç">
             <span className="di">{d.i}</span>
             <span className="dl">d20</span>
           </button>;
@@ -803,7 +873,7 @@ function Dice({me,role,char,npcs,all,rolls,onRoll,animOn,avatars,onPipChange,onN
         <div className="rw">{latest.player}{latest.skillName?` — ${latest.skillName}`:` — d${latest.sides}`}</div>
         <div key={akey} className={`rn ra2${ic?" crit":fu?" fum":""}`}>{latest.total}</div>
         <div className="rm">{ic?"✨ Crit Success!":fu?"💀 Crit Fail!":`${latest.raw}${latest.modifier!==0?` + (${latest.modifier>0?"+":""}${latest.modifier})`:""}`}</div>
-      </>:<div className="rm">Bir zar seç ve at... (d20'ye çift tık = düz at)</div>}
+      </>:<div className="rm">Bir zar seç ve at... (d20 çift tık = skill seç)</div>}
     </div>
 
     {feed.length>0&&<>
@@ -1256,6 +1326,8 @@ function Char({me,isDM,char,setChar,all,avatars,onUploadAvatar}){
       <div className="cdv"/>
       <PipBar type="zihinsel" saglik={vc.zihinsel!=null?vc.zihinsel:3} maxPips={3} disabled={!can} onChange={v=>upd("zihinsel",v)}/>
     </div></div>
+    <div className="st">Durum Etkileri</div>
+    <StatusPicker statuses={vc.statuses||[]} onChange={v=>upd("statuses",v)} disabled={!can}/>
     <div className="st">Saving Throwlar</div>
     <div className="attr-grid">
       {ATTRIBUTES.map(a=>(
@@ -1571,6 +1643,7 @@ function Npc({isDM,npcs,setNpcs,onClearRolls,allPlayers}){
           <div className="ncw">
             <NpcPips type="fiziksel" saglik={fsag} maxPips={fmax} disabled={!isDM} onChange={v=>uPip(n.id,"fiziksel",v)}/>
             <NpcPips type="zihinsel" saglik={zsag} maxPips={zmax} disabled={!isDM} onChange={v=>uPip(n.id,"zihinsel",v)}/>
+            {isDM&&<StatusPicker statuses={n.statuses||[]} onChange={v=>sync(npcs.map(x=>x.id===n.id?{...x,statuses:v}:x))} disabled={false}/>}
           </div>
           {n.notes&&<div className="nnt">{n.notes}</div>}
           {isDM&&<div className="nct"><button className="nbtn rm" onClick={()=>rem(n.id)}>Kaldir</button></div>}
@@ -1608,6 +1681,467 @@ function Npc({isDM,npcs,setNpcs,onClearRolls,allPlayers}){
       </div>
     </div>}
   </div>;
+}
+
+// ─── HEX MAP ──────────────────────────────────────────────────────────────────
+const HEX_COLS=13, HEX_ROWS=9;
+const HEX_SIZE=34;
+
+const PIN_TYPES=[
+  {id:"player", label:"Oyuncu",  color:"#5b9bd5", fill:"rgba(91,155,213,.25)",  stroke:"#5b9bd5"},
+  {id:"npc",    label:"NPC",     color:"#c8952a", fill:"rgba(200,149,42,.25)",  stroke:"#c8952a"},
+  {id:"point",  label:"Önemli",  color:"#f0c060", fill:"rgba(240,192,96,.2)",   stroke:"#f0c060"},
+  {id:"note",   label:"Not",     color:"#7ef0a0", fill:"rgba(126,240,160,.15)", stroke:"#7ef0a0"},
+];
+
+const hexToPixel=(col,row,size)=>({
+  x: size*(1.5*col+1),
+  y: size*(Math.sqrt(3)*(row+(col%2)*0.5)+1)
+});
+
+const hexPath=(cx,cy,r)=>{
+  const pts=Array.from({length:6},(_,i)=>{
+    const a=Math.PI/180*(60*i-30);
+    return (cx+r*Math.cos(a)).toFixed(1)+","+(cy+r*Math.sin(a)).toFixed(1);
+  });
+  return "M"+pts.join("L")+"Z";
+};
+
+const hexToRgb=hex=>{
+  const r=parseInt(hex.slice(1,3),16);
+  const g=parseInt(hex.slice(3,5),16);
+  const b=parseInt(hex.slice(5,7),16);
+  return r+","+g+","+b;
+};
+
+function Arena({me,isDM,avatars,all,npcs,rolls,onRoll,char}){
+  const [pins,setPins]=useState([]);
+  const [blocked,setBlocked]=useState([]);
+  const [openCards,setOpenCards]=useState({});
+  const [pickModal,setPickModal]=useState(null);
+  const [dragPin,setDragPin]=useState(null);
+  const lastMapRef=useRef(null),lastBlkRef=useRef(null),lastInitRef=useRef(null);
+  const svgRef=useRef(null);
+  const cardDragRef=useRef({});
+
+  const [order,setOrder]=useState([]);
+  const [activeIdx,setActiveIdx]=useState(0);
+  const [turn,setTurn]=useState(1);
+  const [combat,setCombat]=useState(false);
+  const dragInitIdx=useRef(null);
+
+  const [showSkillPicker,setShowSkillPicker]=useState(false);
+  const [lastRoll,setLastRoll]=useState(null);
+  const [savedMaps,setSavedMaps]=useState(()=>{try{const s=localStorage.getItem("tr_maps");return s?JSON.parse(s):[];}catch{return[];}});
+  const [showMapMgr,setShowMapMgr]=useState(false);
+  const [mapName,setMapName]=useState("");
+  const dblTimers=useRef({});
+
+  const S=HEX_SIZE;
+  const W=HEX_COLS*S*1.5+S*1.5;
+  const H=HEX_ROWS*S*Math.sqrt(3)+S*Math.sqrt(3);
+
+  useEffect(()=>{
+    const poll=async()=>{
+      const[md,bd,id]=await Promise.all([fbGet("mapPins"),fbGet("mapBlocked"),fbGet("initiative")]);
+      const mk=JSON.stringify(md);if(mk!==lastMapRef.current){lastMapRef.current=mk;setPins(md?Object.values(md):[]);}
+      const bk=JSON.stringify(bd);if(bk!==lastBlkRef.current){lastBlkRef.current=bk;setBlocked(bd?Object.values(bd):[]);}
+      const ik=JSON.stringify(id);
+      if(ik!==lastInitRef.current){lastInitRef.current=ik;if(!id){setOrder([]);setActiveIdx(0);setTurn(1);setCombat(false);}else{if(id.order)setOrder(id.order);if(id.activeIdx!=null)setActiveIdx(id.activeIdx);if(id.turn!=null)setTurn(id.turn);if(id.combat!=null)setCombat(id.combat);}}
+    };
+    poll();const iv=setInterval(poll,2000);return()=>clearInterval(iv);
+  },[]);
+
+  const isBlocked=(c,r)=>blocked.some(b=>b.col===c&&b.row===r);
+  const pinsAt=(c,r)=>pins.filter(p=>p.col===c&&p.row===r);
+  const pixelToHex=(px,py)=>{
+    const col=Math.round((px/S-1)/1.5);
+    const row=Math.round((py/(S*Math.sqrt(3))-1)-col*0.5);
+    return{col:Math.max(0,Math.min(HEX_COLS-1,col)),row:Math.max(0,Math.min(HEX_ROWS-1,row))};
+  };
+  const addPin=async(col,row,type,name,entityId)=>{
+    const id="pin_"+ts();const pin={id,col,row,type,owner:me,name:name||"",entityId:entityId||null};
+    setPins(p=>[...p,pin]);await fbSet("mapPins/"+id,pin);
+  };
+  const removePin=async(pid)=>{
+    setPins(p=>p.filter(x=>x.id!==pid));await fbDel("mapPins/"+pid);
+    setOpenCards(c=>{const n={...c};delete n[pid];return n;});
+  };
+  const movePin=async(pid,nc,nr)=>{
+    if(isBlocked(nc,nr))return;
+    setPins(p=>p.map(x=>x.id===pid?{...x,col:nc,row:nr}:x));
+    await fbPatch("mapPins/"+pid,{col:nc,row:nr});
+  };
+  const handleHexClick=(col,row)=>{
+    if(dragPin){setDragPin(null);return;}
+    if(isBlocked(col,row))return;
+    const hp=pinsAt(col,row);
+    if(hp.length>0){
+      const svgRect=svgRef.current&&svgRef.current.getBoundingClientRect();
+      const{x,y}=hexToPixel(col,row,S);
+      const baseX=svgRect?svgRect.left+x+20:400;
+      const baseY=svgRect?svgRect.top+y-60:300;
+      setOpenCards(c=>{
+        const n={...c};
+        hp.forEach((pin,i)=>{if(n[pin.id])delete n[pin.id];else n[pin.id]={x:baseX+i*15,y:baseY+i*15};});
+        return n;
+      });
+      return;
+    }
+    setPickModal({col,row});
+  };
+  const handleHexRC=(e,col,row)=>{
+    e.preventDefault();if(!isDM)return;
+    if(isBlocked(col,row)){const nb=blocked.filter(b=>!(b.col===col&&b.row===row));setBlocked(nb);const o={};nb.forEach(b=>{o[b.col+"_"+b.row]=b;});fbSet("mapBlocked",nb.length?o:null);}
+    else{const nb=[...blocked,{col,row}];setBlocked(nb);const o={};nb.forEach(b=>{o[b.col+"_"+b.row]=b;});fbSet("mapBlocked",o);}
+  };
+  const handlePinPointerDown=(e,pin)=>{
+    e.preventDefault();e.stopPropagation();
+    try{e.currentTarget.setPointerCapture(e.pointerId);}catch{}
+    setDragPin({id:pin.id,col:pin.col,row:pin.row,dragging:true});
+  };
+  const handleSvgPointerMove=useCallback((e)=>{
+    if(!dragPin||!dragPin.dragging)return;
+    const rect=svgRef.current&&svgRef.current.getBoundingClientRect();
+    if(!rect)return;
+    const h=pixelToHex(e.clientX-rect.left,e.clientY-rect.top);
+    if(h.col!==dragPin.col||h.row!==dragPin.row)setDragPin(d=>({...d,...h}));
+  },[dragPin]);
+  const handleSvgPointerUp=useCallback(()=>{
+    if(dragPin&&dragPin.dragging)movePin(dragPin.id,dragPin.col,dragPin.row);
+    setDragPin(null);
+  },[dragPin]);
+
+  const getPT=(pin)=>{
+    if(pin.type==="npc"){
+      const n=npcs.find(x=>x.id===pin.entityId||x.name===pin.name);
+      const t=n?n.type:"enemy";
+      if(t==="ally")return{color:"#7ef0a0",fill:"rgba(76,200,100,.22)",stroke:"#7ef0a0",icon:"🤝"};
+      if(t==="neutral")return{color:"#90b8f0",fill:"rgba(91,155,213,.22)",stroke:"#90b8f0",icon:"😐"};
+      return{color:"#ff9090",fill:"rgba(200,60,60,.25)",stroke:"#ff6060",icon:"💀"};
+    }
+    const map={player:{color:"#5b9bd5",fill:"rgba(91,155,213,.3)",stroke:"#5b9bd5",icon:"⚔️"},point:{color:"#f0c060",fill:"rgba(240,192,96,.2)",stroke:"#f0c060",icon:"⭐"},note:{color:"#7ef0a0",fill:"rgba(126,240,160,.15)",stroke:"#7ef0a0",icon:"📝"}};
+    return map[pin.type]||map.point;
+  };
+  const getPinInfo=(pin)=>{
+    if(pin.type==="player"){
+      const p=all.find(x=>x.name===(pin.entityId||pin.name));const c=p&&p.char||{};
+      const fiz=c.fiziksel!=null?c.fiziksel:3;const zih=c.zihinsel!=null?c.zihinsel:3;
+      return{name:c.name||pin.name,sub:[c.race,c.level?"Svye "+c.level:null].filter(Boolean).join(" · ")||"—",av:avatars&&avatars[pin.entityId||pin.name],statuses:c.statuses||[],fiz,zih,fizMax:3,zihMax:3,dead:fiz<=0&&zih<=0};
+    }
+    if(pin.type==="npc"){
+      const n=npcs.find(x=>x.id===pin.entityId||x.name===pin.name);
+      const fiz=n?(n.fiziksel!=null?n.fiziksel:n.fizMax||3):3;
+      const zih=n?(n.zihinsel!=null?n.zihinsel:n.zihMax||3):3;
+      return{name:n?n.name:pin.name,sub:n?"ZS "+n.ac+" CR "+n.cr:"",av:null,statuses:n?n.statuses||[]:[],fiz,zih,fizMax:n?n.fizMax||3:3,zihMax:n?n.zihMax||3:3,dead:fiz<=0&&zih<=0};
+    }
+    return{name:pin.name||"",note:pin.note||"",av:null,statuses:[],fiz:3,zih:3,fizMax:3,zihMax:3,dead:false};
+  };
+
+  const saveInit=async(o,ai,t,c)=>fbSet("initiative",{order:o,activeIdx:ai,turn:t,combat:c});
+  const arenaEntities=()=>{const seen=new Set();const res=[];pins.forEach(p=>{if(seen.has(p.id))return;seen.add(p.id);if(p.type==="player"){const pl=all.find(x=>x.name===(p.entityId||p.name));if(pl)res.push({id:p.id,name:p.name||pl.name,type:"player"});}else if(p.type==="npc"){const n=npcs.find(x=>x.id===p.entityId||x.name===p.name);if(n)res.push({id:p.id,name:n.name,type:"npc"});}});return res;};
+  const notInOrder=arenaEntities().filter(e=>!order.find(o=>o.id===e.id));
+  const addToOrder=async(e)=>{const no=[...order,e];setOrder(no);await saveInit(no,activeIdx,turn,combat);};
+  const removeFromOrder=async(id)=>{const no=order.filter(o=>o.id!==id);const ni=activeIdx>=no.length?0:activeIdx;setOrder(no);setActiveIdx(ni);await saveInit(no,ni,turn,combat);};
+  const startCombat=async()=>{setCombat(true);await saveInit(order,0,turn,true);};
+  const nextTurn=async()=>{const ni=(activeIdx+1)%order.length;const nt=ni===0?turn+1:turn;setActiveIdx(ni);setTurn(nt);await saveInit(order,ni,nt,true);};
+  const endCombat=async()=>{setCombat(false);setOrder([]);setActiveIdx(0);setTurn(1);await fbSet("initiative",null);};
+  const initDragStart=(e,i)=>{if(!isDM)return;e.dataTransfer.effectAllowed="move";dragInitIdx.current=i;};
+  const initDragOver=(e,i)=>{e.preventDefault();if(dragInitIdx.current==null||dragInitIdx.current===i)return;const no=[...order];const[m]=no.splice(dragInitIdx.current,1);no.splice(i,0,m);let na=activeIdx;if(dragInitIdx.current===activeIdx)na=i;else if(dragInitIdx.current<activeIdx&&i>=activeIdx)na--;else if(dragInitIdx.current>activeIdx&&i<=activeIdx)na++;dragInitIdx.current=i;setOrder(no);setActiveIdx(na);};
+  const initDragEnd=async()=>{dragInitIdx.current=null;await saveInit(order,activeIdx,turn,combat);};
+
+  const saveMap=()=>{if(!mapName.trim())return;const snap={name:mapName.trim(),pins:[...pins],blocked:[...blocked],savedAt:Date.now()};const nm=[...savedMaps.filter(m=>m.name!==snap.name),snap];setSavedMaps(nm);localStorage.setItem("tr_maps",JSON.stringify(nm));setMapName("");};
+  const loadMap=async(snap)=>{setPins(snap.pins||[]);setBlocked(snap.blocked||[]);const po={};(snap.pins||[]).forEach(p=>{po[p.id]=p;});await fbSet("mapPins",(snap.pins&&snap.pins.length)?po:null);const bo={};(snap.blocked||[]).forEach(b=>{bo[b.col+"_"+b.row]=b;});await fbSet("mapBlocked",(snap.blocked&&snap.blocked.length)?bo:null);setShowMapMgr(false);lastMapRef.current=null;lastBlkRef.current=null;};
+  const deleteMap=(n)=>{const nm=savedMaps.filter(m=>m.name!==n);setSavedMaps(nm);localStorage.setItem("tr_maps",JSON.stringify(nm));};
+
+  const rollD20=(mod,name)=>{const raw=Math.floor(Math.random()*20)+1;const total=raw+(mod||0);const r={sides:20,raw,modifier:mod||0,total,skillName:name||null};setLastRoll(r);setShowSkillPicker(false);onRoll&&onRoll(r);};
+  const charSkills=Object.entries((char&&char.skills)||{}).sort((a,b)=>b[1]-a[1]);
+  const lr=lastRoll||(rolls&&rolls.latest);
+  const isCrit=lr&&lr.sides===20&&lr.raw===20;
+  const isFum=lr&&lr.sides===20&&lr.raw===1;
+  const makeClickHandler=(key)=>()=>{if(dblTimers.current[key]){clearTimeout(dblTimers.current[key]);dblTimers.current[key]=null;setShowSkillPicker(s=>!s);}else{dblTimers.current[key]=setTimeout(()=>{dblTimers.current[key]=null;rollD20(0,null);},260);}};
+
+  const PipRow=({type,val,max})=>{
+    const c=type==="fiziksel"?"#4caf7d":"#5b9bd5";
+    return <div style={{display:"flex",gap:2,alignItems:"center"}}>
+      <span style={{fontSize:".46rem",color:"rgba(200,149,42,.4)",fontFamily:"'Cinzel',serif",minWidth:16,flexShrink:0}}>{type==="fiziksel"?"FZ":"ZH"}</span>
+      {Array.from({length:max||3}).map((_,i)=><div key={i} style={{width:7,height:7,borderRadius:"50%",border:"1.5px solid "+c,background:i<val?c:"transparent",flexShrink:0}}/>)}
+    </div>;
+  };
+
+  const statusAnimCls=(sts)=>(!sts||!sts.length?"":STATUSES.filter(s=>sts.includes(s.id)).map(s=>s.animCls).join(" "));
+
+  const panelBg="rgba(16,10,6,.88)";
+  const panelBorder="rgba(200,149,42,.13)";
+
+  return(
+    <div style={{display:"flex",height:"calc(100vh - 160px)",minHeight:520,background:"var(--bg0)"}}>
+
+      {/* LEFT: Dice */}
+      <div style={{width:74,flexShrink:0,display:"flex",flexDirection:"column",background:panelBg,borderRight:"1px solid "+panelBorder,position:"relative"}}>
+        <div style={{padding:"7px 0 6px",textAlign:"center",borderBottom:"1px solid "+panelBorder}}>
+          <div style={{fontSize:".43rem",fontFamily:"'Cinzel',serif",letterSpacing:".2em",color:"rgba(200,149,42,.35)",textTransform:"uppercase"}}>ZAR</div>
+        </div>
+        <div style={{padding:"7px 0 6px",textAlign:"center",borderBottom:"1px solid "+panelBorder,background:"rgba(0,0,0,.12)"}}>
+          <div style={{fontSize:".36rem",color:"rgba(200,149,42,.28)",fontFamily:"'Cinzel',serif",letterSpacing:".1em",marginBottom:2}}>d20</div>
+          <div style={{fontFamily:"'Cinzel',serif",fontSize:"1.4rem",fontWeight:900,lineHeight:1,minHeight:26,display:"flex",alignItems:"center",justifyContent:"center",color:isCrit?"#f0c060":isFum?"#ff5050":lr?"var(--parchment)":"rgba(200,149,42,.16)",textShadow:isCrit?"0 0 12px rgba(240,192,96,.55)":isFum?"0 0 12px rgba(255,60,60,.45)":"none"}}>{lr?lr.total:"—"}</div>
+          {lr&&<div style={{fontSize:".36rem",fontFamily:"'Cinzel',serif",marginTop:1,color:isCrit?"rgba(240,192,96,.7)":isFum?"rgba(255,130,130,.7)":"rgba(200,149,42,.3)"}}>{isCrit?"✨CRIT":isFum?"💀FAIL":lr.raw+(lr.modifier?((lr.modifier>0?"+":"")+lr.modifier):"")}</div>}
+        </div>
+        <div style={{flex:1,overflowY:"auto",padding:"7px 0",display:"flex",flexDirection:"column",alignItems:"center",gap:7}}>
+          {[...all.filter(p=>p.role!=="dm"),...npcs].map((entity)=>{
+            const isNpc=!!(entity.id&&!entity.role);
+            const c=isNpc?entity:(entity.char||{});
+            const nm=isNpc?entity.name:(c.name||entity.name);
+            const av=!isNpc&&avatars&&avatars[entity.name];
+            const key=isNpc?entity.id:entity.name;
+            const isActv=combat&&order[activeIdx]&&order[activeIdx].name===nm;
+            return(
+              <div key={key} style={{display:"flex",flexDirection:"column",alignItems:"center",gap:2}}>
+                <button onClick={makeClickHandler(key)} title={"Tek: d20 | Cift: Skill"}
+                  style={{width:44,height:44,borderRadius:"50%",padding:0,overflow:"hidden",cursor:"pointer",flexShrink:0,border:"2px solid "+(isActv?"#f0c060":"rgba(200,149,42,.2)"),background:av?"transparent":isNpc?"rgba(180,60,40,.14)":"rgba(91,155,213,.1)",boxShadow:isActv?"0 0 8px rgba(240,192,96,.35)":"none",transition:"border-color .2s,box-shadow .2s"}}>
+                  {av?<img src={av} style={{width:"100%",height:"100%",objectFit:"cover"}}/>:<span style={{fontSize:"1rem",lineHeight:"44px",display:"block",textAlign:"center"}}>{isNpc?"💀":"🧙"}</span>}
+                </button>
+                <span style={{fontFamily:"'Cinzel',serif",fontSize:".38rem",color:isActv?"#f0c060":"rgba(200,149,42,.32)",maxWidth:60,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",textAlign:"center"}}>{nm.substring(0,6)}</span>
+              </div>
+            );
+          })}
+        </div>
+        {showSkillPicker&&(
+          <div style={{position:"absolute",left:78,top:0,width:220,background:"rgba(14,8,4,.99)",border:"1px solid rgba(200,149,42,.28)",borderRadius:10,padding:12,zIndex:400,boxShadow:"0 6px 32px rgba(0,0,0,.9)"}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+              <span style={{fontFamily:"'Cinzel',serif",fontSize:".6rem",letterSpacing:".1em",color:"var(--gold)"}}>SKILL SEC</span>
+              <button onClick={()=>setShowSkillPicker(false)} style={{background:"transparent",border:"none",color:"var(--text-dim)",cursor:"pointer",fontSize:"1rem",lineHeight:1}}>x</button>
+            </div>
+            {charSkills.length===0?<p style={{color:"var(--text-dim)",fontSize:".75rem",fontStyle:"italic",margin:0}}>Skill eklenmemis.</p>:(
+              <div style={{display:"flex",flexDirection:"column",gap:4,marginBottom:8}}>
+                {charSkills.map(([sn,lv])=>{
+                  const isFiz=FIZIKSEL_SKILLS.includes(sn);
+                  return <button key={sn} onClick={()=>rollD20(lv,sn)} style={{background:isFiz?"rgba(76,175,125,.07)":"rgba(91,155,213,.07)",border:"1px solid "+(isFiz?"rgba(76,175,125,.22)":"rgba(91,155,213,.22)"),borderRadius:5,padding:"6px 9px",cursor:"pointer",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                    <span style={{fontFamily:"'Crimson Text',serif",fontSize:".88rem",color:"var(--parchment)"}}>{sn}</span>
+                    <span style={{fontFamily:"'Cinzel',serif",fontSize:".72rem",fontWeight:700,color:lv>0?"#7ef0a0":"#ff9090",marginLeft:6}}>{lv>0?"+":""}{lv}</span>
+                  </button>;
+                })}
+              </div>
+            )}
+            <button onClick={()=>rollD20(0,null)} style={{width:"100%",background:"rgba(200,149,42,.05)",border:"1px solid rgba(200,149,42,.15)",borderRadius:5,padding:"6px",cursor:"pointer",fontFamily:"'Cinzel',serif",fontSize:".58rem",letterSpacing:".08em",color:"var(--gold)"}}>DUZAT</button>
+          </div>
+        )}
+      </div>
+
+      {/* CENTER: Map */}
+      <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden",background:"rgba(6,3,1,.6)"}}>
+        <div style={{display:"flex",alignItems:"center",gap:6,padding:"5px 8px",background:"rgba(12,7,3,.7)",borderBottom:"1px solid "+panelBorder,flexShrink:0,flexWrap:"wrap"}}>
+          <span style={{fontFamily:"'Cinzel',serif",fontSize:".42rem",letterSpacing:".14em",color:"rgba(200,149,42,.28)",textTransform:"uppercase"}}>Ekle:</span>
+          {[{type:"player",icon:"⚔️",label:"Oyuncu",color:"#5b9bd5"},{type:"npc",icon:"💀",label:"NPC",color:"#e8956d"},{type:"point",icon:"⭐",label:"Nokta",color:"#f0c060"},{type:"note",icon:"📝",label:"Not",color:"#7ef0a0"}].map(({type,icon,label,color})=>(
+            <button key={type} onClick={()=>setPickModal({col:0,row:0,type})} title={label}
+              style={{width:26,height:26,borderRadius:5,border:"1px solid rgba(200,149,42,.1)",background:"rgba(200,149,42,.03)",cursor:"pointer",fontSize:".85rem",display:"flex",alignItems:"center",justifyContent:"center",transition:"all .15s"}}
+              onMouseEnter={e=>{e.currentTarget.style.borderColor=color;e.currentTarget.style.background="rgba(200,149,42,.08)";}}
+              onMouseLeave={e=>{e.currentTarget.style.borderColor="rgba(200,149,42,.1)";e.currentTarget.style.background="rgba(200,149,42,.03)";}}>
+              {icon}
+            </button>
+          ))}
+          <div style={{marginLeft:"auto",display:"flex",gap:5,alignItems:"center"}}>
+            {isDM&&<button onClick={()=>setShowMapMgr(s=>!s)} style={{background:showMapMgr?"rgba(200,149,42,.12)":"rgba(200,149,42,.04)",border:"1px solid rgba(200,149,42,.18)",borderRadius:5,padding:"3px 8px",cursor:"pointer",fontFamily:"'Cinzel',serif",fontSize:".48rem",color:"var(--gold)",letterSpacing:".08em"}}>Haritalar</button>}
+            {isDM&&<span style={{fontFamily:"'Cinzel',serif",fontSize:".4rem",color:"rgba(180,40,40,.35)",letterSpacing:".06em"}}>SAG=ENGEL</span>}
+            {isDM&&pins.length>0&&<button onClick={async()=>{setPins([]);await fbSet("mapPins",null);lastMapRef.current=null;}} style={{background:"transparent",border:"1px solid rgba(139,26,26,.2)",borderRadius:5,padding:"2px 6px",cursor:"pointer",color:"rgba(255,100,100,.45)",fontFamily:"'Cinzel',serif",fontSize:".45rem"}}>Temizle</button>}
+          </div>
+        </div>
+        {isDM&&showMapMgr&&(
+          <div style={{padding:"8px 10px",background:"rgba(10,6,3,.8)",borderBottom:"1px solid rgba(200,149,42,.1)",flexShrink:0}}>
+            <div style={{display:"flex",gap:6,marginBottom:6}}>
+              <input value={mapName} onChange={e=>setMapName(e.target.value)} onKeyDown={e=>e.key==="Enter"&&saveMap()} placeholder="Harita adi..." style={{flex:1,background:"rgba(200,149,42,.05)",border:"1px solid rgba(200,149,42,.18)",borderRadius:5,padding:"4px 8px",color:"var(--parchment)",fontFamily:"'Cinzel',serif",fontSize:".65rem",outline:"none"}}/>
+              <button onClick={saveMap} disabled={!mapName.trim()} style={{background:"rgba(200,149,42,.1)",border:"1px solid rgba(200,149,42,.25)",borderRadius:5,padding:"4px 10px",cursor:"pointer",fontFamily:"'Cinzel',serif",fontSize:".6rem",color:"var(--gold)"}}>Kaydet</button>
+            </div>
+            {savedMaps.length>0&&<div style={{display:"flex",flexWrap:"wrap",gap:4}}>
+              {savedMaps.map(m=>(
+                <div key={m.name} style={{display:"flex",alignItems:"center",gap:3,background:"rgba(200,149,42,.06)",border:"1px solid rgba(200,149,42,.14)",borderRadius:5,padding:"2px 4px 2px 8px"}}>
+                  <button onClick={()=>loadMap(m)} style={{background:"transparent",border:"none",cursor:"pointer",fontFamily:"'Cinzel',serif",fontSize:".58rem",color:"var(--gold)",padding:0}}>{m.name}</button>
+                  <button onClick={()=>deleteMap(m.name)} style={{background:"transparent",border:"none",cursor:"pointer",color:"rgba(180,40,40,.4)",fontSize:".65rem",lineHeight:1,padding:"0 2px"}} onMouseEnter={e=>e.currentTarget.style.color="rgba(220,60,60,.7)"} onMouseLeave={e=>e.currentTarget.style.color="rgba(180,40,40,.4)"}>x</button>
+                </div>
+              ))}
+            </div>}
+          </div>
+        )}
+        <div style={{flex:1,display:"flex",alignItems:"center",justifyContent:"center",padding:10,overflow:"hidden"}}>
+          <div style={{border:"1px solid rgba(200,149,42,.18)",borderRadius:8,overflow:"hidden",boxShadow:"0 4px 28px rgba(0,0,0,.55)",lineHeight:0,flexShrink:0}}>
+            <svg ref={svgRef} width={W} height={H} style={{display:"block",cursor:dragPin?"grabbing":"crosshair",touchAction:"none"}}
+              onPointerMove={handleSvgPointerMove} onPointerUp={handleSvgPointerUp} onPointerLeave={handleSvgPointerUp}>
+              <defs>
+                {pins.filter(p=>p.type==="player"&&avatars&&avatars[p.entityId||p.name]).map(pin=>{
+                  const{x,y}=hexToPixel(pin.col,pin.row,S);
+                  return <clipPath key={"cp"+pin.id} id={"hcp-"+pin.id}><path d={hexPath(x,y,S*.5)}/></clipPath>;
+                })}
+              </defs>
+              <rect width={W} height={H} fill="#0a0603"/>
+              {Array.from({length:HEX_COLS},(_,col)=>Array.from({length:HEX_ROWS},(_,row)=>{
+                const{x,y}=hexToPixel(col,row,S);
+                const blkBg=isBlocked(col,row);
+                return <path key={"bg"+col+","+row} d={hexPath(x,y,S-1.2)} fill={blkBg?"#0a0603":"rgba(35,22,12,.65)"} stroke={blkBg?"#0a0603":"rgba(200,149,42,.16)"} strokeWidth={0.7}/>;
+              }))}
+              {Array.from({length:HEX_COLS},(_,col)=>Array.from({length:HEX_ROWS},(_,row)=>{
+                const{x,y}=hexToPixel(col,row,S);
+                const hp=pinsAt(col,row);
+                const blk=isBlocked(col,row);
+                const sel=hp.some(p=>openCards[p.id]);
+                const dh=dragPin&&dragPin.col===col&&dragPin.row===row&&!blk;
+                return <g key={col+","+row} onClick={()=>handleHexClick(col,row)} onContextMenu={e=>handleHexRC(e,col,row)} style={{cursor:blk?"not-allowed":hp.length?"pointer":"crosshair"}}>
+                  {!blk&&(sel||dh)&&<path d={hexPath(x,y,S-1.2)} fill={dh?"rgba(200,149,42,.12)":sel?"rgba(200,149,42,.09)":"transparent"} stroke={dh?"rgba(240,192,96,.65)":sel?"rgba(200,149,42,.5)":"transparent"} strokeWidth={1.1}/>}
+                  {!blk&&hp.slice(0,3).map((pin,pi)=>{
+                    const pt=getPT(pin);
+                    const av=pin.type==="player"&&avatars&&avatars[pin.entityId||pin.name];
+                    const total=hp.length;
+                    const ang=total>1?(Math.PI*2*pi/total)-Math.PI/2:0;
+                    const ox=total>1?Math.cos(ang)*S*.26:0;
+                    const oy=total>1?Math.sin(ang)*S*.26:0;
+                    const isDrg=dragPin&&dragPin.id===pin.id;
+                    const initPos=order.findIndex(o=>o.id===pin.id);
+                    const isActPin=combat&&initPos===activeIdx;
+                    const pinInfo=getPinInfo(pin);
+                    const isDead=pinInfo.dead;
+                    return <g key={pin.id} transform={"translate("+ox+","+oy+")"} onPointerDown={e=>handlePinPointerDown(e,pin)} style={{cursor:"grab",opacity:isDrg?.2:isDead?.5:1}}>
+                      {isActPin&&<circle cx={x} cy={y} r={S*.52} fill="none" stroke="rgba(240,192,96,.45)" strokeWidth={2} style={{animation:"dmg-pulse 1.5s infinite"}}/>}
+                      <path d={hexPath(x,y,S*.47)} fill={isDead?"rgba(20,10,8,.6)":pt.fill} stroke={isDead?"rgba(80,40,40,.6)":pt.stroke} strokeWidth={isActPin?2:1.4}/>
+                      {isDead?<text x={x} y={y} textAnchor="middle" dominantBaseline="central" fontSize={S*.42} style={{userSelect:"none"}}>💀</text>:av?<image href={av} x={x-S*.32} y={y-S*.32} width={S*.64} height={S*.64} clipPath={"url(#hcp-"+pin.id+")"} preserveAspectRatio="xMidYMid slice"/>:<text x={x} y={y} textAnchor="middle" dominantBaseline="central" fontSize={S*.42} style={{userSelect:"none"}}>{pt.icon}</text>}
+                      {initPos>=0&&<>
+                        <circle cx={x+S*.35} cy={y-S*.35} r={S*.17} fill={isActPin?"#f0c060":"rgba(18,10,4,.92)"} stroke={isDead?"rgba(80,40,40,.6)":pt.stroke} strokeWidth={.8}/>
+                        <text x={x+S*.35} y={y-S*.35} textAnchor="middle" dominantBaseline="central" fontSize={S*.16} fill={isActPin?"#0d0705":pt.stroke} fontFamily="'Cinzel',serif" fontWeight="bold">{initPos+1}</text>
+                      </>}
+                      {pin.name&&<text x={x} y={y+S*.74} textAnchor="middle" fontSize={S*.18} fill={isDead?"rgba(120,60,60,.6)":pt.stroke} style={{userSelect:"none",fontWeight:600}}>{pin.name.substring(0,9)}{isDead?" x":""}</text>}
+                    </g>;
+                  })}
+                  {hp.length>3&&<text x={x} y={y-S*.62} textAnchor="middle" fontSize={S*.2} fill="rgba(200,149,42,.55)">+{hp.length-3}</text>}
+                </g>;
+              }))}
+            </svg>
+          </div>
+        </div>
+      </div>
+
+      {/* RIGHT: Initiative */}
+      <div style={{width:186,flexShrink:0,display:"flex",flexDirection:"column",background:panelBg,borderLeft:"1px solid "+panelBorder}}>
+        <div style={{padding:"8px 0 7px",textAlign:"center",borderBottom:"1px solid "+panelBorder,background:combat?"rgba(100,18,8,.1)":"transparent",transition:"background .4s"}}>
+          <div style={{fontFamily:"'Cinzel',serif",fontSize:".45rem",letterSpacing:".2em",color:combat?"rgba(255,130,100,.5)":"rgba(200,149,42,.35)",textTransform:"uppercase"}}>INITIATIVE</div>
+          {combat&&<div style={{fontFamily:"'Cinzel',serif",fontSize:".95rem",fontWeight:700,color:"#f0c060",marginTop:2}}>TUR {turn}</div>}
+        </div>
+        <div style={{flex:1,overflowY:"auto",padding:"5px 5px 0"}}>
+          {order.length===0&&<div style={{color:"rgba(200,149,42,.3)",fontSize:".68rem",fontStyle:"italic",textAlign:"center",padding:"18px 6px",lineHeight:1.8,fontFamily:"'Crimson Text',serif"}}>Arenaya pin ekle, buradan siraya al.</div>}
+          {order.map((item,idx)=>{
+            const isActv=combat&&idx===activeIdx;
+            const pin=pins.find(p=>p.id===item.id);
+            const av=(pin&&pin.type==="player"&&avatars&&avatars[pin.entityId||pin.name])||(item.type==="player"&&avatars&&avatars[item.name]);
+            return(
+              <div key={item.id+idx} draggable={isDM} onDragStart={e=>initDragStart(e,idx)} onDragOver={e=>initDragOver(e,idx)} onDragEnd={initDragEnd}
+                style={{display:"flex",alignItems:"center",gap:5,padding:"6px 6px",borderRadius:6,marginBottom:3,background:isActv?"rgba(200,149,42,.1)":"rgba(255,255,255,.015)",border:"1px solid "+(isActv?"rgba(200,149,42,.3)":"rgba(200,149,42,.05)"),cursor:isDM?"grab":"default",transition:"background .15s,border .15s"}}>
+                <div style={{width:18,height:18,borderRadius:"50%",flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center",background:isActv?"#f0c060":"rgba(200,149,42,.07)",border:"1px solid "+(isActv?"#f0c060":"rgba(200,149,42,.13)")}}>
+                  <span style={{fontFamily:"'Cinzel',serif",fontSize:".48rem",fontWeight:700,color:isActv?"#0d0705":"rgba(200,149,42,.45)"}}>{idx+1}</span>
+                </div>
+                <div style={{width:26,height:26,borderRadius:"50%",overflow:"hidden",flexShrink:0,border:"1px solid "+(isActv?"rgba(240,192,96,.35)":"rgba(200,149,42,.12)"),background:item.type==="npc"?"rgba(180,60,40,.1)":"rgba(91,155,213,.1)",display:"flex",alignItems:"center",justifyContent:"center"}}>
+                  {av?<img src={av} style={{width:"100%",height:"100%",objectFit:"cover"}}/>:<span style={{fontSize:".7rem"}}>{item.type==="npc"?"💀":"⚔️"}</span>}
+                </div>
+                <span style={{fontFamily:"'Cinzel',serif",fontSize:".6rem",color:isActv?"#f0c060":"var(--text-mid)",flex:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",fontWeight:isActv?700:400}}>{item.name}</span>
+                {isDM&&<button onClick={()=>removeFromOrder(item.id)} style={{background:"transparent",border:"none",color:"rgba(180,40,40,.3)",cursor:"pointer",fontSize:".7rem",lineHeight:1,flexShrink:0,padding:2}} onMouseEnter={e=>e.currentTarget.style.color="rgba(220,60,60,.7)"} onMouseLeave={e=>e.currentTarget.style.color="rgba(180,40,40,.3)"}>x</button>}
+              </div>
+            );
+          })}
+        </div>
+        {notInOrder.length>0&&isDM&&(
+          <div style={{padding:"5px 5px",borderTop:"1px solid rgba(200,149,42,.06)"}}>
+            <div style={{fontFamily:"'Cinzel',serif",fontSize:".4rem",letterSpacing:".15em",color:"rgba(200,149,42,.25)",textTransform:"uppercase",marginBottom:3}}>SIRAYA EKLE</div>
+            {notInOrder.slice(0,5).map(e=>(
+              <button key={e.id} onClick={()=>addToOrder(e)}
+                style={{display:"flex",alignItems:"center",gap:4,width:"100%",background:"rgba(200,149,42,.025)",border:"1px solid rgba(200,149,42,.07)",borderRadius:5,padding:"5px 6px",cursor:"pointer",fontFamily:"'Cinzel',serif",fontSize:".56rem",color:"var(--text-dim)",marginBottom:2,transition:"all .15s",textAlign:"left"}}
+                onMouseEnter={e=>{e.currentTarget.style.color="var(--gold)";e.currentTarget.style.background="rgba(200,149,42,.07)";}}
+                onMouseLeave={e=>{e.currentTarget.style.color="var(--text-dim)";e.currentTarget.style.background="rgba(200,149,42,.025)";}}>
+                <span style={{opacity:.4}}>+</span>{e.name}
+              </button>
+            ))}
+          </div>
+        )}
+        {isDM&&<div style={{padding:"7px 5px",borderTop:"1px solid rgba(200,149,42,.08)",display:"flex",flexDirection:"column",gap:4}}>
+          {!combat&&order.length>0&&<button onClick={startCombat} style={{background:"rgba(76,175,125,.09)",border:"1px solid rgba(76,175,125,.24)",borderRadius:6,padding:"7px",cursor:"pointer",fontFamily:"'Cinzel',serif",fontSize:".57rem",color:"#7ef0a0",letterSpacing:".1em",textTransform:"uppercase",transition:"all .2s"}} onMouseEnter={e=>e.currentTarget.style.background="rgba(76,175,125,.18)"} onMouseLeave={e=>e.currentTarget.style.background="rgba(76,175,125,.09)"}>Baslat</button>}
+          {combat&&<>
+            <button onClick={nextTurn} style={{background:"rgba(200,149,42,.09)",border:"1px solid rgba(200,149,42,.24)",borderRadius:6,padding:"7px",cursor:"pointer",fontFamily:"'Cinzel',serif",fontSize:".57rem",color:"var(--gold)",letterSpacing:".1em",textTransform:"uppercase",transition:"all .2s"}} onMouseEnter={e=>e.currentTarget.style.background="rgba(200,149,42,.18)"} onMouseLeave={e=>e.currentTarget.style.background="rgba(200,149,42,.09)"}>Sonraki</button>
+            <button onClick={endCombat} style={{background:"transparent",border:"1px solid rgba(139,26,26,.2)",borderRadius:6,padding:"6px",cursor:"pointer",fontFamily:"'Cinzel',serif",fontSize:".54rem",color:"rgba(255,100,100,.45)",letterSpacing:".08em",textTransform:"uppercase",transition:"all .2s"}} onMouseEnter={e=>e.currentTarget.style.background="rgba(139,26,26,.15)"} onMouseLeave={e=>e.currentTarget.style.background="transparent"}>Bitir</button>
+          </>}
+        </div>}
+      </div>
+
+      {/* Pick modal */}
+      {pickModal&&(
+        <div style={{position:"fixed",top:"50%",left:"50%",transform:"translate(-50%,-50%)",background:"rgba(14,8,4,.99)",border:"1px solid rgba(200,149,42,.28)",borderRadius:12,padding:18,zIndex:500,minWidth:220,boxShadow:"0 16px 60px rgba(0,0,0,.95)"}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
+            <span style={{fontFamily:"'Cinzel',serif",fontSize:".65rem",letterSpacing:".1em",color:"var(--gold)"}}>{pickModal.type==="player"?"Oyuncu Ekle":pickModal.type==="npc"?"NPC Ekle":pickModal.type==="note"?"Not":"Nokta"}</span>
+            <button onClick={()=>setPickModal(null)} style={{background:"transparent",border:"none",color:"var(--text-dim)",cursor:"pointer",fontSize:"1rem",lineHeight:1}}>x</button>
+          </div>
+          {pickModal.type==="player"&&(all.filter(p=>p.role!=="dm").length===0?<p style={{color:"var(--text-dim)",fontSize:".8rem",fontStyle:"italic",margin:0}}>Cevrimici oyuncu yok.</p>:all.filter(p=>p.role!=="dm").map(p=>{
+            const c=p.char||{};const av=avatars&&avatars[p.name];
+            return <button key={p.name} onClick={()=>{addPin(pickModal.col,pickModal.row,"player",c.name||p.name,p.name);setPickModal(null);}} style={{display:"flex",alignItems:"center",gap:10,width:"100%",background:"rgba(91,155,213,.06)",border:"1px solid rgba(91,155,213,.15)",borderRadius:7,padding:"8px 10px",cursor:"pointer",marginBottom:5,transition:"all .15s"}} onMouseEnter={e=>e.currentTarget.style.background="rgba(91,155,213,.14)"} onMouseLeave={e=>e.currentTarget.style.background="rgba(91,155,213,.06)"}>
+              <div style={{width:32,height:32,borderRadius:"50%",overflow:"hidden",border:"1px solid rgba(91,155,213,.3)",flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center",background:"rgba(91,155,213,.1)"}}>
+                {av?<img src={av} style={{width:"100%",height:"100%",objectFit:"cover"}}/>:<span>x</span>}
+              </div>
+              <span style={{fontFamily:"'Cinzel',serif",fontSize:".72rem",color:"var(--parchment)"}}>{c.name||p.name}</span>
+            </button>;
+          }))}
+          {pickModal.type==="npc"&&(npcs.length===0?<p style={{color:"var(--text-dim)",fontSize:".8rem",fontStyle:"italic",margin:0}}>NPC yok.</p>:npcs.map(n=>(
+            <button key={n.id} onClick={()=>{addPin(pickModal.col,pickModal.row,"npc",n.name,n.id);setPickModal(null);}} style={{display:"flex",alignItems:"center",gap:10,width:"100%",background:"rgba(220,80,50,.06)",border:"1px solid rgba(220,80,50,.15)",borderRadius:7,padding:"8px 10px",cursor:"pointer",marginBottom:5,transition:"all .15s"}} onMouseEnter={e=>e.currentTarget.style.background="rgba(220,80,50,.14)"} onMouseLeave={e=>e.currentTarget.style.background="rgba(220,80,50,.06)"}>
+              <span style={{fontSize:"1.1rem"}}>💀</span>
+              <div>
+                <div style={{fontFamily:"'Cinzel',serif",fontSize:".7rem",color:"var(--parchment)"}}>{n.name}</div>
+                <div style={{fontSize:".58rem",color:"var(--text-dim)"}}>ZS {n.ac} CR {n.cr}</div>
+              </div>
+            </button>
+          )))}
+        </div>
+      )}
+
+      {/* Per-pin suruklenebilir kartlar */}
+      {pins.filter(p=>openCards[p.id]).map(pin=>{
+        const pt=getPT(pin);
+        const info=getPinInfo(pin);
+        const animCls=statusAnimCls(info.statuses);
+        const pos=openCards[pin.id];
+        const closeCard=()=>setOpenCards(c=>{const n={...c};delete n[pin.id];return n;});
+        const startDrag=(e)=>{
+          const sx=e.clientX-pos.x;
+          const sy=e.clientY-pos.y;
+          const onMove=(mv)=>setOpenCards(c=>({...c,[pin.id]:{x:mv.clientX-sx,y:mv.clientY-sy}}));
+          const onUp=()=>{document.removeEventListener("mousemove",onMove);document.removeEventListener("mouseup",onUp);};
+          document.addEventListener("mousemove",onMove);
+          document.addEventListener("mouseup",onUp);
+        };
+        return(
+          <div key={pin.id} className={animCls} style={{position:"fixed",left:Math.max(10,pos.x),top:Math.max(10,pos.y),width:218,background:"rgba(14,8,4,.98)",border:"2px solid "+(info.dead?"rgba(80,40,40,.6)":pt.stroke+"88"),borderRadius:12,padding:12,zIndex:450,boxShadow:"0 8px 40px rgba(0,0,0,.85)",opacity:info.dead?.75:1}}>
+            <div onMouseDown={startDrag} style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10,cursor:"grab",paddingBottom:7,borderBottom:"1px solid rgba(200,149,42,.1)"}}>
+              <span style={{fontFamily:"'Cinzel',serif",fontSize:".5rem",letterSpacing:".1em",color:info.dead?"rgba(120,60,60,.7)":"rgba(200,149,42,.35)",textTransform:"uppercase"}}>{info.dead?"OLU":pin.type}</span>
+              <button onClick={closeCard} style={{background:"transparent",border:"none",color:"var(--text-dim)",cursor:"pointer",fontSize:".9rem",lineHeight:1}}>x</button>
+            </div>
+            <div style={{display:"flex",gap:10,marginBottom:8}}>
+              <div style={{width:44,height:44,borderRadius:"50%",border:"2px solid "+(info.dead?"rgba(80,40,40,.5)":pt.stroke),overflow:"hidden",flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center",background:"rgba(0,0,0,.3)",filter:info.dead?"grayscale(.8)":"none"}}>
+                {info.dead?<span style={{fontSize:"1.4rem"}}>💀</span>:info.av?<img src={info.av} style={{width:"100%",height:"100%",objectFit:"cover"}}/>:<span style={{fontSize:"1.2rem"}}>{pt.icon}</span>}
+              </div>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{fontFamily:"'Cinzel',serif",fontSize:".78rem",fontWeight:700,color:info.dead?"rgba(120,60,60,.7)":pt.color,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{info.name}{info.dead?" - OLU":""}</div>
+                {info.sub&&<div style={{fontSize:".6rem",color:"var(--text-dim)",marginTop:1}}>{info.sub}</div>}
+                {info.note&&<div style={{fontSize:".6rem",color:"var(--text-mid)",fontStyle:"italic",marginTop:1}}>{info.note}</div>}
+              </div>
+              {(isDM||pin.owner===me)&&<button onClick={()=>removePin(pin.id)} style={{background:"transparent",border:"none",color:"rgba(180,40,40,.35)",cursor:"pointer",fontSize:".9rem",lineHeight:1,flexShrink:0,alignSelf:"flex-start"}} onMouseEnter={e=>e.currentTarget.style.color="rgba(220,60,60,.7)"} onMouseLeave={e=>e.currentTarget.style.color="rgba(180,40,40,.35)"}>x</button>}
+            </div>
+            <div style={{display:"flex",flexDirection:"column",gap:4,marginBottom:6}}>
+              <PipRow type="fiziksel" val={info.fiz} max={info.fizMax}/>
+              <PipRow type="zihinsel" val={info.zih} max={info.zihMax}/>
+            </div>
+            {info.statuses&&info.statuses.length>0&&<div style={{display:"flex",flexWrap:"wrap",gap:3,marginBottom:4}}>
+              {info.statuses.map(sid=>{const s=STATUSES.find(x=>x.id===sid);return s?<span key={sid} className={"status-badge "+s.cls} style={{fontSize:".55rem",padding:"1px 5px"}}>{s.icon} {s.label}</span>:null;})}
+            </div>}
+            <div style={{display:"flex",gap:4,marginTop:6,paddingTop:6,borderTop:"1px solid rgba(200,149,42,.08)"}}>
+              <button onClick={()=>{setPickModal({col:pin.col,row:pin.row,type:"player"});closeCard();}} style={{flex:1,background:"rgba(91,155,213,.07)",border:"1px solid rgba(91,155,213,.18)",borderRadius:5,padding:"4px",cursor:"pointer",color:"#90b8f0",fontFamily:"'Cinzel',serif",fontSize:".52rem"}}>+Oyuncu</button>
+              <button onClick={()=>{setPickModal({col:pin.col,row:pin.row,type:"npc"});closeCard();}} style={{flex:1,background:"rgba(220,80,50,.07)",border:"1px solid rgba(220,80,50,.18)",borderRadius:5,padding:"4px",cursor:"pointer",color:"#e8956d",fontFamily:"'Cinzel',serif",fontSize:".52rem"}}>+NPC</button>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
 }
 
 function LobbyScreen({role,setRole,dmPass,setDmPass,dmErr,setDmErr,setName,setPhase}){
@@ -1839,185 +2373,6 @@ function applyTheme(darkness){
 }
 
 // ─── INITIATIVE TRACKER ──────────────────────────────────────────────────────
-function InitiativeBar({isDM,all,npcs,avatars}){
-  const [order,setOrder]=useState([]); // [{id,name,type}]
-  const [activeIdx,setActiveIdx]=useState(0);
-  const [turn,setTurn]=useState(1);
-  const [combat,setCombat]=useState(false);
-  const [showAdd,setShowAdd]=useState(false);
-  const dragIdx=useRef(null);
-  const lastDataRef=useRef(null);
-
-  // Poll Firebase
-  useEffect(()=>{
-    const poll=async()=>{
-      const data=await fbGet("initiative");
-      const key=JSON.stringify(data);
-      if(key===lastDataRef.current)return;
-      lastDataRef.current=key;
-      if(!data){setOrder([]);setActiveIdx(0);setTurn(1);setCombat(false);return;}
-      if(data.order)setOrder(data.order);
-      if(data.activeIdx!=null)setActiveIdx(data.activeIdx);
-      if(data.turn!=null)setTurn(data.turn);
-      setCombat(!!data.combat);
-    };
-    poll();
-    const iv=setInterval(poll,2000);
-    return()=>clearInterval(iv);
-  },[]);
-
-  const push=async(upd)=>{
-    const data={order:upd.order!=null?upd.order:order,activeIdx:upd.activeIdx!=null?upd.activeIdx:activeIdx,turn:upd.turn!=null?upd.turn:turn,combat:upd.combat!=null?upd.combat:combat,...upd};
-    lastDataRef.current=JSON.stringify(data);
-    await fbSet("initiative",data);
-  };
-
-  // Build candidate list for DM add panel
-  const candidates=[
-    ...all.map(p=>({id:`p-${p.name}`,name:p.char&&p.char.name?p.char.name:p.name,type:"player"})),
-    ...npcs.map(n=>({id:`n-${n.id}`,name:n.name,type:n.type})),
-  ].filter(c=>!order.find(o=>o.id===c.id));
-
-  const addToOrder=async(c)=>{
-    const newOrder=[...order,c];
-    setOrder(newOrder);setShowAdd(false);
-    await push({order:newOrder});
-  };
-
-  const startCombat=async()=>{
-    const newOrder=[...order];
-    setActiveIdx(0);setTurn(1);setCombat(true);
-    await push({order:newOrder,activeIdx:0,turn:1,combat:true});
-  };
-
-  const nextTurn=async()=>{
-    const next=(activeIdx+1)%order.length;
-    const newTurn=next===0?turn+1:turn;
-    setActiveIdx(next);setTurn(newTurn);
-    await push({activeIdx:next,turn:newTurn});
-  };
-
-  const endCombat=async()=>{
-    setOrder([]);setActiveIdx(0);setTurn(1);setCombat(false);
-    await fbSet("initiative",null);
-    lastDataRef.current=null;
-  };
-
-  // Drag & drop (DM only)
-  const onDragStart=(i)=>{ dragIdx.current=i; };
-  const onDragOver=(e,i)=>{ e.preventDefault(); };
-  const onDrop=async(i)=>{
-    if(dragIdx.current==null||dragIdx.current===i)return;
-    const newOrder=[...order];
-    const [moved]=newOrder.splice(dragIdx.current,1);
-    newOrder.splice(i,0,moved);
-    // Keep active pointer on same entity
-    let newActive=activeIdx;
-    if(dragIdx.current===activeIdx) newActive=i;
-    else if(dragIdx.current<activeIdx&&i>=activeIdx) newActive=activeIdx-1;
-    else if(dragIdx.current>activeIdx&&i<=activeIdx) newActive=activeIdx+1;
-    dragIdx.current=null;
-    setOrder(newOrder);setActiveIdx(newActive);
-    await push({order:newOrder,activeIdx:newActive});
-  };
-
-  const removeFromOrder=async(id)=>{
-    const idx=order.findIndex(o=>o.id===id);
-    const newOrder=order.filter(o=>o.id!==id);
-    let newActive=activeIdx;
-    if(idx<activeIdx) newActive=Math.max(0,activeIdx-1);
-    else if(idx===activeIdx) newActive=Math.min(newActive,newOrder.length-1);
-    setOrder(newOrder);setActiveIdx(Math.max(0,newActive));
-    await push({order:newOrder,activeIdx:Math.max(0,newActive)});
-  };
-
-  const getAvatar=(entry)=>{
-    if(entry.type==="player"){
-      const pname=entry.id.replace("p-","");
-      return avatars&&avatars[pname]?avatars[pname]:null;
-    }
-    return null;
-  };
-
-  if(!combat&&order.length===0&&!isDM) return null;
-
-  return(
-    <div className="init-bar">
-      <span className="init-label">⚔ Sıra</span>
-
-      {combat&&turn>0&&<span className="init-turn">Tur {turn}</span>}
-
-      <div className="init-list">
-        {order.length===0&&<span className="init-empty">Savaşçı yok</span>}
-        {order.map((entry,i)=>{
-          const av=getAvatar(entry);
-          const isActive=combat&&i===activeIdx;
-          return(
-            <React.Fragment key={entry.id}>
-              {i>0&&<span className="init-arrow">›</span>}
-              <div
-                className={`init-card${isActive?" active":""}${entry.type==="enemy"?" enemy":entry.type==="ally"?" ally":""}`}
-                draggable={isDM}
-                onDragStart={()=>onDragStart(i)}
-                onDragOver={e=>onDragOver(e,i)}
-                onDrop={()=>onDrop(i)}
-                title={isDM?"Sürükle ile sırala":""}
-              >
-                {av
-                  ?<img src={av} className="init-avatar" alt=""/>
-                  :<div className="init-avatar-ph">{entry.name[0]||"?"}</div>}
-                <span className="init-name">{entry.name}</span>
-                {isDM&&<button style={{background:"transparent",border:"none",color:"rgba(var(--text-rgb,245,230,200),.3)",cursor:"pointer",fontSize:".7rem",padding:"0 0 0 2px",lineHeight:1}} onClick={()=>removeFromOrder(entry.id)}>✕</button>}
-              </div>
-            </React.Fragment>
-          );
-        })}
-      </div>
-
-      {isDM&&(
-        <div className="init-controls">
-          {!combat?(
-            <>
-              <button className="init-btn" onClick={()=>setShowAdd(s=>!s)}>+ Ekle</button>
-              {order.length>0&&<button className="init-btn next" onClick={startCombat}>▶ Başlat</button>}
-            </>
-          ):(
-            <>
-              <button className="init-btn next" onClick={nextTurn}>Sonraki ›</button>
-              <button className="init-btn danger" onClick={endCombat}>✕ Bitir</button>
-            </>
-          )}
-        </div>
-      )}
-
-      {/* Add dropdown */}
-      {isDM&&showAdd&&(
-        <div style={{position:"fixed",bottom:80,right:16,background:"var(--bg1)",border:"1px solid rgba(200,149,42,.3)",borderRadius:8,padding:12,zIndex:500,minWidth:220,maxHeight:"60vh",overflowY:"auto",boxShadow:"0 -4px 30px rgba(0,0,0,.7)"}}>
-          <div style={{fontFamily:"'Cinzel',serif",fontSize:".58rem",letterSpacing:".12em",color:"rgba(200,149,42,.6)",marginBottom:8,textTransform:"uppercase",display:"flex",justifyContent:"space-between"}}>
-            Sıraya Ekle
-            <button onClick={()=>setShowAdd(false)} style={{background:"transparent",border:"none",color:"var(--text-dim)",cursor:"pointer",fontSize:".8rem"}}>✕</button>
-          </div>
-          {candidates.length===0&&<div style={{fontSize:".78rem",color:"var(--text-dim)",fontStyle:"italic"}}>Hepsi sıraya eklendi</div>}
-          {candidates.map(c=>(
-            <div key={c.id} onClick={()=>addToOrder(c)}
-              style={{display:"flex",alignItems:"center",gap:8,padding:"6px 8px",cursor:"pointer",borderRadius:5,transition:"background .15s"}}
-              onMouseEnter={e=>e.currentTarget.style.background="rgba(200,149,42,.1)"}
-              onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
-              <span style={{fontSize:".85rem"}}>{c.type==="player"?"👤":c.type==="enemy"?"💀":"🤝"}</span>
-              <span style={{fontFamily:"'Cinzel',serif",fontSize:".72rem",color:"var(--parchment)"}}>{c.name}</span>
-            </div>
-          ))}
-          <div style={{borderTop:"1px solid rgba(200,149,42,.1)",marginTop:6,paddingTop:6}}>
-            <div onClick={()=>setShowAdd(false)} style={{fontSize:".7rem",color:"var(--text-dim)",cursor:"pointer",textAlign:"center",fontStyle:"italic"}}>Kapat</div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ─── AVATAR ──────────────────────────────────────────────────────────────────
-// ─── FLOATING NOTEBOOK ───────────────────────────────────────────────────────
 function FloatingNotebook({me,isDM,charName}){
   const [open,setOpen]=useState(false);
   const [notebooks,setNBs]=useState([]);
@@ -2176,10 +2531,13 @@ function Chat({me,role,all,avatars}){
   const [open,setOpen]=useState(false);
   const [messages,setMessages]=useState([]);
   const [text,setText]=useState("");
-  const [target,setTarget]=useState("all"); // "all" | playerName
+  const [target,setTarget]=useState("all");
   const [unread,setUnread]=useState(0);
+  const [showClear,setShowClear]=useState(false);
+  const [clearInput,setClearInput]=useState("");
   const lastMsgId=useRef(0);
   const bottomRef=useRef(null);
+  const isDM=role==="dm";
 
   useEffect(()=>{
     const poll=async()=>{
@@ -2221,6 +2579,12 @@ function Chat({me,role,all,avatars}){
     if(all2){const keys=Object.keys(all2).sort((a,b)=>Number(a)-Number(b));if(keys.length>200)for(const k of keys.slice(0,keys.length-200))await fbDel(`chat/${k}`);}
   };
 
+  const clearChat=async()=>{
+    if(clearInput!=="Temizle")return;
+    await fbSet("chat",null);
+    setMessages([]);setClearInput("");setShowClear(false);lastMsgId.current=0;
+  };
+
   const others=all.filter(p=>p.name!==me).map(p=>p.name);
 
   const Avatar=({name,size=28})=>{
@@ -2236,8 +2600,25 @@ function Chat({me,role,all,avatars}){
         <div className="chat-panel">
           <div className="chat-header">
             <span className="chat-header-title">💬 Tavern Chat</span>
-            <button className="chat-header-close" onClick={()=>setOpen(false)}>✕</button>
+            <div style={{display:"flex",gap:6,alignItems:"center"}}>
+              {isDM&&<button onClick={()=>{setShowClear(s=>!s);setClearInput("");}} style={{background:"transparent",border:"none",color:showClear?"#ff9090":"rgba(200,149,42,.3)",cursor:"pointer",fontSize:".75rem",padding:"2px 4px"}} title="Sohbeti Temizle">🗑</button>}
+              <button className="chat-header-close" onClick={()=>setOpen(false)}>✕</button>
+            </div>
           </div>
+          {showClear&&isDM&&(
+            <div style={{padding:"8px 12px",borderBottom:"1px solid rgba(139,26,26,.2)",background:"rgba(139,26,26,.06)"}}>
+              <div style={{fontSize:".68rem",color:"rgba(255,120,120,.7)",marginBottom:6,fontStyle:"italic"}}>Tüm mesajları silmek için <strong style={{color:"#ff9090"}}>Temizle</strong> yaz:</div>
+              <div style={{display:"flex",gap:6}}>
+                <input value={clearInput} onChange={e=>setClearInput(e.target.value)}
+                  onKeyDown={e=>e.key==="Enter"&&clearChat()}
+                  placeholder="Temizle" style={{flex:1,background:"rgba(139,26,26,.1)",border:"1px solid rgba(139,26,26,.3)",borderRadius:5,padding:"4px 8px",color:"var(--parchment)",fontFamily:"'Cinzel',serif",fontSize:".7rem",outline:"none"}}/>
+                <button onClick={clearChat} disabled={clearInput!=="Temizle"}
+                  style={{background:clearInput==="Temizle"?"rgba(139,26,26,.25)":"rgba(139,26,26,.06)",border:"1px solid rgba(139,26,26,.3)",borderRadius:5,padding:"4px 10px",cursor:clearInput==="Temizle"?"pointer":"not-allowed",color:clearInput==="Temizle"?"#ff9090":"rgba(200,100,100,.3)",fontFamily:"'Cinzel',serif",fontSize:".62rem",transition:"all .2s"}}>
+                  Sil
+                </button>
+              </div>
+            </div>
+          )}
           <div className="chat-messages">
             {messages.length===0&&<div className="chat-empty">Henüz mesaj yok.<br/>Merhaba de! 👋</div>}
             {messages.map(m=>{
@@ -2788,8 +3169,8 @@ function App(){
   };
 
   const TABS=role==="dm"
-    ?[{id:"dice",l:"🎲 Zar"},{id:"char",l:"📜 Karakterler"},{id:"npc",l:"⚔ NPC Yönet"}]
-    :[{id:"dice",l:"🎲 Zar"},{id:"char",l:"📜 Karakter"},{id:"npc",l:"⚔ NPC'ler"}];
+    ?[{id:"dice",l:"🎲 Zar"},{id:"char",l:"📜 Karakterler"},{id:"npc",l:"⚔ NPC Yönet"},{id:"map",l:"⚔ Arena"}]
+    :[{id:"dice",l:"🎲 Zar"},{id:"char",l:"📜 Karakter"},{id:"npc",l:"⚔ NPC'ler"},{id:"map",l:"⚔ Arena"}];
 
   if(phase==="lobby"){
     return <LobbyScreen role={role} setRole={setRole} dmPass={dmPass} setDmPass={setDmPass} dmErr={dmErr} setDmErr={setDmErr} setName={setName} setPhase={setPhase}/>;
@@ -2816,13 +3197,14 @@ function App(){
       {all.map(p=><span key={p.name} className={`op${p.role==="dm"?" dm":p.away?" away":""}`}><span className={`pd${p.away?" away":""}`} style={{width:5,height:5}}/>{p.name}{p.role==="dm"?" 👁":p.away?" 💤":""}</span>)}
       {!all.length&&<span style={{fontSize:".72rem",color:"rgba(var(--text-rgb,245,230,200),.25)",fontStyle:"italic"}}>bağlanıyor...</span>}
     </div>
-    <InitiativeBar isDM={role==="dm"} all={all} npcs={npcs} avatars={avatars}/>
+    
     <div className="tabs">
       {TABS.map(t=><button key={t.id} className={`tb${tab===t.id?" on":""}`} onClick={()=>setTab(t.id)}>{t.l}</button>)}
     </div>
     {tab==="dice"&&<Dice me={name} role={role} char={char} npcs={npcs} all={all} rolls={rolls} onRoll={onRoll} animOn={animOn} avatars={avatars} onPipChange={onPipChange} onNpcPipChange={onNpcPipChange}/>}
     {tab==="char"&&<Char me={name} isDM={role==="dm"} char={char} setChar={hChar} all={all} avatars={avatars} onUploadAvatar={uploadAvatar}/>}
     {tab==="npc" &&<Npc isDM={role==="dm"} npcs={npcs} setNpcs={setNpcs} onClearRolls={clearRolls} allPlayers={all}/>}
+    {tab==="map" &&<Arena me={name} isDM={role==="dm"} avatars={avatars} all={all} npcs={npcs} rolls={rolls} onRoll={onRoll} char={char}/>}
     <Chat me={name} role={role} all={all} avatars={avatars}/>
     <Ambiance isDM={role==="dm"}/>
     {role!=="dm"&&<FloatingNotebook me={name} isDM={false} charName={char.name||name}/>}
