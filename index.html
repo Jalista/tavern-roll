@@ -3042,16 +3042,36 @@ function WaitingRoom({me,all,isDM,avatars}){
 
   const REACTIONS=["😂","🎲","⚔️","🐉","✨","💀","🤝","🎶","🔥","💫"];
   const TRIVIA=[
-    {q:"D&D hangi yıl ilk yayınlandı?",a:"1974"},
-    {q:"Bir d20'nin maksimum değeri nedir?",a:"20"},
-    {q:"En güçlü ejderha tipi nedir?",a:"Kırmızı veya Gold"},
-    {q:"Bard sınıfının ana özelliği nedir?",a:"Karizm"},
-    {q:"Goblin'lerin seviyesi genellikle kaçtır?",a:"1/4 CR"},
-    {q:"Saving throw kaç tür vardır?",a:"6"},
-    {q:"Advantage atışında kaç zar atılır?",a:"2, yüksek alınır"},
-    {q:"Critical hit için d20'de ne çıkmalı?",a:"20"},
-    {q:"Resting türleri nelerdir?",a:"Short ve Long Rest"},
-    {q:"Concentration büyüsü kırılırsa ne olur?",a:"Büyü sona erer"},
+    {q:"Golis'in tüm varlıklar arasında en çok sevdiği kim?",a:"İnsan — en küçük kardeş, en saf ve en savunmasız"},
+    {q:"İnsanı soğuğa ve güneşin öldüğü ufka süren kim?",a:"Zarif (Narin) — kandırarak tuzağa düşürdü"},
+    {q:"Arcana nedir ve kimin ruhudur?",a:"Golis'in kutsal ruhu — faniler için tehlikeli, el sürülemez"},
+    {q:"İlk insana ismini kim ve nasıl fısıldadı?",a:"İnsulam — onu sıcak sularda bulup küçük salda 'Agus' dedi"},
+    {q:"Theranda kimdir?",a:"Agus'tan var oldu, Golis'in sözü ve elçisi, tek ve gerçek kraliçe"},
+    {q:"Büyük Temizlik nedir?",a:"Agus'un yüzlerce savaşla İnci'yi hainlerden temizlediği süreç"},
+    {q:"Altın Sınır'ı geçenlere ne olur?",a:"Narin'in tuzağına düşer, kabusları gerçekleşir"},
+    {q:"İnci'nin başkenti neresidir?",a:"Agus kenti — İmparatorluğun ve İmparatorun kalbi"},
+    {q:"Servus dininin resmi kurucuları kimlerdir?",a:"İlk İmparator Agus ve Anne Theranda"},
+    {q:"Engizisyon nerede kurulmuştur?",a:"Ragusium — Servus dinini sapkınlıklara karşı korumak için"},
+    {q:"Yüce Hierophant kim tarafından seçilir?",a:"Otuz Exarc kendi aralarından seçer"},
+    {q:"İnsulam nasıl yönetilir?",a:"Servus Kardinalleri tarafından — 'Tanrı'nın krallığı ilim adamlarının oylaması ile'"},
+    {q:"Etfaliyelerde yetişen çocuklar hangi unvanları alabilir?",a:"Paladin, Cleric, Rahip, Exarc veya Hanım"},
+    {q:"Viza Kültü nedir?",a:"Büyü (Arcana) kullananların örgütü — Wizard yetiştirdi"},
+    {q:"Meşale Gecesi ne oldu?",a:"Viza Kulesi yakıldı, Akademi yıkıldı — İnci'nin doğusundan görülen yangın"},
+    {q:"Besteni nedir?",a:"Sadece Agus kentinde geçen para — İmparatora bağlı birliklere ödenir"},
+    {q:"Thot meleği neden lanetlendi?",a:"Golis'e çocuklarının ihanetini bildirdi, Golis inanmadı ve lanetledi"},
+    {q:"Aueron meleğinin görevi nedir?",a:"İnci'deki tüm bilgiyi toplayıp Golis'e aktarmak — takipçiler Annal tutar"},
+    {q:"Kibele meleği kimdir?",a:"Bereketin, buğdayın meleği — Agus'a tarımı öğretti, Theranda ile ilk gecede eşlik etti"},
+    {q:"Feyren meleği neden tehlikelidir?",a:"Hilebazlık meleği — İnsulam'a bile tuzak kurdu, Kibele kılığına giriyor"},
+    {q:"İksir yapımının üç aşaması nelerdir?",a:"Taban (kişilik), Aroma (etki dengeleme), Feda (yaratıcının özü)"},
+    {q:"Liber Dei hangi bölümlerden oluşur?",a:"Yaradılış, Agus, İnci, İhanet, Sadakat, Amaç, Hizmet, Feda"},
+    {q:"Mevatlı Kasimir'in ünlü sözü nedir?",a:"'İmparator köylerini, muhtarından daha iyi bilir.'"},
+    {q:"Noer eyaletinin özelliği nedir?",a:"Tek dini özgürlük tanınan eyalet — kırsal kesimde Atalar Kültü hâkim"},
+    {q:"Anti-Liber Dei nedir?",a:"Kimliksiz Alimler Topluluğu'nun Liber Dei'deki hataları iddia ettiği kitap — Servus'a göre paçavra"},
+    {q:"Faithless Silence nedir?",a:"En büyük Kilise yaptırımı — bölge halkı dinden çıkarılır, tüm dini işlemler askıya alınır"},
+    {q:"Agus askerlerinin kanı neden yere dökülmedi?",a:"Yandı ve duman oldu — kutsal savaşçıların kanı"},
+    {q:"Servus'a göre İmperator çocukları nasıl olur?",a:"Golis her imparatora tek erkek çocuk gönderir — kutsal ruh bizzat yaratılır"},
+    {q:"Metrus ve Minus savaşında iri neden kaybetti?",a:"Hakikatin güzelliği gözlerini kamaştırıyordu, kalabalık olmalarına rağmen"},
+    {q:"Feyren'in çocuklarının özellikleri nedir?",a:"Mor, kırmızı, siyah tenli, kısa boynuzlu, sivri kulaklı — İmparatorluk toplar"},
   ];
 
   useEffect(()=>{
@@ -3092,7 +3112,7 @@ function WaitingRoom({me,all,isDM,avatars}){
 
       {/* Trivia */}
       <div style={{background:"rgba(200,149,42,.06)",border:"1px solid rgba(200,149,42,.18)",borderRadius:8,padding:12,marginBottom:12}}>
-        <div style={{fontFamily:"'Cinzel',serif",fontSize:".6rem",color:"var(--gold)",letterSpacing:".1em",marginBottom:6}}>🧠 D&D TRİVİA</div>
+        <div style={{fontFamily:"'Cinzel',serif",fontSize:".6rem",color:"var(--gold)",letterSpacing:".1em",marginBottom:6}}>🧠 İNCİ TRİVİA</div>
         {trivia?(
           <div>
             <div style={{fontSize:".85rem",color:"var(--parchment)",marginBottom:8}}>{trivia.q}</div>
