@@ -104,6 +104,10 @@ body{font-family:'Crimson Text',serif;color:var(--text);background:var(--bg0);ba
 .huser{font-size:.8rem;color:var(--text-dim);font-style:italic}
 .huser strong{color:var(--gold);font-style:normal;font-family:'Cinzel',serif;font-size:.75rem}
 .pd{display:inline-block;width:7px;height:7px;border-radius:50%;background:#3cb454;margin-right:6px;animation:pulse 2s infinite}
+.pd.away{background:#f0c060;animation:pulse-away 2s infinite}
+@keyframes pulse-away{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.4;transform:scale(.85)}}
+.op.away{border-color:rgba(240,192,96,.3);color:rgba(240,192,96,.7)}
+.op.away .pd{background:#f0c060}
 @keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(.8)}}
 .ob{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:8px 18px;border-bottom:1px solid rgba(200,149,42,.08);background:rgba(0,0,0,.2)}
 .ol{font-family:'Cinzel',serif;font-size:.58rem;letter-spacing:.12em;color:rgba(200,149,42,.5);text-transform:uppercase}
@@ -302,13 +306,13 @@ body{font-family:'Crimson Text',serif;color:var(--text);background:var(--bg0);ba
 .ab{background:rgba(200,149,42,.1);border:1px solid rgba(200,149,42,.35);border-radius:4px;color:#f0c060;font-family:'Cinzel',serif;font-size:.72rem;letter-spacing:.12em;padding:9px 20px;cursor:pointer;transition:all .2s;text-transform:uppercase}
 .ab:hover{background:rgba(200,149,42,.18)}
 .em{text-align:center;padding:28px;color:rgba(245,230,200,.25);font-style:italic}
-.floating-nb{position:fixed;bottom:84px;left:88px;width:340px;max-height:520px;background:#1a120c;border:1px solid rgba(200,149,42,.35);border-radius:12px;box-shadow:0 8px 40px rgba(0,0,0,.7);z-index:498;display:flex;flex-direction:column;animation:chat-in .2s ease-out;resize:both;overflow:hidden;min-width:280px;min-height:200px}
+.floating-nb{position:fixed;bottom:148px;right:22px;width:320px;max-height:480px;background:#1a120c;border:1px solid rgba(200,149,42,.35);border-radius:12px;box-shadow:0 8px 40px rgba(0,0,0,.7);z-index:498;display:flex;flex-direction:column;animation:chat-in .2s ease-out;overflow:hidden}
 .floating-nb-header{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:1px solid rgba(200,149,42,.12);flex-shrink:0;cursor:move;background:rgba(200,149,42,.04)}
 .floating-nb-title{font-family:'Cinzel',serif;font-size:.68rem;letter-spacing:.12em;color:var(--gold);text-transform:uppercase}
 .floating-nb-body{flex:1;overflow-y:auto;padding:10px}
-.nb-float-btn{position:fixed;bottom:22px;left:88px;z-index:500}
-.nb-float-toggle{width:52px;height:52px;border-radius:50%;background:rgba(200,149,42,.1);border:2px solid rgba(200,149,42,.4);color:var(--gold-light);font-size:1.2rem;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 20px rgba(0,0,0,.5);transition:all .2s}
-.nb-float-toggle:hover{background:rgba(200,149,42,.2);transform:scale(1.05)}
+.nb-float-btn{position:fixed;bottom:84px;right:22px;z-index:500}
+.nb-float-toggle{width:52px;height:52px;border-radius:50%;background:rgba(200,149,42,.12);border:2px solid rgba(200,149,42,.5);color:var(--gold-light);font-size:1.2rem;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 20px rgba(0,0,0,.5);transition:all .2s;position:relative}
+.nb-float-toggle:hover{background:rgba(200,149,42,.25);transform:scale(1.05)}
 .nb-float-badge{position:absolute;top:-4px;right:-4px;background:#f0c060;color:#0d0705;border-radius:50%;width:18px;height:18px;font-size:.6rem;font-family:'Cinzel',serif;display:flex;align-items:center;justify-content:center;border:2px solid var(--bg0)}
 .boss-npc{background:rgba(20,5,5,.98)!important;box-shadow:0 0 20px rgba(180,40,40,.25);animation:boss-border 3s ease-in-out infinite}
 @keyframes boss-border{0%,100%{border-color:rgba(200,149,42,.8)}50%{border-color:rgba(180,40,40,.9)}}
@@ -320,7 +324,18 @@ body{font-family:'Crimson Text',serif;color:var(--text);background:var(--bg0);ba
 .mw{max-width:860px;margin:0 auto;padding:0 18px 20px}
 .mh{font-family:'Cinzel',serif;font-size:.58rem;letter-spacing:.22em;color:rgba(200,149,42,.5);text-transform:uppercase;border-bottom:1px solid rgba(200,149,42,.1);padding-bottom:5px;margin-bottom:10px}
 .mg{display:grid;grid-template-columns:repeat(auto-fill,minmax(148px,1fr));gap:8px}
-.mc{border-radius:7px;padding:10px 12px 9px;border:1px solid;position:relative;overflow:hidden;transition:transform .15s}
+.mc{border-radius:7px;padding:10px 12px 9px;border:1px solid;position:relative;overflow:hidden;transition:all .3s}
+/* Hasar rengi — 0 pip kaldıkça koyulaşır */
+.mc.dmg1{box-shadow:inset 0 0 12px rgba(180,40,40,.15)}
+.mc.dmg2{box-shadow:inset 0 0 20px rgba(180,40,40,.3);border-color:rgba(180,40,40,.5)!important}
+.mc.dmg3{box-shadow:inset 0 0 30px rgba(180,40,40,.5);border-color:#8b1a1a!important;animation:dmg-pulse 2s ease-in-out infinite}
+@keyframes dmg-pulse{0%,100%{box-shadow:inset 0 0 30px rgba(180,40,40,.5)}50%{box-shadow:inset 0 0 40px rgba(180,40,40,.8)}}
+/* Mp pip butonları */
+.mp{width:12px;height:12px;border-radius:50%;border:1.5px solid;cursor:pointer;transition:all .15s}
+.mp:hover{transform:scale(1.25)}
+.mp:disabled{cursor:default}
+.mp.ff{border-color:#4caf7d;background:#4caf7d}.mp.fe{border-color:rgba(76,175,125,.3)}.mp.fe:hover{border-color:#4caf7d;background:rgba(76,175,125,.2)}
+.mp.zf{border-color:#5b9bd5;background:#5b9bd5}.mp.ze{border-color:rgba(91,155,213,.3)}.mp.ze:hover{border-color:#5b9bd5;background:rgba(91,155,213,.2)}
 .mc::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at 20% 20%,rgba(255,255,255,.04),transparent 70%);pointer-events:none}
 .mc:hover{transform:translateY(-1px)}
 .mc.player{background:var(--bg1);border-color:rgba(200,149,42,.35)}
@@ -552,7 +567,12 @@ function Masa({me,role,char,npcs,all,avatars,onPipChange,onNpcPipChange}){
       const canEdit=isDM||(card.isMe&&onPipChange);
       const onFiz=canEdit?(v=>card.npcId?onNpcPipChange&&onNpcPipChange(card.npcId,"fiziksel",v):onPipChange&&onPipChange(card.pname||me,"fiziksel",v)):null;
       const onZih=canEdit?(v=>card.npcId?onNpcPipChange&&onNpcPipChange(card.npcId,"zihinsel",v):onPipChange&&onPipChange(card.pname||me,"zihinsel",v)):null;
-      return <div key={card.key} className={`mc ${card.type}${card.dead?" dead":""}${card.isMe?" me":""}${card.boss?" boss-card":""}`}>
+      const fiz=card.fiziksel!=null?card.fiziksel:(card.fizMax||3);
+      const zih=card.zihinsel!=null?card.zihinsel:(card.zihMax||3);
+      const fmax=card.fizMax||3; const zmax=card.zihMax||3;
+      const healthPct=((fiz+zih)/(fmax+zmax));
+      const dmgClass=card.dead?"":(healthPct<=0.33?" dmg3":healthPct<=0.66?" dmg2":healthPct<1?" dmg1":"");
+      return <div key={card.key} className={`mc ${card.type}${card.dead?" dead":""}${card.isMe?" me":""}${card.boss?" boss-card":""}${dmgClass}`}>
         {card.dead&&<span className="sku">💀</span>}
         {card.type==="player"&&avatars&&avatars[card.key.replace("p-","")]&&
           <img src={avatars[card.key.replace("p-","")]} style={{width:32,height:32,borderRadius:"50%",objectFit:"cover",border:"1px solid rgba(200,149,42,.4)",marginBottom:5}} alt=""/>}
@@ -1069,34 +1089,55 @@ function Char({me,isDM,char,setChar,all,avatars,onUploadAvatar}){
   const getSlotsForLevel=lv=>slotsMap[String(lv)]||1;
   const skillsAtLevel=lv=>Object.entries(skills).filter(([,v])=>v===lv).map(([k])=>k);
   const level=parseInt(vc.level)||1;
-  const negCount=Object.keys(skills).filter(s=>skills[s]<0).length;
-  const totalPosMoves=level+negCount;
-  // Toplam kullanılan pozitif hamle = her skill için kendi seviyesi kadar
-  // Örnek: +1 = 1 hamle, +2 = 2 hamle, +5 = 5 hamle
-  // Negatif: -1 = 1 hamle, -2 = 2 hamle
-  const usedPosMoves=Object.entries(skills).filter(([,v])=>v>0).reduce((s,[,v])=>s+v,0);
+
+  // Kullanılan negatif hamle = tüm negatif skill'lerin mutlak değerleri toplamı
   const usedNegMoves=Object.entries(skills).filter(([,v])=>v<0).reduce((s,[,v])=>s+Math.abs(v),0);
+  // Toplam pozitif hak = seviye + negatif hamle sayısı (her negatif seviye +1 bonus)
+  const totalPosMoves=level+usedNegMoves;
+  // Kullanılan pozitif hamle = tüm pozitif skill'lerin değerleri toplamı
+  const usedPosMoves=Object.entries(skills).filter(([,v])=>v>0).reduce((s,[,v])=>s+v,0);
   const remPos=totalPosMoves-usedPosMoves;
   const remNeg=level-usedNegMoves;
   const placedSkills=new Set(Object.keys(skills));
 
-  // Bir skill'i hedef seviyeye atamak ne kadar hamle tüketir?
-  const moveCost=(fromLv, toLv)=>{
-    // fromLv: mevcut seviye (0 = henüz eklenmemiş)
-    // toLv: hedef seviye
-    if(toLv>0) return Math.abs(toLv)-(fromLv>0?Math.abs(fromLv):0);
-    if(toLv<0) return Math.abs(toLv)-(fromLv<0?Math.abs(fromLv):0);
-    return 0;
+  // Bir skili fromLv'den toLv'ye taşımanın maliyetini hesapla
+  // Pozitif için: toLv - (mevcut pozitif seviye veya 0)
+  // Negatif için: |toLv| - (mevcut negatif seviye veya 0)
+  const getMoveCost=(fromLv, toLv)=>{
+    if(fromLv===toLv)return{posCost:0,negCost:0};
+    const from=fromLv||0;
+    if(toLv>0){
+      // fromLv negatifse önce neg hamleler iade olur → pos bonus azalır
+      const posFrom=from>0?from:0;
+      return{posCost:toLv-posFrom, negCost:0};
+    } else if(toLv<0){
+      const negFrom=from<0?Math.abs(from):0;
+      return{posCost:0, negCost:Math.abs(toLv)-negFrom};
+    }
+    return{posCost:0,negCost:0};
   };
 
   const canAssign=(skill, toLv)=>{
     if(!can)return false;
     const fromLv=skills[skill]||0;
     if(fromLv===toLv)return false;
-    const isNeg=toLv<0;
-    const cost=moveCost(fromLv, toLv);
-    if(!isNeg) return remPos>=cost;
-    else return remNeg>=cost;
+    const {posCost,negCost}=getMoveCost(fromLv,toLv);
+    // Pos'tan neg'e veya neg'den pos'a geçerken mevcut hamleler güncellenir
+    // Negatiften pozitife: neg hamleler iade olur, pos bonus azalır, yeni pos harcanır
+    if(fromLv<0&&toLv>0){
+      const newUsedNeg=usedNegMoves-Math.abs(fromLv);
+      const newTotalPos=level+newUsedNeg;
+      const newUsedPos=usedPosMoves+toLv;
+      return newTotalPos>=newUsedPos;
+    }
+    if(toLv>0) return remPos>=posCost;
+    if(toLv<0) return remNeg>=negCost;
+    return false;
+  };
+
+  const moveCost=(fromLv,toLv)=>{
+    const{posCost,negCost}=getMoveCost(fromLv||0,toLv);
+    return toLv>0?posCost:negCost;
   };
 
   const assignSkill=(skill,lv)=>{
@@ -1147,7 +1188,7 @@ function Char({me,isDM,char,setChar,all,avatars,onUploadAvatar}){
       <div className="moves-item"><span>{remPos}</span><span className="moves-label">Pozitif hamle kaldı</span></div>
       <div className="moves-item"><span>{remNeg}</span><span className="moves-label">Negatif hamle kaldı</span></div>
       <div className="moves-item" style={{color:"rgba(245,230,200,.4)",fontSize:".7rem",alignSelf:"center",fontStyle:"italic"}}>
-        Seviye {level} → {level} pozitif{negCount>0?` + ${negCount} bonus`:""} · {level} negatif hakkı
+        Seviye {level} → {level} pozitif{usedNegMoves>0?` + ${usedNegMoves} bonus`:""} · {level} negatif hakkı
       </div>
     </div>
     <div className="pyramid-wrap">
@@ -1249,22 +1290,45 @@ function Char({me,isDM,char,setChar,all,avatars,onUploadAvatar}){
   </div>;
 }
 
+function NbPassList({onChangePass}){
+  const [nbs,setNbs]=useState([]);
+  useEffect(()=>{
+    fbGet("notebooks").then(data=>{if(data)setNbs(Object.values(data));});
+  },[]);
+  if(!nbs.length)return <div style={{fontSize:".78rem",color:"var(--text-dim)",fontStyle:"italic"}}>Henüz not defteri yok.</div>;
+  return <div style={{display:"flex",flexDirection:"column",gap:5}}>
+    {nbs.map(nb=>(
+      <div key={nb.id} style={{display:"flex",alignItems:"center",gap:8,padding:"4px 0"}}>
+        <span style={{fontFamily:"'Cinzel',serif",fontSize:".72rem",color:"var(--parchment)",flex:1}}>
+          {nb.name} <span style={{color:"var(--text-dim)",fontSize:".65rem"}}>— {nb.owner}</span>
+        </span>
+        <span style={{fontFamily:"monospace",fontSize:".68rem",color:"rgba(200,149,42,.6)"}}>{nb.pass}</span>
+        <button className="nbtn" style={{fontSize:".55rem",padding:"2px 7px"}} onClick={()=>onChangePass(nb.id,nb.name)}>✏</button>
+      </div>
+    ))}
+  </div>;
+}
+
 function Npc({isDM,npcs,setNpcs,onClearRolls,allPlayers}){
   const [form,setForm]=useState({name:"",type:"enemy",ac:"12",cr:"1",notes:"",boss:false,fizMax:"3",zihMax:"3"});
   const [confirm,setConfirm]=useState(null);
   const [modOpen,setModOpen]=useState(false);
   const [allChars,setAllChars]=useState({});
   const [allAccounts,setAllAccounts]=useState({});
+  const [allPlayersData,setAllPlayersData]=useState({});
   const [kickConfirm,setKickConfirm]=useState(null);
   const [deleteTarget,setDeleteTarget]=useState(null);
   const [deleteInput,setDeleteInput]=useState("");
   const [deleteErr,setDeleteErr]=useState(false);
+  const [changePassTarget,setChangePassTarget]=useState(null);
+  const [newPass,setNewPass]=useState("");
 
   useEffect(()=>{
     if(!isDM||!modOpen)return;
     const load=async()=>{
       const data=await fbGet("chars");if(data)setAllChars(data);
       const accs=await fbGet("accounts");if(accs)setAllAccounts(accs);
+      const pdata=await fbGet("players");if(pdata)setAllPlayersData(pdata);
     };
     load();
     const iv=setInterval(load,4000);
@@ -1292,6 +1356,16 @@ function Npc({isDM,npcs,setNpcs,onClearRolls,allPlayers}){
     setKickConfirm(null);
   };
   const startDelete=(pname)=>{setDeleteTarget({name:pname});setDeleteInput("");setDeleteErr(false);};
+  const changePassword=async()=>{
+    if(!newPass.trim()||!changePassTarget)return;
+    if(changePassTarget.type==="player"){
+      await fbPatch("accounts/"+changePassTarget.id,{pass:newPass.trim()});
+      setAllAccounts(a=>({...a,[changePassTarget.id]:{...a[changePassTarget.id],pass:newPass.trim()}}));
+    } else if(changePassTarget.type==="notebook"){
+      await fbPatch("notebooks/"+changePassTarget.id,{pass:newPass.trim()});
+    }
+    setChangePassTarget(null);setNewPass("");
+  };
   const confirmDelete=async()=>{
     if(deleteInput.trim()!==deleteTarget.name){setDeleteErr(true);return;}
     await fbDel("chars/"+deleteTarget.name);
@@ -1327,9 +1401,12 @@ function Npc({isDM,npcs,setNpcs,onClearRolls,allPlayers}){
           const isOnline=onlinePNames.has(pname);
           const cd=allChars[pname];
           const acc=allAccounts[pname];
-          const onlinePlayer=(allPlayers||[]).find(p=>p.name===pname);
+          const playerData=allPlayersData[pname];
           const onlineDur=isOnline&&onlinePlayer&&onlinePlayer.loginAt
-            ?(()=>{const s=Math.floor((ts()-onlinePlayer.loginAt)/1000);const h=Math.floor(s/3600);const m=Math.floor((s%3600)/60);return h>0?h+"s "+m+"dk":m+"dk"+(s%60>0?" "+s%60+"sn":"");})()
+            ?(()=>{const s=Math.floor((ts()-onlinePlayer.loginAt)/1000);const h=Math.floor(s/3600);const m=Math.floor((s%3600)/60);return h>0?h+'s '+m+'dk':m+'dk';})()
+            :null;
+          const lastOnline=!isOnline&&playerData&&playerData.lastSeen
+            ?(()=>{const ago=Math.floor((ts()-playerData.lastSeen)/1000);if(ago<60)return ago+'sn once';if(ago<3600)return Math.floor(ago/60)+'dk once';if(ago<86400)return Math.floor(ago/3600)+'s once';return Math.floor(ago/86400)+'g once';})()
             :null;
           return <div key={pname} style={{padding:"8px 0",borderBottom:"1px solid rgba(139,26,26,.12)"}}>
             <div style={{display:"flex",alignItems:"center",gap:8}}>
@@ -1338,11 +1415,16 @@ function Npc({isDM,npcs,setNpcs,onClearRolls,allPlayers}){
                 {cd&&cd.name?cd.name:pname}
                 <span style={{fontSize:".65rem",color:"var(--text-dim)",marginLeft:6}}>{isOnline?"çevrimiçi":"çevrimdışı"}</span>
                 {onlineDur&&<span style={{fontSize:".62rem",color:"rgba(60,180,80,.7)",marginLeft:6}}>⏱ {onlineDur}</span>}
+                {lastOnline&&<span style={{fontSize:".62rem",color:"rgba(200,149,42,.45)",marginLeft:6}}>son: {lastOnline}</span>}
               </span>
               {isOnline&&<button className="nbtn" style={{fontSize:".6rem",padding:"3px 10px",borderColor:"rgba(139,26,26,.4)",color:"#ff9090"}} onClick={()=>setKickConfirm(kickConfirm===pname?null:pname)}>Kick</button>}
               <button className="nbtn" style={{fontSize:".6rem",padding:"3px 10px"}} onClick={()=>deleteTarget&&deleteTarget.name===pname?setDeleteTarget(null):startDelete(pname)}>Sil</button>
             </div>
-            {acc&&acc.pass&&<div style={{fontSize:".7rem",color:"rgba(200,149,42,.4)",fontStyle:"italic",paddingLeft:16,marginTop:3}}>Sifre: <span style={{color:"rgba(200,149,42,.7)",fontFamily:"monospace"}}>{acc.pass}</span></div>}
+            {acc&&acc.pass&&<div style={{fontSize:".7rem",color:"rgba(200,149,42,.4)",fontStyle:"italic",paddingLeft:16,marginTop:3,display:"flex",alignItems:"center",gap:8}}>
+              Şifre: <span style={{color:"rgba(200,149,42,.7)",fontFamily:"monospace"}}>{acc.pass}</span>
+              <button className="nbtn" style={{fontSize:".55rem",padding:"2px 7px"}} onClick={()=>{setChangePassTarget({type:"player",id:pname,name:cd&&cd.name?cd.name:pname});setNewPass("");}}>✏</button>
+            </div>}
+            {!acc&&<div style={{fontSize:".65rem",color:"rgba(245,230,200,.25)",fontStyle:"italic",paddingLeft:16,marginTop:2}}>Kayıt yok</div>}
           </div>;
         })}
         {kickConfirm&&<div className="confirm-box" style={{marginTop:8}}>
@@ -1366,6 +1448,26 @@ function Npc({isDM,npcs,setNpcs,onClearRolls,allPlayers}){
             <button className="no-btn" onClick={()=>setDeleteTarget(null)}>Iptal</button>
           </div>
         </div>}
+
+        {/* Şifre Değiştir Formu */}
+        {changePassTarget&&<div style={{marginTop:10,background:"rgba(200,149,42,.06)",border:"1px solid rgba(200,149,42,.25)",borderRadius:6,padding:12}}>
+          <div style={{fontSize:".78rem",color:"var(--gold)",marginBottom:8}}>
+            ✏ {changePassTarget.name} için yeni şifre:
+          </div>
+          <input className="fin" type="password" style={{marginBottom:8}} placeholder="Yeni şifre..."
+            value={newPass} onChange={e=>setNewPass(e.target.value)}
+            onKeyDown={e=>e.key==="Enter"&&changePassword()}/>
+          <div style={{display:"flex",gap:8}}>
+            <button className="nb-btn" onClick={changePassword} disabled={!newPass.trim()}>Kaydet</button>
+            <button className="nb-btn cancel" onClick={()=>{setChangePassTarget(null);setNewPass("");}}>İptal</button>
+          </div>
+        </div>}
+
+        {/* Not Defterleri Şifreleri */}
+        {Object.keys(allChars).length>0&&<>
+          <div className="st" style={{marginTop:14,color:"rgba(200,149,42,.5)",borderColor:"rgba(200,149,42,.1)"}}>Not Defterleri</div>
+          <NbPassList isDM={true} onChangePass={(id,name)=>{setChangePassTarget({type:"notebook",id,name});setNewPass("");}}/>
+        </>}
       </div>}
     </>}
 
@@ -2192,63 +2294,61 @@ function Ambiance({isDM}){
 
   // ─── PLAYER UI ───────────────────────────────────────────────────────────────
   if(!isDM){
-    if(!nowPlaying)return null;
     return(
-      <div style={{position:"fixed",bottom:22,left:88,zIndex:500}}>
+      <div style={{position:"fixed",bottom:22,left:22,zIndex:500}}>
         <button className={"amb-toggle"+(nowPlaying?" playing":"")} onClick={()=>setOpen(o=>!o)} title="Jukebox">🎵</button>
         {open&&(
           <div style={{position:"absolute",bottom:64,left:0,width:260,background:"#1a120c",border:"1px solid rgba(91,155,213,.35)",borderRadius:12,padding:16,boxShadow:"0 8px 40px rgba(0,0,0,.7)"}}>
             <div style={{fontFamily:"'Cinzel',serif",fontSize:".68rem",letterSpacing:".15em",color:"#90b8f0",marginBottom:12,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
               🎵 JUKEBOX
-              <span style={{fontSize:".65rem",color:status==="playing"?"#3cb454":"rgba(91,155,213,.5)",fontStyle:"italic"}}>{status==="playing"?"♪ çalıyor":"bağlanıyor..."}</span>
+              <button onClick={()=>setOpen(false)} style={{background:"transparent",border:"none",color:"var(--text-dim)",cursor:"pointer",fontSize:"1rem",lineHeight:1}}>✕</button>
             </div>
 
-            {/* DM Vol indicator */}
-            {currentDMVol!=null&&(
-              <div style={{marginBottom:10,fontSize:".7rem",color:"rgba(200,149,42,.6)"}}>
-                DM seviyesi: <span style={{color:"var(--gold)",fontFamily:"monospace"}}>{currentDMVol}</span>
-              </div>
-            )}
+            {!nowPlaying&&<div style={{fontSize:".78rem",color:"var(--text-dim)",fontStyle:"italic",textAlign:"center",padding:"12px 0"}}>
+              DM henüz bir şey başlatmadı...
+            </div>}
 
-            {/* Volume slider */}
-            <div style={{marginBottom:12}}>
-              <div style={{display:"flex",justifyContent:"space-between",marginBottom:4,fontSize:".65rem",color:"var(--text-dim)"}}>
-                <span>🔊 Ses</span>
-                <span style={{fontFamily:"monospace",color:"var(--gold)"}}>{synced?currentDMVol||myVol:myVol}</span>
+            {nowPlaying&&<>
+              <div style={{marginBottom:8,fontSize:".7rem",color:"rgba(91,155,213,.7)",display:"flex",alignItems:"center",gap:6}}>
+                <span style={{animation:"amb-pulse 2s infinite"}}>♪</span>
+                <span>{status==="playing"?"Çalıyor":"Bağlanıyor..."}</span>
               </div>
-              <div style={{position:"relative",height:20,display:"flex",alignItems:"center"}}>
-                <input type="range" min={0} max={100} value={synced&&currentDMVol!=null?currentDMVol:myVol}
-                  className="amb-vol-slider" style={{width:"100%"}}
-                  disabled={synced}
-                  onChange={e=>{const v=Number(e.target.value);setMyVol(v);if(playerRef.current)try{playerRef.current.setVolume(v);}catch{}}}/>
-                {/* DM gold dot */}
-                {currentDMVol!=null&&!synced&&(
-                  <div style={{
-                    position:"absolute",
-                    left:(currentDMVol)+"%",
-                    top:"50%",transform:"translate(-50%,-50%)",
-                    width:12,height:12,borderRadius:"50%",
-                    background:"var(--gold)",border:"2px solid var(--gold-light)",
-                    boxShadow:"0 0 6px rgba(200,149,42,.7)",
-                    pointerEvents:"none",zIndex:1
-                  }}/>
-                )}
-              </div>
-              {!synced&&currentDMVol!=null&&<div style={{fontSize:".62rem",color:"rgba(200,149,42,.45)",marginTop:3}}>● DM önerisi: {currentDMVol}</div>}
-            </div>
 
-            {/* Sync toggle */}
-            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"8px 10px",background:synced?"rgba(91,155,213,.1)":"rgba(0,0,0,.2)",borderRadius:6,border:"1px solid "+(synced?"rgba(91,155,213,.3)":"rgba(200,149,42,.1)")}}>
-              <div>
-                <div style={{fontFamily:"'Cinzel',serif",fontSize:".65rem",color:synced?"#90b8f0":"var(--text-dim)"}}>DM Senkronu</div>
-                <div style={{fontSize:".62rem",color:"var(--text-dim)",marginTop:1}}>{synced?"DM ses seviyesini takip ediyor":"Manuel kontrol"}</div>
+              {currentDMVol!=null&&(
+                <div style={{marginBottom:8,fontSize:".7rem",color:"rgba(200,149,42,.6)"}}>
+                  DM seviyesi: <span style={{color:"var(--gold)",fontFamily:"monospace"}}>{currentDMVol}</span>
+                </div>
+              )}
+
+              <div style={{marginBottom:12}}>
+                <div style={{display:"flex",justifyContent:"space-between",marginBottom:4,fontSize:".65rem",color:"var(--text-dim)"}}>
+                  <span>🔊 Ses</span>
+                  <span style={{fontFamily:"monospace",color:"var(--gold)"}}>{synced&&currentDMVol!=null?currentDMVol:myVol}</span>
+                </div>
+                <div style={{position:"relative",height:20,display:"flex",alignItems:"center"}}>
+                  <input type="range" min={0} max={100} value={synced&&currentDMVol!=null?currentDMVol:myVol}
+                    className="amb-vol-slider" style={{width:"100%"}}
+                    disabled={synced}
+                    onChange={e=>{const v=Number(e.target.value);setMyVol(v);if(playerRef.current)try{playerRef.current.setVolume(v);}catch{}}}/>
+                  {currentDMVol!=null&&!synced&&(
+                    <div style={{position:"absolute",left:(currentDMVol)+"%",top:"50%",transform:"translate(-50%,-50%)",width:12,height:12,borderRadius:"50%",background:"var(--gold)",border:"2px solid var(--gold-light)",boxShadow:"0 0 6px rgba(200,149,42,.7)",pointerEvents:"none",zIndex:1}}/>
+                  )}
+                </div>
+                {!synced&&currentDMVol!=null&&<div style={{fontSize:".62rem",color:"rgba(200,149,42,.45)",marginTop:3}}>● DM önerisi: {currentDMVol}</div>}
               </div>
-              <label className="toggle">
-                <input type="checkbox" checked={synced} onChange={e=>setSynced(e.target.checked)}/>
-                <div className="toggle-track"/>
-                <div className="toggle-thumb"/>
-              </label>
-            </div>
+
+              <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"8px 10px",background:synced?"rgba(91,155,213,.1)":"rgba(0,0,0,.2)",borderRadius:6,border:"1px solid "+(synced?"rgba(91,155,213,.3)":"rgba(200,149,42,.1)")}}>
+                <div>
+                  <div style={{fontFamily:"'Cinzel',serif",fontSize:".65rem",color:synced?"#90b8f0":"var(--text-dim)"}}>DM Senkronu</div>
+                  <div style={{fontSize:".62rem",color:"var(--text-dim)",marginTop:1}}>{synced?"DM seviyesini takip ediyor":"Manuel kontrol"}</div>
+                </div>
+                <label className="toggle">
+                  <input type="checkbox" checked={synced} onChange={e=>setSynced(e.target.checked)}/>
+                  <div className="toggle-track"/>
+                  <div className="toggle-thumb"/>
+                </label>
+              </div>
+            </>}
           </div>
         )}
       </div>
@@ -2450,6 +2550,10 @@ function App(){
     fbSet(`chars/${name}`,char);
     setAll([selfEntry]);
     const hb=setInterval(()=>fbPatch(`players/${name}`,{lastSeen:ts()}),4000);
+    // Activity tracker — tıklama/tuş = aktif
+    const onActivity=()=>fbPatch(`players/${name}`,{lastActive:ts()});
+    document.addEventListener("click",onActivity,{passive:true});
+    document.addEventListener("keydown",onActivity,{passive:true});
 
     // Kick check — oyuncu kick edilirse lobby'ye gönder
     const pollKick=async()=>{
@@ -2486,7 +2590,7 @@ function App(){
       const now=ts();
       const alive=Object.values(data).filter(p=>now-(p.lastSeen||0)<12000);
       const charData=await fbGet("chars");
-      setAll(alive.map(p=>({...p,char:(charData&&charData[p.name])||iChar(p.name)})));
+      setAll(alive.map(p=>({...p,away:now-(p.lastActive||p.lastSeen||0)>180000,char:(charData&&charData[p.name])||iChar(p.name)})));
     };
     pollPlayers();
     const playerPoll=setInterval(pollPlayers,3000);
@@ -2507,7 +2611,7 @@ function App(){
       if(!data){setNpcs([]);return;}
       setNpcs(Object.values(data).sort((a,b)=>a.id-b.id));
     });
-    return()=>{clearInterval(hb);clearInterval(kickPoll);clearInterval(rollPoll);clearInterval(playerPoll);unA();unC();unN();};
+    return()=>{clearInterval(hb);clearInterval(kickPoll);clearInterval(rollPoll);clearInterval(playerPoll);unA();unC();unN();document.removeEventListener("click",onActivity);document.removeEventListener("keydown",onActivity);};
   },[phase,name]);
 
   const hChar=fn=>{setChar(prev=>{const u=typeof fn==="function"?fn(prev):fn;clearTimeout(cst.current);cst.current=setTimeout(()=>fbSet(`chars/${name}`,u),400);return u;});};
@@ -2570,7 +2674,7 @@ function App(){
     {showSettings&&<SettingsPanel onClose={()=>setShowSettings(false)} darkness={darkness} setDarkness={setDarkness} animOn={animOn} setAnimOn={setAnimOn}/>}
     <div className="ob">
       <span className="ol">Çevrimiçi</span>
-      {all.map(p=><span key={p.name} className={`op${p.role==="dm"?" dm":""}`}><span className="pd" style={{width:5,height:5}}/>{p.name}{p.role==="dm"?" 👁":""}</span>)}
+      {all.map(p=><span key={p.name} className={`op${p.role==="dm"?" dm":p.away?" away":""}`}><span className={`pd${p.away?" away":""}`} style={{width:5,height:5}}/>{p.name}{p.role==="dm"?" 👁":p.away?" 💤":""}</span>)}
       {!all.length&&<span style={{fontSize:".72rem",color:"rgba(245,230,200,.25)",fontStyle:"italic"}}>bağlanıyor...</span>}
     </div>
     <InitiativeBar isDM={role==="dm"} all={all} npcs={npcs} avatars={avatars}/>
