@@ -71,7 +71,7 @@ const PYRAMID_LEVELS=[5,4,3,2,1,-1,-2,-3,-4,-5];
 const ATTRIBUTES=["Güç","Çeviklik","Dayanıklılık","Zeka","İrfan","Karizma"];
 const iChar=(n="")=>({
   name:n, race:"", level:"1", age:"",
-  fiziksel:0, zihinsel:0,
+  fiziksel:3, zihinsel:3,
   attrs:{Güç:"",Çeviklik:"",Dayanıklılık:"",Zeka:"",İrfan:"",Karizma:""},
   skills:{}, // {skillName: levelValue} e.g. {"Nişancılık": 3}
   notes:""
@@ -301,6 +301,12 @@ body{font-family:'Crimson Text',serif;color:var(--text);background:var(--bg0);ba
 .ab{background:rgba(200,149,42,.1);border:1px solid rgba(200,149,42,.35);border-radius:4px;color:#f0c060;font-family:'Cinzel',serif;font-size:.72rem;letter-spacing:.12em;padding:9px 20px;cursor:pointer;transition:all .2s;text-transform:uppercase}
 .ab:hover{background:rgba(200,149,42,.18)}
 .em{text-align:center;padding:28px;color:rgba(245,230,200,.25);font-style:italic}
+.boss-npc{background:rgba(20,5,5,.98)!important;box-shadow:0 0 20px rgba(180,40,40,.25);animation:boss-border 3s ease-in-out infinite}
+@keyframes boss-border{0%,100%{border-color:rgba(200,149,42,.8)}50%{border-color:rgba(180,40,40,.9)}}
+.boss-npc .nn{background:linear-gradient(90deg,#c8952a,#8b1a1a,#c8952a);background-size:200%;-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;animation:boss-text 3s ease-in-out infinite}
+@keyframes boss-text{0%,100%{background-position:0%}50%{background-position:100%}}
+.mc.boss-card{animation:boss-border 3s ease-in-out infinite}
+.mc.boss-card .mnm{background:linear-gradient(90deg,#c8952a,#8b1a1a,#c8952a);background-size:200%;-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;animation:boss-text 3s ease-in-out infinite}
 .em span{display:block;font-size:2rem;margin-bottom:8px;opacity:.3}
 .mw{max-width:860px;margin:0 auto;padding:0 18px 20px}
 .mh{font-family:'Cinzel',serif;font-size:.58rem;letter-spacing:.22em;color:rgba(200,149,42,.5);text-transform:uppercase;border-bottom:1px solid rgba(200,149,42,.1);padding-bottom:5px;margin-bottom:10px}
@@ -453,68 +459,80 @@ body{font-family:'Crimson Text',serif;color:var(--text);background:var(--bg0);ba
 .sku{position:absolute;top:6px;right:8px;font-size:.9rem;opacity:.6}`;
 const el=document.createElement("style");el.textContent=S;document.head.appendChild(el);
 
-function PipBar({type,hasar,onChange,disabled}){
+// saglik = dolu pip sayısı (max=tam sağlıklı, 0=ölü)
+function PipBar({type,saglik,maxPips,onChange,disabled}){
   const c=type==="fiziksel"?"f":"z";
+  const max=maxPips||3;
   return <div className="ch">
     <span className={`cl ${c}`}>{type==="fiziksel"?"⚔ Beden":"🧠 Zihin"}</span>
-    <div className="pr">{[0,1,2].map(i=><button key={i} className={`pip ${c}${i<hasar?"f":"e"}`} disabled={disabled} onClick={()=>onChange(i<hasar&&i===hasar-1?hasar-1:i+1)}/>)}</div>
+    <div className="pr">{Array.from({length:max}).map((_,i)=>{
+      const dolu=i<saglik;
+      return <button key={i} className={`pip ${c}${dolu?"f":"e"}`} disabled={disabled}
+        onClick={()=>{ if(dolu) onChange(saglik-1===i?saglik-1:saglik-1); else onChange(i+1); }}
+      />;
+    })}</div>
   </div>;
 }
-function NpcPips({type,hasar,onChange,disabled}){
+function NpcPips({type,saglik,maxPips,onChange,disabled}){
   const c=type==="fiziksel"?"f":"z";
+  const max=maxPips||3;
   return <div className="ncr">
-    <span className={`ncl ${c}`}>{type==="fiziksel"?"⚔ Beden":"🧠 Zihin"}</span>
-    {[0,1,2].map(i=><button key={i} className={`np ${c}${i<hasar?"f":"e"}`} disabled={disabled} onClick={()=>onChange(i<hasar&&i===hasar-1?hasar-1:i+1)}/>)}
+    <span className={`ncl ${c}`}>{type==="fiziksel"?"Beden":"Zihin"}</span>
+    {Array.from({length:max}).map((_,i)=>{
+      const dolu=i<saglik;
+      return <button key={i} className={`np ${c}${dolu?"f":"e"}`} disabled={disabled}
+        onClick={()=>{ onChange(dolu?saglik-1:i+1); }}
+      />;
+    })}
   </div>;
 }
-function MPs({type,hasar}){
+function MPs({type,saglik,maxPips}){
   const c=type==="fiziksel"?"f":"z";
-  return <div className="mpr">{[0,1,2].map(i=><div key={i} className={`mp ${c}${i<hasar?"f":"e"}`}/>)}</div>;
+  const max=maxPips||3;
+  return <div className="mpr">{Array.from({length:max}).map((_,i)=><div key={i} className={`mp ${c}${i<saglik?"f":"e"}`}/>)}</div>;
 }
 
-function Masa({me,char,npcs,all,avatars}){
+function Masa({me,role,char,npcs,all,avatars}){
   const tl={player:"OYUNCU",ally:"MÜTTEFİK",neutral:"TARAFSIZ",enemy:"DÜŞMAN"};
 
-  // Kendi kartı her zaman önce — char prop'tan anlık geliyor
-  const myCard={
+  const myCard=role==="dm"?null:{
     key:`p-${me}`, type:"player", isMe:true,
     name:char.name||me,
     sub:[char.race,char.level?`Seviye ${char.level}`:null].filter(Boolean).join(" · ")||"—",
-    fiziksel:char.fiziksel||0, zihinsel:char.zihinsel||0, ac:char.ac,
-    dead:(char.fiziksel||0)<=0&&(char.zihinsel||0)<=0
+    fiziksel:char.fiziksel!=null?char.fiziksel:3, zihinsel:char.zihinsel!=null?char.zihinsel:3,
+    dead:(char.fiziksel!=null?char.fiziksel:3)<=0&&(char.zihinsel!=null?char.zihinsel:3)<=0
   };
 
-  // Diğer oyuncular
-  const otherPCs=all.filter(p=>p.name!==me).map(p=>{
+  const otherPCs=all.filter(p=>p.name!==me&&p.role!=="dm").map(p=>{
     const c=p.char||{};
     return{key:`p-${p.name}`,type:"player",isMe:false,
       name:c.name||p.name,
       sub:[c.race,c.level?`Seviye ${c.level}`:null].filter(Boolean).join(" · ")||"—",
       fiziksel:c.fiziksel||0,zihinsel:c.zihinsel||0,ac:c.ac,
-      dead:(c.fiziksel||0)<=0&&(c.zihinsel||0)<=0};
+      dead:(c.fiziksel!=null?c.fiziksel:3)<=0&&(c.zihinsel!=null?c.zihinsel:3)<=0};
   });
 
-  const npcCards=npcs.map(n=>({key:`n-${n.id}`,type:n.type,isMe:false,name:n.name,
-    sub:`ZS ${n.ac} · CR ${n.cr}`,fiziksel:n.fiziksel||0,zihinsel:n.zihinsel||0,
-    dead:(n.fiziksel||0)<=0&&(n.zihinsel||0)<=0}));
+  const npcCards=npcs.map(n=>({key:`n-${n.id}`,type:n.type,isMe:false,name:n.name,boss:n.boss||false,
+    sub:`ZS ${n.ac} · CR ${n.cr}${n.boss?" · BOSS":""}`,fiziksel:n.fiziksel||0,zihinsel:n.zihinsel||0,fizMax:n.fizMax||3,zihMax:n.zihMax||3,
+    dead:(n.fiziksel!=null?n.fiziksel:(n.fizMax||3))<=0&&(n.zihinsel!=null?n.zihinsel:(n.zihMax||3))<=0}));
 
   const ord={ally:1,neutral:2,enemy:3};
   const others=[...otherPCs,...npcCards].sort((a,b)=>(ord[a.type]||0)-(ord[b.type]||0));
-  const cards=[myCard,...others];
+  const cards=[myCard,...others].filter(Boolean);
 
   if(!cards.length)return null;
   return <div className="mw">
     <div className="mh">⚔ Masa Durumu</div>
-    <div className="mg">{cards.map(card=><div key={card.key} className={`mc ${card.type}${card.dead?" dead":""}${card.isMe?" me":""}`}>
+    <div className="mg">{cards.map(card=><div key={card.key} className={`mc ${card.type}${card.dead?" dead":""}${card.isMe?" me":""}${card.boss?" boss-card":""}`}>
       {card.dead&&<span className="sku">💀</span>}
       {card.type==="player"&&avatars&&avatars[card.key.replace("p-","")]&&
         <img src={avatars[card.key.replace("p-","")]} style={{width:32,height:32,borderRadius:"50%",objectFit:"cover",border:"1px solid rgba(200,149,42,.4)",marginBottom:5}} alt=""/>}
-      <div className="mtg">{card.isMe?"👤 SEN":tl[card.type]}</div>
+      <div className="mtg">{card.isMe?"👤 SEN":card.boss?"💀 BOSS":tl[card.type]}</div>
       <div className="mnm">{card.name}</div>
       <div className="msb">{card.sub}</div>
       <div style={{display:"flex",flexDirection:"column",gap:5,marginTop:4}}>
-        <MPs type="fiziksel" hasar={card.fiziksel}/>
-        <MPs type="zihinsel" hasar={card.zihinsel}/>
+        <MPs type="fiziksel" saglik={card.fiziksel!=null?card.fiziksel:card.fizMax||3} maxPips={card.fizMax||3}/>
+        <MPs type="zihinsel" saglik={card.zihinsel!=null?card.zihinsel:card.zihMax||3} maxPips={card.zihMax||3}/>
       </div>
       {card.ac&&<div style={{fontSize:".65rem",color:"rgba(245,230,200,.3)",marginTop:5}}>ZS {card.ac}</div>}
     </div>)}
@@ -616,7 +634,7 @@ function HistoryModal({feed,onClose}){
   </div>;
 }
 
-function Dice({me,char,npcs,all,rolls,onRoll,animOn,avatars}){
+function Dice({me,role,char,npcs,all,rolls,onRoll,animOn,avatars}){
   const [mod,setMod]=useState("0");
   const [showFW,setShowFW]=useState(false);
   const [showSmoke,setShowSmoke]=useState(false);
@@ -667,7 +685,7 @@ function Dice({me,char,npcs,all,rolls,onRoll,animOn,avatars}){
     </>}
     {showHistory&&<HistoryModal feed={feed} onClose={()=>setShowHistory(false)}/>}
     <div style={{height:24}}/>
-    <Masa me={me} char={char} npcs={npcs} all={all} avatars={avatars}/>
+    <Masa me={me} role={role} char={char} npcs={npcs} all={all} avatars={avatars}/>
   </div>;
 }
 
@@ -1049,9 +1067,9 @@ function Char({me,isDM,char,setChar,all,avatars,onUploadAvatar}){
     </div>
     <div className="st">Kondisyon</div>
     <div className="cb"><div className="cr">
-      <PipBar type="fiziksel" hasar={vc.fiziksel||0} disabled={!can} onChange={v=>upd("fiziksel",v)}/>
+      <PipBar type="fiziksel" saglik={vc.fiziksel!=null?vc.fiziksel:3} maxPips={3} disabled={!can} onChange={v=>upd("fiziksel",v)}/>
       <div className="cdv"/>
-      <PipBar type="zihinsel" hasar={vc.zihinsel||0} disabled={!can} onChange={v=>upd("zihinsel",v)}/>
+      <PipBar type="zihinsel" saglik={vc.zihinsel!=null?vc.zihinsel:3} maxPips={3} disabled={!can} onChange={v=>upd("zihinsel",v)}/>
     </div></div>
     <div className="st">Saving Throwlar</div>
     <div className="attr-grid">
@@ -1133,69 +1151,343 @@ function Char({me,isDM,char,setChar,all,avatars,onUploadAvatar}){
     <div className="st">Notlar</div>
     <textarea className="na" rows={5} placeholder="Geçmiş, bağlantılar, ekipman..." value={vc.notes||""} onChange={e=>upd("notes",e.target.value)} disabled={!can}/>
     <div className={`si${saved?" ok":""}`}>{saved?"✓ Kaydedildi":"Otomatik kaydediliyor..."}</div>
+    {self&&can&&<button className="nb-btn" style={{marginTop:10,width:"100%"}} onClick={()=>exportCharPDF(vc,avatars&&avatars[me])}>⬇ Karakter Sayfasini PDF Indir</button>}
     {self&&<ErrorBoundary><Notebooks me={me} isDM={isDM} charName={vc.name||me}/></ErrorBoundary>}
   </div>;
 }
 
-function Npc({isDM,npcs,setNpcs,onClearRolls}){
-  const [form,setForm]=useState({name:"",type:"enemy",ac:"12",cr:"1",notes:""});
-  const [confirm,setConfirm]=useState(null); // "npcs" | "rolls"
+function Npc({isDM,npcs,setNpcs,onClearRolls,allPlayers}){
+  const [form,setForm]=useState({name:"",type:"enemy",ac:"12",cr:"1",notes:"",boss:false,fizMax:"3",zihMax:"3"});
+  const [confirm,setConfirm]=useState(null);
+  const [modOpen,setModOpen]=useState(false);
+  const [allChars,setAllChars]=useState({});
+  const [allAccounts,setAllAccounts]=useState({});
+  const [kickConfirm,setKickConfirm]=useState(null);
+  const [deleteTarget,setDeleteTarget]=useState(null);
+  const [deleteInput,setDeleteInput]=useState("");
+  const [deleteErr,setDeleteErr]=useState(false);
+
+  useEffect(()=>{
+    if(!isDM||!modOpen)return;
+    const load=async()=>{
+      const data=await fbGet("chars");if(data)setAllChars(data);
+      const accs=await fbGet("accounts");if(accs)setAllAccounts(accs);
+    };
+    load();
+    const iv=setInterval(load,4000);
+    return()=>clearInterval(iv);
+  },[isDM,modOpen]);
+
   const sync=async u=>{setNpcs(u);if(!u.length){await fbSet("npcs",null);return;}const o={};u.forEach(n=>{o[n.id]=n;});await fbSet("npcs",o);};
-  const add=async()=>{if(!form.name.trim())return;await sync([...npcs,{...form,id:ts(),fiziksel:3,zihinsel:3}]);setForm({name:"",type:"enemy",ac:"12",cr:"1",notes:""});};
+  const add=async(boss)=>{
+    if(!form.name.trim())return;
+    const fiz=boss?parseInt(form.fizMax)||3:3;
+    const zih=boss?parseInt(form.zihMax)||3:3;
+    await sync([...npcs,{...form,id:ts(),fiziksel:fiz,zihinsel:zih,fizMax:fiz,zihMax:zih,boss:boss||false}]);
+    setForm({name:"",type:"enemy",ac:"12",cr:"1",notes:"",boss:false,fizMax:"3",zihMax:"3"});
+  };
   const uPip=async(id,f,v)=>sync(npcs.map(n=>n.id===id?{...n,[f]:v}:n));
   const rem=async id=>sync(npcs.filter(n=>n.id!==id));
   const doConfirm=async()=>{
-    if(confirm==="npcs") await sync([]);
-    if(confirm==="rolls") await onClearRolls();
+    if(confirm==="npcs")await sync([]);
+    if(confirm==="rolls")await onClearRolls();
     setConfirm(null);
   };
+  const kickPlayer=async(pname)=>{
+    await fbSet("kicked/"+pname,{at:ts()});
+    await fbDel("players/"+pname);
+    setKickConfirm(null);
+  };
+  const startDelete=(pname)=>{setDeleteTarget({name:pname});setDeleteInput("");setDeleteErr(false);};
+  const confirmDelete=async()=>{
+    if(deleteInput.trim()!==deleteTarget.name){setDeleteErr(true);return;}
+    await fbDel("chars/"+deleteTarget.name);
+    await fbDel("players/"+deleteTarget.name);
+    await fbDel("avatars/"+deleteTarget.name);
+    const nc={...allChars};delete nc[deleteTarget.name];
+    setAllChars(nc);setDeleteTarget(null);setDeleteInput("");
+  };
+
+  const onlinePNames=new Set((allPlayers||[]).filter(p=>p.role!=="dm").map(p=>p.name));
+  const allCharNames=Object.keys(allChars).filter(n=>n!=="DM");
+
   return <div className="panel">
-    {!isDM&&<div className="dmo">⚔ NPC'ler DM tarafından yönetilir.</div>}
+    {!isDM&&<div className="dmo">NPC'ler DM tarafından yonetilir.</div>}
     {isDM&&<>
-      <div className="st" style={{marginTop:0}}>DM Araçları</div>
+      <div className="st" style={{marginTop:0}}>DM Araclar</div>
       <div className="dm-tools">
-        <button className="danger-btn" onClick={()=>setConfirm("npcs")}>🗑 Tüm NPC'leri Temizle</button>
-        <button className="danger-btn" onClick={()=>setConfirm("rolls")}>🗑 Tüm Zarları Temizle</button>
+        <button className="danger-btn" onClick={()=>setConfirm("npcs")}>Tum NPC'leri Temizle</button>
+        <button className="danger-btn" onClick={()=>setConfirm("rolls")}>Tum Zarlari Temizle</button>
+        <button className="danger-btn" style={{background:"rgba(139,26,26,.08)",borderColor:"rgba(139,26,26,.35)",color:"#ffaaaa"}} onClick={()=>setModOpen(o=>!o)}>Moderator</button>
       </div>
       {confirm&&<div className="confirm-box">
-        <span>⚠ Emin misin? Bu işlem geri alınamaz.</span>
+        <span>Emin misin?</span>
         <div className="confirm-btns">
-          <button className="yes-btn" onClick={doConfirm}>✓ Evet, Temizle</button>
-          <button className="no-btn" onClick={()=>setConfirm(null)}>✕ İptal</button>
+          <button className="yes-btn" onClick={doConfirm}>Evet</button>
+          <button className="no-btn" onClick={()=>setConfirm(null)}>Iptal</button>
         </div>
       </div>}
+      {modOpen&&<div style={{background:"rgba(139,26,26,.07)",border:"1px solid rgba(139,26,26,.3)",borderRadius:8,padding:14,marginBottom:16}}>
+        <div className="st" style={{marginTop:0,color:"#ffaaaa",borderColor:"rgba(139,26,26,.3)"}}>Moderator Paneli</div>
+        {allCharNames.length===0&&<div style={{color:"var(--text-dim)",fontStyle:"italic",fontSize:".85rem",padding:"8px 0"}}>Kayitli karakter yok.</div>}
+        {allCharNames.map(pname=>{
+          const isOnline=onlinePNames.has(pname);
+          const cd=allChars[pname];
+          const acc=allAccounts[pname];
+          return <div key={pname} style={{padding:"8px 0",borderBottom:"1px solid rgba(139,26,26,.12)"}}>
+            <div style={{display:"flex",alignItems:"center",gap:8}}>
+              <span style={{width:8,height:8,borderRadius:"50%",background:isOnline?"#3cb454":"rgba(245,230,200,.2)",flexShrink:0,display:"inline-block"}}/>
+              <span style={{fontFamily:"'Cinzel',serif",fontSize:".75rem",color:"var(--parchment)",flex:1}}>
+                {cd&&cd.name?cd.name:pname}
+                <span style={{fontSize:".65rem",color:"var(--text-dim)",marginLeft:6}}>{isOnline?"cevrimici":"cevrimdisi"}</span>
+              </span>
+              {isOnline&&<button className="nbtn" style={{fontSize:".6rem",padding:"3px 10px",borderColor:"rgba(139,26,26,.4)",color:"#ff9090"}} onClick={()=>setKickConfirm(kickConfirm===pname?null:pname)}>Kick</button>}
+              <button className="nbtn" style={{fontSize:".6rem",padding:"3px 10px"}} onClick={()=>deleteTarget&&deleteTarget.name===pname?setDeleteTarget(null):startDelete(pname)}>Sil</button>
+            </div>
+            {acc&&acc.pass&&<div style={{fontSize:".7rem",color:"rgba(200,149,42,.4)",fontStyle:"italic",paddingLeft:16,marginTop:3}}>Sifre: <span style={{color:"rgba(200,149,42,.7)",fontFamily:"monospace"}}>{acc.pass}</span></div>}
+          </div>;
+        })}
+        {kickConfirm&&<div className="confirm-box" style={{marginTop:8}}>
+          <span>{kickConfirm} oyundan atilsin mi?</span>
+          <div className="confirm-btns">
+            <button className="yes-btn" onClick={()=>kickPlayer(kickConfirm)}>Kick</button>
+            <button className="no-btn" onClick={()=>setKickConfirm(null)}>Iptal</button>
+          </div>
+        </div>}
+        {deleteTarget&&<div style={{marginTop:10,background:"rgba(139,26,26,.1)",border:"1px solid rgba(139,26,26,.3)",borderRadius:6,padding:12}}>
+          <div style={{fontSize:".78rem",color:"#ffaaaa",marginBottom:8}}>
+            Silmek icin karakter ismini yaz: <strong>{deleteTarget.name}</strong>
+          </div>
+          <input className="fin" style={{marginBottom:8,borderColor:deleteErr?"#c03030":undefined}}
+            placeholder={deleteTarget.name} value={deleteInput}
+            onChange={e=>{setDeleteInput(e.target.value);setDeleteErr(false);}}
+            onKeyDown={e=>e.key==="Enter"&&confirmDelete()}/>
+          {deleteErr&&<div style={{color:"#ff6060",fontSize:".75rem",marginBottom:6}}>Isim eslesmedi!</div>}
+          <div style={{display:"flex",gap:8}}>
+            <button className="yes-btn" onClick={confirmDelete}>Kalici Sil</button>
+            <button className="no-btn" onClick={()=>setDeleteTarget(null)}>Iptal</button>
+          </div>
+        </div>}
+      </div>}
     </>}
+
     <div className="nl">
-      {!npcs.length&&<div className="em"><span>🐉</span>Henüz NPC yok.</div>}
-      {npcs.map(n=>{const dead=(n.fiziksel||0)<=0&&(n.zihinsel||0)<=0;return <div key={n.id} className={`nc${dead?" dead":""}`}>
-        <div className="nr2"><div className="nn">{n.name}{dead?" 💀":""}</div>
-          <span className={`badge b${n.type==="enemy"?"e":n.type==="ally"?"a":"n"}`}>{n.type==="enemy"?"DÜŞMAN":n.type==="ally"?"MÜTTEFİK":"TARAFSIZ"}</span>
-        </div>
-        <div className="ns">ZS {n.ac} · CR {n.cr}</div>
-        <div className="ncw">
-          <NpcPips type="fiziksel" hasar={n.fiziksel||0} disabled={!isDM} onChange={v=>uPip(n.id,"fiziksel",v)}/>
-          <NpcPips type="zihinsel" hasar={n.zihinsel||0} disabled={!isDM} onChange={v=>uPip(n.id,"zihinsel",v)}/>
-        </div>
-        {n.notes&&<div className="nnt">📜 {n.notes}</div>}
-        {isDM&&<div className="nct"><button className="nbtn rm" onClick={()=>rem(n.id)}>✕ Kaldır</button></div>}
-      </div>;})}
+      {!npcs.length&&<div className="em"><span>🐉</span>Henuz NPC yok.</div>}
+      {npcs.map(n=>{
+        const fmax=n.fizMax||3; const zmax=n.zihMax||3;
+        const fsag=n.fiziksel!=null?n.fiziksel:fmax;
+        const zsag=n.zihinsel!=null?n.zihinsel:zmax;
+        const dead=fsag<=0&&zsag<=0;
+        return <div key={n.id} className={"nc"+(dead?" dead":"")+(n.boss?" boss-npc":"")}>
+          <div className="nr2">
+            <div className="nn">{n.boss?"BOSS: ":""}{n.name}{dead?" - OLU":""}</div>
+            <span className={"badge b"+(n.type==="enemy"?"e":n.type==="ally"?"a":"n")}>{n.type==="enemy"?"DUSMAN":n.type==="ally"?"MUTTEFIK":"TARAFSIZ"}</span>
+          </div>
+          <div className="ns">ZS {n.ac} - CR {n.cr}{n.boss?" - BOSS":""}</div>
+          <div className="ncw">
+            <NpcPips type="fiziksel" saglik={fsag} maxPips={fmax} disabled={!isDM} onChange={v=>uPip(n.id,"fiziksel",v)}/>
+            <NpcPips type="zihinsel" saglik={zsag} maxPips={zmax} disabled={!isDM} onChange={v=>uPip(n.id,"zihinsel",v)}/>
+          </div>
+          {n.notes&&<div className="nnt">{n.notes}</div>}
+          {isDM&&<div className="nct"><button className="nbtn rm" onClick={()=>rem(n.id)}>Kaldir</button></div>}
+        </div>;
+      })}
     </div>
-    {isDM&&<div className="an"><h3>+ Yeni NPC / Düşman</h3>
+
+    {isDM&&<div className="an">
+      <h3>+ Yeni NPC</h3>
       <div className="f2">
-        <input className="fin" placeholder="İsim" value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))}/>
-        <select className="fin" value={form.type} onChange={e=>setForm(f=>({...f,type:e.target.value}))}><option value="enemy">Düşman</option><option value="ally">Müttefik</option><option value="neutral">Tarafsız</option></select>
+        <input className="fin" placeholder="Isim" value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))}/>
+        <select className="fin" value={form.type} onChange={e=>setForm(f=>({...f,type:e.target.value}))}><option value="enemy">Dusman</option><option value="ally">Muttefik</option><option value="neutral">Tarafsiz</option></select>
       </div>
       <div className="f2">
-        <input className="fin" placeholder="Zırh Sınıfı" type="number" value={form.ac} onChange={e=>setForm(f=>({...f,ac:e.target.value}))}/>
+        <input className="fin" placeholder="Zirh" type="number" value={form.ac} onChange={e=>setForm(f=>({...f,ac:e.target.value}))}/>
         <input className="fin" placeholder="CR" value={form.cr} onChange={e=>setForm(f=>({...f,cr:e.target.value}))}/>
       </div>
-      <input className="fin" style={{marginBottom:12}} placeholder="Notlar (opsiyonel)" value={form.notes} onChange={e=>setForm(f=>({...f,notes:e.target.value}))}/>
-      <button className="ab" onClick={add}>⚔ Ekle</button>
+      <input className="fin" style={{marginBottom:8}} placeholder="Notlar" value={form.notes} onChange={e=>setForm(f=>({...f,notes:e.target.value}))}/>
+      {form.boss&&<div className="f2" style={{marginBottom:8}}>
+        <div>
+          <label style={{fontFamily:"'Cinzel',serif",fontSize:".55rem",color:"var(--gold)",display:"block",marginBottom:3}}>FIZIKSEL PIP</label>
+          <input className="fin" type="number" min="1" max="20" value={form.fizMax} onChange={e=>setForm(f=>({...f,fizMax:e.target.value}))}/>
+        </div>
+        <div>
+          <label style={{fontFamily:"'Cinzel',serif",fontSize:".55rem",color:"var(--gold)",display:"block",marginBottom:3}}>ZIHINSEL PIP</label>
+          <input className="fin" type="number" min="1" max="20" value={form.zihMax} onChange={e=>setForm(f=>({...f,zihMax:e.target.value}))}/>
+        </div>
+      </div>}
+      <div style={{display:"flex",gap:8}}>
+        <button className="ab" onClick={()=>add(false)}>Ekle</button>
+        <button className="ab" style={{background:"rgba(139,26,26,.12)",borderColor:"rgba(139,26,26,.5)",color:"#ff9090"}} onClick={()=>form.boss?add(true):setForm(f=>({...f,boss:true}))}>
+          {form.boss?"BOSS Ekle":"BOSS"}
+        </button>
+        {form.boss&&<button className="nbtn" onClick={()=>setForm(f=>({...f,boss:false,fizMax:"3",zihMax:"3"}))}>Iptal</button>}
+      </div>
     </div>}
   </div>;
 }
 
-// Theme: darkness 0=koyu, 100=açık
+function exportCharPDF(char, avatarB64){
+  const {jsPDF}=window.jspdf;
+  const doc=new jsPDF({orientation:"portrait",unit:"mm",format:"a4"});
+  const now=new Date();
+  const dateStr=now.toLocaleDateString("tr-TR",{year:"numeric",month:"long",day:"numeric"});
+  const timeStr=now.toLocaleTimeString("tr-TR",{hour:"2-digit",minute:"2-digit"});
+  const W=210, M=18, CW=W-M*2;
+
+  // ── Background ──
+  doc.setFillColor(13,7,5);
+  doc.rect(0,0,W,297,"F");
+
+  // ── Header band ──
+  doc.setFillColor(30,23,16);
+  doc.rect(0,0,W,52,"F");
+  doc.setDrawColor(200,149,42);
+  doc.setLineWidth(0.6);
+  doc.line(M,52,W-M,52);
+
+  // Avatar circle (if exists)
+  let avatarY=0;
+  if(avatarB64){
+    try{
+      doc.addImage(avatarB64,"JPEG",M,8,36,36);
+      // Gold circle border
+      doc.setDrawColor(200,149,42);
+      doc.setLineWidth(0.5);
+      doc.circle(M+18,26,18,"S");
+      avatarY=36+M;
+    }catch(e){}
+  }
+
+  const tx=avatarB64?M+44:M;
+
+  // Title
+  doc.setFontSize(22);
+  doc.setFont("helvetica","bold");
+  doc.setTextColor(240,192,96);
+  doc.text("Inci — Tavern Roll",tx,18);
+
+  // Char name
+  doc.setFontSize(15);
+  doc.setTextColor(245,230,200);
+  doc.text(char.name||"—",tx,28);
+
+  // Sub info
+  doc.setFontSize(9);
+  doc.setTextColor(160,130,80);
+  const sub=[char.race,char.level?"Seviye "+char.level:null,char.age?"Yas: "+char.age:null].filter(Boolean).join("  ·  ");
+  doc.text(sub||"—",tx,36);
+  doc.text(dateStr+" · "+timeStr,tx,43);
+
+  // ── Gold divider ──
+  let y=62;
+
+  const section=(title)=>{
+    doc.setFillColor(30,23,16);
+    doc.roundedRect(M,y,CW,7,1,1,"F");
+    doc.setDrawColor(200,149,42);
+    doc.setLineWidth(0.3);
+    doc.roundedRect(M,y,CW,7,1,1,"S");
+    doc.setFontSize(7);
+    doc.setFont("helvetica","bold");
+    doc.setTextColor(200,149,42);
+    doc.text(title.toUpperCase(),M+4,y+4.8);
+    y+=11;
+  };
+
+  const field=(label,val,x,w,inlineY)=>{
+    const fy=inlineY||y;
+    doc.setFontSize(6.5);
+    doc.setFont("helvetica","normal");
+    doc.setTextColor(120,100,60);
+    doc.text(label,x,fy);
+    doc.setFontSize(10);
+    doc.setFont("helvetica","bold");
+    doc.setTextColor(245,230,200);
+    doc.text(String(val||"—"),x,fy+5.5);
+    doc.setDrawColor(200,149,42);
+    doc.setLineWidth(0.2);
+    doc.line(x,fy+7,x+w-2,fy+7);
+  };
+
+  // ── Kondisyon ──
+  section("Kondisyon");
+  const pipDraw=(label,saglik,max,px,py)=>{
+    doc.setFontSize(7);
+    doc.setFont("helvetica","normal");
+    doc.setTextColor(140,120,80);
+    doc.text(label,px,py);
+    for(let i=0;i<max;i++){
+      const filled=i<saglik;
+      if(filled){doc.setFillColor(76,175,125);doc.circle(px+18+i*8,py-1.5,2.5,"F");}
+      doc.setDrawColor(76,175,125);doc.setLineWidth(0.4);
+      doc.circle(px+18+i*8,py-1.5,2.5,"S");
+    }
+  };
+  const fiz=char.fiziksel!=null?char.fiziksel:3;
+  const zih=char.zihinsel!=null?char.zihinsel:3;
+  pipDraw("Fiziksel",fiz,3,M,y+3);
+  pipDraw("Zihinsel",zih,3,M+CW/2,y+3);
+  y+=12;
+
+  // ── Saving Throwlar ──
+  section("Saving Throwlar");
+  const attrs=char.attrs||{};
+  const attrList=["Guc","Ceviklik","Dayaniklilik","Zeka","Irfan","Karizma"];
+  const attrKeys=["Güç","Çeviklik","Dayanıklılık","Zeka","İrfan","Karizma"];
+  const colW=CW/3;
+  for(let i=0;i<6;i++){
+    const col=i%3; const row=Math.floor(i/3);
+    field(attrList[i],attrs[attrKeys[i]]||"—",M+col*colW,colW,y+row*16);
+  }
+  y+=34;
+
+  // ── Skill Piramidi ──
+  section("Skill Piramidi");
+  const skills=char.skills||{};
+  const levels=[5,4,3,2,1,-1,-2,-3,-4,-5];
+  const FIZIKSEL=["Nisancilik","Yakin Donus","Performans","Gizlilik","Atletik","Binicilik","Denizcilik"];
+  levels.forEach(lv=>{
+    const placed=Object.entries(skills).filter(([,v])=>v===lv).map(([k])=>k);
+    if(!placed.length)return;
+    doc.setFontSize(7.5);
+    doc.setFont("helvetica","bold");
+    if(lv>0){doc.setTextColor(76,175,125);}else{doc.setTextColor(180,40,40);}
+    doc.text((lv>0?"+":"")+lv,M,y+4);
+    doc.setFont("helvetica","normal");
+    doc.setTextColor(200,200,200);
+    doc.text(placed.join(", "),M+10,y+4);
+    y+=7;
+  });
+  y+=4;
+
+  // ── Notlar ──
+  if(char.notes&&char.notes.trim()){
+    if(y>240){doc.addPage();doc.setFillColor(13,7,5);doc.rect(0,0,W,297,"F");y=20;}
+    section("Notlar");
+    doc.setFontSize(9);
+    doc.setFont("helvetica","normal");
+    doc.setTextColor(200,185,155);
+    const noteLines=doc.splitTextToSize(char.notes,CW);
+    noteLines.forEach(line=>{
+      if(y>280){doc.addPage();doc.setFillColor(13,7,5);doc.rect(0,0,W,297,"F");y=20;}
+      doc.text(line,M,y); y+=5.5;
+    });
+  }
+
+  // ── Footer ──
+  doc.setDrawColor(200,149,42);
+  doc.setLineWidth(0.3);
+  doc.line(M,290,W-M,290);
+  doc.setFontSize(7);
+  doc.setFont("helvetica","normal");
+  doc.setTextColor(100,80,40);
+  doc.text("Inci · Tavern Roll",M,295);
+  doc.text(dateStr,W-M,295,{align:"right"});
+
+  const safeName=(char.name||"karakter").replace(/[^a-zA-Z0-9\s_-]/g,"").replace(/\s+/g,"_")||"karakter";
+  doc.save("InciTavernRoll_"+safeName+"_"+now.getFullYear()+String(now.getMonth()+1).padStart(2,"0")+String(now.getDate()).padStart(2,"0")+".pdf");
+}
+
 function applyTheme(darkness){
   const d=darkness/100;
   // interpolate between dark (0) and light (1)
@@ -1714,16 +2006,7 @@ function Ambiance({isDM}){
     </>
   );
 }
-  {id:"tavern",  icon:"🍺", label:"Tavern"},
-  {id:"battle",  icon:"⚔️",  label:"Savaş"},
-  {id:"forest",  icon:"🌲", label:"Orman"},
-  {id:"dungeon", icon:"🕯️", label:"Zindan"},
-  {id:"storm",   icon:"⛈️",  label:"Fırtına"},
-  {id:"village", icon:"🏘️", label:"Köy"},
-  {id:"travel",  icon:"🐴", label:"Yolculuk"},
-];
 
-// Her sahne için Web Audio sentezi
 function SettingsPanel({onClose,darkness,setDarkness,animOn,setAnimOn}){
   const isLight=darkness>60;
   return <>
@@ -1812,6 +2095,20 @@ function App(){
     setAll([selfEntry]);
     const hb=setInterval(()=>fbPatch(`players/${name}`,{lastSeen:ts()}),4000);
 
+    // Kick check — oyuncu kick edilirse lobby'ye gönder
+    const pollKick=async()=>{
+      const kicked=await fbGet(`kicked/${name}`);
+      if(kicked&&kicked.at){
+        await fbDel(`kicked/${name}`);
+        ss.clear();
+        setPhase("lobby");
+        setName("");
+        setRole("player");
+      }
+    };
+    pollKick();
+    const kickPoll=setInterval(pollKick,3000);
+
     // Rolls: polling her 2sn
     const pollRolls=async()=>{
       const data=await fbGet("rolls");
@@ -1854,7 +2151,7 @@ function App(){
       if(!data){setNpcs([]);return;}
       setNpcs(Object.values(data).sort((a,b)=>a.id-b.id));
     });
-    return()=>{clearInterval(hb);clearInterval(rollPoll);clearInterval(playerPoll);unA();unC();unN();};
+    return()=>{clearInterval(hb);clearInterval(kickPoll);clearInterval(rollPoll);clearInterval(playerPoll);unA();unC();unN();};
   },[phase,name]);
 
   const hChar=fn=>{setChar(prev=>{const u=typeof fn==="function"?fn(prev):fn;clearTimeout(cst.current);cst.current=setTimeout(()=>fbSet(`chars/${name}`,u),400);return u;});};
@@ -1886,31 +2183,100 @@ function App(){
 
   if(phase==="lobby"){
     const dmSelected=role==="dm";
-    const join=()=>{
-      if(!name.trim())return;
-      if(role==="dm"&&dmPass!=="05426654789"){setDmErr(true);setTimeout(()=>setDmErr(false),2000);return;}
+    const [lobbyMode,setLobbyMode]=React.useState("select"); // select | register | login
+    const [accounts,setAccounts]=React.useState({});
+    const [regName,setRegName]=React.useState("");
+    const [regPass,setRegPass]=React.useState("");
+    const [regErr,setRegErr]=React.useState("");
+    const [loginSel,setLoginSel]=React.useState("");
+    const [loginPass,setLoginPass]=React.useState("");
+    const [loginErr,setLoginErr]=React.useState("");
+
+    React.useEffect(()=>{
+      fbGet("accounts").then(data=>{ if(data) setAccounts(data); });
+    },[]);
+
+    const register=async()=>{
+      if(!regName.trim()){setRegErr("Isim gir!");return;}
+      if(regPass.length<3){setRegErr("Sifre en az 3 karakter!");return;}
+      if(accounts[regName]){setRegErr("Bu isim zaten kayitli!");return;}
+      await fbSet("accounts/"+regName,{name:regName,pass:regPass});
+      setName(regName);
       setPhase("game");
     };
+
+    const loginAccount=async()=>{
+      if(!loginSel){setLoginErr("Bir karakter sec!");return;}
+      const acc=accounts[loginSel];
+      if(!acc||acc.pass!==loginPass){setLoginErr("Sifre yanlis!");setTimeout(()=>setLoginErr(""),2000);return;}
+      setName(acc.name);
+      setPhase("game");
+    };
+
+    const join=()=>{
+      if(role==="dm"){
+        if(dmPass!=="05426654789"){setDmErr(true);setTimeout(()=>setDmErr(false),2000);return;}
+        setName("DM");
+        setPhase("game");
+      }
+    };
+
+    const accountList=Object.values(accounts);
+
     return(
       <div className="lobby">
         <h1 className="lt">TAVERN ROLL</h1>
-        <p className="ls">İnci — Companion</p>
+        <p className="ls">Inci Companion</p>
         <div className="lc">
-          <h2>Masaya Katıl</h2>
-          <input className="ii" placeholder="Adın (ör. Duncan the Tall, Kael, Revlo Krell...)" value={name} onChange={e=>setName(e.target.value)} onKeyDown={e=>e.key==="Enter"&&join()}/>
-          <div className="lr">
-            <button className={`rb${role==="player"?" on":""}`} onClick={()=>setRole("player")}>⚔ Oyuncu</button>
-            <button className={`rb${role==="dm"?" on":""}`} onClick={()=>setRole("dm")}>👁 DM</button>
+          <div className="lr" style={{marginBottom:16}}>
+            <button className={"rb"+(role==="player"?" on":"")} onClick={()=>setRole("player")}>Oyuncu</button>
+            <button className={"rb"+(role==="dm"?" on":"")} onClick={()=>setRole("dm")}>DM</button>
           </div>
+
           {dmSelected&&<>
-            <input className="ii" type="password" placeholder="DM Şifresi..." value={dmPass} onChange={e=>setDmPass(e.target.value)} onKeyDown={e=>e.key==="Enter"&&join()} style={{borderColor:dmErr?"#c03030":undefined}}/>
-            {dmErr&&<div style={{color:"#ff6060",fontSize:".8rem",fontStyle:"italic",marginBottom:8,textAlign:"center"}}>Şifre yanlış!</div>}
+            <input className="ii" type="password" placeholder="DM Sifresi..." value={dmPass} onChange={e=>setDmPass(e.target.value)} onKeyDown={e=>e.key==="Enter"&&join()} style={{borderColor:dmErr?"#c03030":undefined}}/>
+            {dmErr&&<div style={{color:"#ff6060",fontSize:".8rem",fontStyle:"italic",marginBottom:8,textAlign:"center"}}>Sifre yanlis!</div>}
+            <button className="jb" onClick={join}>Masaya Otur</button>
           </>}
-          <button className="jb" onClick={join} disabled={!name.trim()}>Masaya Otur →</button>
+
+          {!dmSelected&&lobbyMode==="select"&&<>
+            <div style={{display:"flex",gap:8,marginBottom:16}}>
+              <button className="jb" style={{flex:1,marginTop:0}} onClick={()=>setLobbyMode("register")}>Kayit Ol</button>
+              <button className="jb" style={{flex:1,marginTop:0,background:"rgba(200,149,42,.08)"}} onClick={()=>setLobbyMode("login")}>Giris Yap</button>
+            </div>
+          </>}
+
+          {!dmSelected&&lobbyMode==="register"&&<>
+            <h2 style={{marginBottom:14}}>Kayit Ol</h2>
+            <input className="ii" placeholder="Karakter adin..." value={regName} onChange={e=>{setRegName(e.target.value);setRegErr("");}}/>
+            <input className="ii" type="password" placeholder="Sifre belirle..." value={regPass} onChange={e=>{setRegPass(e.target.value);setRegErr("");}} onKeyDown={e=>e.key==="Enter"&&register()}/>
+            <div style={{background:"rgba(200,149,42,.06)",border:"1px solid rgba(200,149,42,.15)",borderRadius:5,padding:"8px 12px",marginBottom:10,fontSize:".75rem",color:"rgba(245,230,200,.5)",fontStyle:"italic",lineHeight:1.5}}>
+              Sifren sadece sana aittir. Kimseyle paylasmak zorunda degilsin.
+            </div>
+            {regErr&&<div style={{color:"#ff6060",fontSize:".78rem",marginBottom:8,textAlign:"center"}}>{regErr}</div>}
+            <button className="jb" onClick={register} disabled={!regName.trim()}>Kayit Ol ve Giris Yap</button>
+            <button className="rb" style={{width:"100%",marginTop:8}} onClick={()=>setLobbyMode("select")}>Geri</button>
+          </>}
+
+          {!dmSelected&&lobbyMode==="login"&&<>
+            <h2 style={{marginBottom:14}}>Giris Yap</h2>
+            {accountList.length===0&&<div style={{color:"var(--text-dim)",fontStyle:"italic",fontSize:".85rem",marginBottom:12,textAlign:"center"}}>Kayitli karakter yok.</div>}
+            {accountList.length>0&&<>
+              <select className="ii" style={{marginBottom:8}} value={loginSel} onChange={e=>setLoginSel(e.target.value)}>
+                <option value="">-- Karakter sec --</option>
+                {accountList.map(a=><option key={a.name} value={a.name}>{a.name}</option>)}
+              </select>
+              <input className="ii" type="password" placeholder="Sifren..." value={loginPass} onChange={e=>{setLoginPass(e.target.value);setLoginErr("");}} onKeyDown={e=>e.key==="Enter"&&loginAccount()}/>
+              {loginErr&&<div style={{color:"#ff6060",fontSize:".78rem",marginBottom:8,textAlign:"center"}}>{loginErr}</div>}
+              <button className="jb" onClick={loginAccount} disabled={!loginSel}>Giris Yap</button>
+            </>}
+            <button className="rb" style={{width:"100%",marginTop:8}} onClick={()=>setLobbyMode("select")}>Geri</button>
+          </>}
         </div>
       </div>
     );
   }
+
 
   return <div>
     <div className="hdr">
@@ -1930,9 +2296,9 @@ function App(){
     <div className="tabs">
       {TABS.map(t=><button key={t.id} className={`tb${tab===t.id?" on":""}`} onClick={()=>setTab(t.id)}>{t.l}</button>)}
     </div>
-    {tab==="dice"&&<Dice me={name} char={char} npcs={npcs} all={all} rolls={rolls} onRoll={onRoll} animOn={animOn} avatars={avatars}/>}
+    {tab==="dice"&&<Dice me={name} role={role} char={char} npcs={npcs} all={all} rolls={rolls} onRoll={onRoll} animOn={animOn} avatars={avatars}/>}
     {tab==="char"&&<Char me={name} isDM={role==="dm"} char={char} setChar={hChar} all={all} avatars={avatars} onUploadAvatar={uploadAvatar}/>}
-    {tab==="npc" &&<Npc isDM={role==="dm"} npcs={npcs} setNpcs={setNpcs} onClearRolls={clearRolls}/>}
+    {tab==="npc" &&<Npc isDM={role==="dm"} npcs={npcs} setNpcs={setNpcs} onClearRolls={clearRolls} allPlayers={all}/>}
     <Chat me={name} role={role} all={all} avatars={avatars}/>
     <Ambiance isDM={role==="dm"}/>
   </div>;
