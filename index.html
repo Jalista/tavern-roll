@@ -1445,6 +1445,26 @@ function Char({me,isDM,char,setChar,all,avatars,onUploadAvatar}){
   </div>;
 }
 
+function WaitRoomToggle(){
+  const [active,setActive]=useState(false);
+  useEffect(()=>{fbGet("waitRoomActive").then(d=>setActive(!!d));},[]);
+  const toggle=async()=>{
+    const next=!active;setActive(next);
+    await fbSet("waitRoomActive",next?{on:true}:null);
+  };
+  return(
+    <button onClick={toggle} style={{
+      background:active?"rgba(91,155,213,.14)":"rgba(200,149,42,.06)",
+      border:"1px solid "+(active?"rgba(91,155,213,.4)":"rgba(200,149,42,.25)"),
+      borderRadius:5,padding:"5px 10px",cursor:"pointer",
+      fontFamily:"'Cinzel',serif",fontSize:".6rem",letterSpacing:".06em",
+      color:active?"#90b8f0":"var(--text-dim)",transition:"all .2s"
+    }}>
+      {active?"🏠 Bekleme Odası: AÇIK":"🏠 Bekleme Odası: KAPALI"}
+    </button>
+  );
+}
+
 function NbPassList({onChangePass}){
   const [nbs,setNbs]=useState([]);
   useEffect(()=>{
@@ -1541,6 +1561,7 @@ function Npc({isDM,npcs,setNpcs,onClearRolls,allPlayers}){
         <button className="danger-btn" onClick={()=>setConfirm("npcs")}>Tum NPC'leri Temizle</button>
         <button className="danger-btn" onClick={()=>setConfirm("rolls")}>Tum Zarlari Temizle</button>
         <button className="danger-btn" style={{background:"rgba(139,26,26,.08)",borderColor:"rgba(139,26,26,.35)",color:"#ffaaaa"}} onClick={()=>setModOpen(o=>!o)}>Moderator</button>
+        <WaitRoomToggle/>
       </div>
       {confirm&&<div className="confirm-box">
         <span>Emin misin?</span>
@@ -1859,13 +1880,26 @@ function Arena({me,isDM,avatars,all,npcs,rolls,onRoll,char}){
   const lr=lastRoll||(rolls&&rolls.latest);
   const isCrit=lr&&lr.sides===20&&lr.raw===20;
   const isFum=lr&&lr.sides===20&&lr.raw===1;
-  const makeClickHandler=(key)=>()=>{if(dblTimers.current[key]){clearTimeout(dblTimers.current[key]);dblTimers.current[key]=null;setShowSkillPicker(s=>!s);}else{dblTimers.current[key]=setTimeout(()=>{dblTimers.current[key]=null;rollD20(0,null);},260);}};
+  const isMyTurn=(nm)=>{
+    if(isDM)return true;
+    if(!combat)return true; // savaş dışı herkes atabilir
+    const active=order[activeIdx];
+    return active&&active.name===nm;
+  };
+  const makeClickHandler=(key,nm)=>()=>{
+    if(!isMyTurn(nm))return;
+    if(dblTimers.current[key]){clearTimeout(dblTimers.current[key]);dblTimers.current[key]=null;setShowSkillPicker(s=>!s);}
+    else{dblTimers.current[key]=setTimeout(()=>{dblTimers.current[key]=null;rollD20(0,null);},260);}
+  };
 
-  const PipRow=({type,val,max})=>{
+  const PipRow=({type,val,max,onChange})=>{
     const c=type==="fiziksel"?"#4caf7d":"#5b9bd5";
-    return <div style={{display:"flex",gap:2,alignItems:"center"}}>
-      <span style={{fontSize:".46rem",color:"rgba(200,149,42,.4)",fontFamily:"'Cinzel',serif",minWidth:16,flexShrink:0}}>{type==="fiziksel"?"FZ":"ZH"}</span>
-      {Array.from({length:max||3}).map((_,i)=><div key={i} style={{width:7,height:7,borderRadius:"50%",border:"1.5px solid "+c,background:i<val?c:"transparent",flexShrink:0}}/>)}
+    return <div style={{display:"flex",gap:4,alignItems:"center"}}>
+      <span style={{fontSize:".52rem",color:"rgba(200,149,42,.45)",fontFamily:"'Cinzel',serif",minWidth:18,flexShrink:0}}>{type==="fiziksel"?"FZ":"ZH"}</span>
+      {Array.from({length:max||3}).map((_,i)=>(
+        <button key={i} onClick={onChange?(()=>onChange(i<val?val-1:i+1)):undefined}
+          style={{width:13,height:13,borderRadius:"50%",border:"2px solid "+c,background:i<val?c:"transparent",flexShrink:0,padding:0,cursor:onChange?"pointer":"default",transition:"all .15s",outline:"none"}}/>
+      ))}
     </div>;
   };
 
@@ -1897,8 +1931,9 @@ function Arena({me,isDM,avatars,all,npcs,rolls,onRoll,char}){
             const isActv=combat&&order[activeIdx]&&order[activeIdx].name===nm;
             return(
               <div key={key} style={{display:"flex",flexDirection:"column",alignItems:"center",gap:2}}>
-                <button onClick={makeClickHandler(key)} title={"Tek: d20 | Cift: Skill"}
-                  style={{width:44,height:44,borderRadius:"50%",padding:0,overflow:"hidden",cursor:"pointer",flexShrink:0,border:"2px solid "+(isActv?"#f0c060":"rgba(200,149,42,.2)"),background:av?"transparent":isNpc?"rgba(180,60,40,.14)":"rgba(91,155,213,.1)",boxShadow:isActv?"0 0 8px rgba(240,192,96,.35)":"none",transition:"border-color .2s,box-shadow .2s"}}>
+                <button onClick={makeClickHandler(key,nm)} title={"Tek: d20 | Cift: Skill"}
+                  disabled={!isMyTurn(nm)&&!isDM}
+                  style={{width:44,height:44,borderRadius:"50%",padding:0,overflow:"hidden",cursor:isMyTurn(nm)||isDM?"pointer":"not-allowed",flexShrink:0,border:"2px solid "+(isActv?"#f0c060":"rgba(200,149,42,.2)"),background:av?"transparent":isNpc?"rgba(180,60,40,.14)":"rgba(91,155,213,.1)",boxShadow:isActv?"0 0 8px rgba(240,192,96,.35)":"none",opacity:(!isMyTurn(nm)&&!isDM)?0.4:1,transition:"all .2s"}}>
                   {av?<img src={av} style={{width:"100%",height:"100%",objectFit:"cover"}}/>:<span style={{fontSize:"1rem",lineHeight:"44px",display:"block",textAlign:"center"}}>{isNpc?"💀":"🧙"}</span>}
                 </button>
                 <span style={{fontFamily:"'Cinzel',serif",fontSize:".38rem",color:isActv?"#f0c060":"rgba(200,149,42,.32)",maxWidth:60,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",textAlign:"center"}}>{nm.substring(0,6)}</span>
@@ -2126,17 +2161,21 @@ function Arena({me,isDM,avatars,all,npcs,rolls,onRoll,char}){
               </div>
               {(isDM||pin.owner===me)&&<button onClick={()=>removePin(pin.id)} style={{background:"transparent",border:"none",color:"rgba(180,40,40,.35)",cursor:"pointer",fontSize:".9rem",lineHeight:1,flexShrink:0,alignSelf:"flex-start"}} onMouseEnter={e=>e.currentTarget.style.color="rgba(220,60,60,.7)"} onMouseLeave={e=>e.currentTarget.style.color="rgba(180,40,40,.35)"}>x</button>}
             </div>
-            <div style={{display:"flex",flexDirection:"column",gap:4,marginBottom:6}}>
-              <PipRow type="fiziksel" val={info.fiz} max={info.fizMax}/>
-              <PipRow type="zihinsel" val={info.zih} max={info.zihMax}/>
+            <div style={{display:"flex",flexDirection:"column",gap:5,marginBottom:6}}>
+              <PipRow type="fiziksel" val={info.fiz} max={info.fizMax}
+                onChange={isDM?(v=>{
+                  if(pin.type==="player"){const p=all.find(x=>x.name===(pin.entityId||pin.name));if(p){const updated={...(p.char||{}),fiziksel:v};fbSet("chars/"+p.name,updated);}}
+                  else if(pin.type==="npc"){const n=npcs.find(x=>x.id===pin.entityId||x.name===pin.name);if(n){const updated={...n,fiziksel:v};const o={};npcs.map(x=>x.id===n.id?updated:x).forEach(x=>{o[x.id]=x;});fbSet("npcs",o);}}
+                }):null}/>
+              <PipRow type="zihinsel" val={info.zih} max={info.zihMax}
+                onChange={isDM?(v=>{
+                  if(pin.type==="player"){const p=all.find(x=>x.name===(pin.entityId||pin.name));if(p){const updated={...(p.char||{}),zihinsel:v};fbSet("chars/"+p.name,updated);}}
+                  else if(pin.type==="npc"){const n=npcs.find(x=>x.id===pin.entityId||x.name===pin.name);if(n){const updated={...n,zihinsel:v};const o={};npcs.map(x=>x.id===n.id?updated:x).forEach(x=>{o[x.id]=x;});fbSet("npcs",o);}}
+                }):null}/>
             </div>
             {info.statuses&&info.statuses.length>0&&<div style={{display:"flex",flexWrap:"wrap",gap:3,marginBottom:4}}>
               {info.statuses.map(sid=>{const s=STATUSES.find(x=>x.id===sid);return s?<span key={sid} className={"status-badge "+s.cls} style={{fontSize:".55rem",padding:"1px 5px"}}>{s.icon} {s.label}</span>:null;})}
             </div>}
-            <div style={{display:"flex",gap:4,marginTop:6,paddingTop:6,borderTop:"1px solid rgba(200,149,42,.08)"}}>
-              <button onClick={()=>{setPickModal({col:pin.col,row:pin.row,type:"player"});closeCard();}} style={{flex:1,background:"rgba(91,155,213,.07)",border:"1px solid rgba(91,155,213,.18)",borderRadius:5,padding:"4px",cursor:"pointer",color:"#90b8f0",fontFamily:"'Cinzel',serif",fontSize:".52rem"}}>+Oyuncu</button>
-              <button onClick={()=>{setPickModal({col:pin.col,row:pin.row,type:"npc"});closeCard();}} style={{flex:1,background:"rgba(220,80,50,.07)",border:"1px solid rgba(220,80,50,.18)",borderRadius:5,padding:"4px",cursor:"pointer",color:"#e8956d",fontFamily:"'Cinzel',serif",fontSize:".52rem"}}>+NPC</button>
-            </div>
           </div>
         );
       })}
@@ -2992,6 +3031,142 @@ function Ambiance({isDM}){
   );
 }
 
+function WaitingRoom({me,all,isDM,avatars}){
+  const [messages,setMessages]=useState([]);
+  const [text,setText]=useState("");
+  const [reaction,setReaction]=useState(null);
+  const [reactionAnim,setReactionAnim]=useState(null);
+  const [trivia,setTrivia]=useState(null);
+  const lastRef=useRef(0);
+  const bottomRef=useRef(null);
+
+  const REACTIONS=["😂","🎲","⚔️","🐉","✨","💀","🤝","🎶","🔥","💫"];
+  const TRIVIA=[
+    {q:"D&D hangi yıl ilk yayınlandı?",a:"1974"},
+    {q:"Bir d20'nin maksimum değeri nedir?",a:"20"},
+    {q:"En güçlü ejderha tipi nedir?",a:"Kırmızı veya Gold"},
+    {q:"Bard sınıfının ana özelliği nedir?",a:"Karizm"},
+    {q:"Goblin'lerin seviyesi genellikle kaçtır?",a:"1/4 CR"},
+    {q:"Saving throw kaç tür vardır?",a:"6"},
+    {q:"Advantage atışında kaç zar atılır?",a:"2, yüksek alınır"},
+    {q:"Critical hit için d20'de ne çıkmalı?",a:"20"},
+    {q:"Resting türleri nelerdir?",a:"Short ve Long Rest"},
+    {q:"Concentration büyüsü kırılırsa ne olur?",a:"Büyü sona erer"},
+  ];
+
+  useEffect(()=>{
+    const poll=async()=>{
+      const data=await fbGet("waitroom");
+      if(!data)return;
+      const arr=Object.values(data).sort((a,b)=>a.id-b.id);
+      const newOnes=arr.filter(m=>m.id>lastRef.current);
+      if(newOnes.length){lastRef.current=Math.max(...newOnes.map(m=>m.id));setMessages(arr.slice(-80));}
+    };
+    poll();const iv=setInterval(poll,2000);return()=>clearInterval(iv);
+  },[]);
+
+  useEffect(()=>{if(bottomRef.current)bottomRef.current.scrollIntoView({behavior:"smooth"});},[messages]);
+
+  const send=async()=>{
+    if(!text.trim())return;
+    const id=ts();await fbSet("waitroom/"+id,{id,from:me,text:text.trim(),type:"msg"});
+    setText("");
+  };
+
+  const sendReaction=async(emoji)=>{
+    const id=ts();await fbSet("waitroom/"+id,{id,from:me,text:emoji,type:"reaction"});
+    setReactionAnim(emoji);setTimeout(()=>setReactionAnim(null),1200);
+  };
+
+  const rollDice=async()=>{
+    const raw=Math.floor(Math.random()*20)+1;
+    const id=ts();await fbSet("waitroom/"+id,{id,from:me,text:"🎲 d20 attı → "+raw+(raw===20?" ✨CRIT!":raw===1?" 💀FAIL!":""),type:"roll",val:raw});
+  };
+
+  const pickTrivia=()=>setTrivia(TRIVIA[Math.floor(Math.random()*TRIVIA.length)]);
+
+  return(
+    <div className="panel" style={{paddingBottom:16,display:"flex",flexDirection:"column",gap:0,height:"100%"}}>
+      <div style={{fontFamily:"'Cinzel',serif",fontSize:"1rem",fontWeight:700,color:"var(--gold)",letterSpacing:".15em",marginBottom:4}}>🏠 Bekleme Odası</div>
+      <div style={{fontSize:".78rem",color:"var(--text-dim)",fontStyle:"italic",marginBottom:14}}>Oturum başlayana kadar burada takılın!</div>
+
+      {/* Trivia */}
+      <div style={{background:"rgba(200,149,42,.06)",border:"1px solid rgba(200,149,42,.18)",borderRadius:8,padding:12,marginBottom:12}}>
+        <div style={{fontFamily:"'Cinzel',serif",fontSize:".6rem",color:"var(--gold)",letterSpacing:".1em",marginBottom:6}}>🧠 D&D TRİVİA</div>
+        {trivia?(
+          <div>
+            <div style={{fontSize:".85rem",color:"var(--parchment)",marginBottom:8}}>{trivia.q}</div>
+            <button onClick={()=>setTrivia({...trivia,show:true})} style={{background:"rgba(200,149,42,.08)",border:"1px solid rgba(200,149,42,.2)",borderRadius:5,padding:"4px 12px",cursor:"pointer",fontFamily:"'Cinzel',serif",fontSize:".62rem",color:"var(--gold)"}}>
+              {trivia.show?"→ "+trivia.a:"Cevabı Gör"}
+            </button>
+            <button onClick={pickTrivia} style={{background:"transparent",border:"none",cursor:"pointer",fontFamily:"'Cinzel',serif",fontSize:".6rem",color:"var(--text-dim)",marginLeft:8}}>↻ Yeni</button>
+          </div>
+        ):(
+          <button onClick={pickTrivia} style={{background:"rgba(200,149,42,.08)",border:"1px solid rgba(200,149,42,.2)",borderRadius:6,padding:"6px 14px",cursor:"pointer",fontFamily:"'Cinzel',serif",fontSize:".65rem",color:"var(--gold)"}}>Soru Getir</button>
+        )}
+      </div>
+
+      {/* Online oyuncular */}
+      <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:12}}>
+        {all.map(p=>{
+          const av=avatars&&avatars[p.name];
+          return(
+            <div key={p.name} style={{display:"flex",flexDirection:"column",alignItems:"center",gap:3}}>
+              <div style={{width:36,height:36,borderRadius:"50%",overflow:"hidden",border:"2px solid rgba(200,149,42,.3)",background:"rgba(200,149,42,.08)",display:"flex",alignItems:"center",justifyContent:"center"}}>
+                {av?<img src={av} style={{width:"100%",height:"100%",objectFit:"cover"}}/>:<span style={{fontSize:"1rem"}}>🧙</span>}
+              </div>
+              <span style={{fontFamily:"'Cinzel',serif",fontSize:".42rem",color:"rgba(200,149,42,.5)",textAlign:"center",maxWidth:40,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{(p.char&&p.char.name)||p.name}</span>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Chat */}
+      <div style={{flex:1,background:"rgba(0,0,0,.2)",borderRadius:8,border:"1px solid rgba(200,149,42,.12)",padding:10,overflowY:"auto",marginBottom:8,minHeight:120,maxHeight:280}}>
+        {messages.length===0&&<div style={{color:"var(--text-dim)",fontStyle:"italic",fontSize:".78rem",textAlign:"center",padding:"12px 0"}}>Henüz mesaj yok 👋</div>}
+        {messages.map(m=>{
+          const isMe=m.from===me;
+          const av=avatars&&avatars[m.from];
+          if(m.type==="reaction")return <div key={m.id} style={{textAlign:"center",fontSize:"1.8rem",margin:"4px 0",animation:"fp .3s"}}>{m.text}</div>;
+          if(m.type==="roll")return <div key={m.id} style={{textAlign:"center",fontSize:".78rem",color:"var(--gold)",fontFamily:"'Cinzel',serif",margin:"5px 0",fontStyle:"italic"}}>{m.from} {m.text}</div>;
+          return(
+            <div key={m.id} style={{display:"flex",gap:7,marginBottom:6,flexDirection:isMe?"row-reverse":"row",alignItems:"flex-end"}}>
+              <div style={{width:26,height:26,borderRadius:"50%",overflow:"hidden",flexShrink:0,background:"rgba(200,149,42,.1)",border:"1px solid rgba(200,149,42,.2)",display:"flex",alignItems:"center",justifyContent:"center"}}>
+                {av?<img src={av} style={{width:"100%",height:"100%",objectFit:"cover"}}/>:<span style={{fontSize:".7rem"}}>🧙</span>}
+              </div>
+              <div style={{maxWidth:"72%"}}>
+                <div style={{fontFamily:"'Cinzel',serif",fontSize:".55rem",color:"rgba(200,149,42,.5)",marginBottom:2,textAlign:isMe?"right":"left"}}>{m.from}</div>
+                <div style={{background:isMe?"rgba(200,149,42,.12)":"rgba(255,255,255,.05)",border:"1px solid "+(isMe?"rgba(200,149,42,.2)":"rgba(200,149,42,.1)"),borderRadius:isMe?"10px 2px 10px 10px":"2px 10px 10px 10px",padding:"6px 10px",fontSize:".82rem",color:"var(--parchment)",lineHeight:1.4,wordBreak:"break-word"}}>{m.text}</div>
+              </div>
+            </div>
+          );
+        })}
+        <div ref={bottomRef}/>
+      </div>
+
+      {/* Reaksiyon bar */}
+      <div style={{display:"flex",gap:4,marginBottom:8,flexWrap:"wrap"}}>
+        {REACTIONS.map(e=>(
+          <button key={e} onClick={()=>sendReaction(e)} style={{background:"transparent",border:"1px solid rgba(200,149,42,.12)",borderRadius:6,padding:"3px 6px",cursor:"pointer",fontSize:"1rem",transition:"all .15s"}} onMouseEnter={ev=>ev.currentTarget.style.background="rgba(200,149,42,.1)"} onMouseLeave={ev=>ev.currentTarget.style.background="transparent"}>{e}</button>
+        ))}
+        <button onClick={rollDice} style={{background:"rgba(200,149,42,.08)",border:"1px solid rgba(200,149,42,.2)",borderRadius:6,padding:"3px 8px",cursor:"pointer",fontFamily:"'Cinzel',serif",fontSize:".6rem",color:"var(--gold)",marginLeft:"auto"}}>🎲 Zar At</button>
+      </div>
+
+      {/* Input */}
+      <div style={{display:"flex",gap:6}}>
+        <input value={text} onChange={e=>setText(e.target.value)} onKeyDown={e=>e.key==="Enter"&&send()} placeholder="Bir şeyler yaz..." style={{flex:1,background:"rgba(200,149,42,.05)",border:"1px solid rgba(200,149,42,.2)",borderRadius:7,padding:"8px 12px",color:"var(--parchment)",fontFamily:"'Crimson Text',serif",fontSize:".92rem",outline:"none"}}/>
+        <button onClick={send} style={{background:"rgba(200,149,42,.12)",border:"1px solid rgba(200,149,42,.3)",borderRadius:7,padding:"0 14px",cursor:"pointer",color:"var(--gold)",fontSize:"1rem"}}>➤</button>
+      </div>
+
+      {reactionAnim&&<div style={{position:"fixed",top:"40%",left:"50%",transform:"translate(-50%,-50%)",fontSize:"5rem",pointerEvents:"none",animation:"fp .3s ease-out",zIndex:999}}>{reactionAnim}</div>}
+
+      {isDM&&<div style={{marginTop:12,borderTop:"1px solid rgba(200,149,42,.1)",paddingTop:10}}>
+        <button onClick={async()=>{await fbSet("waitroom",null);setMessages([]);lastRef.current=0;}} style={{background:"transparent",border:"1px solid rgba(139,26,26,.25)",borderRadius:5,padding:"5px 12px",cursor:"pointer",fontFamily:"'Cinzel',serif",fontSize:".6rem",color:"rgba(255,100,100,.5)"}}>🗑 Sohbeti Temizle</button>
+      </div>}
+    </div>
+  );
+}
+
 function SettingsPanel({onClose,darkness,setDarkness,animOn,setAnimOn,onLogout}){
   const isLight=darkness>60;
   return <>
@@ -3060,6 +3235,7 @@ function App(){
   const [name,setName]=useState(()=>ss.getItem("tr_name")||"");
   const [role,setRole]=useState(()=>ss.getItem("tr_role")||"player");
   const [tab,setTab]=useState("dice");
+  const [waitRoomActive,setWaitRoomActive]=useState(false);
   const [char,setChar]=useState(()=>{try{const c=ss.getItem("tr_char");return c?JSON.parse(c):iChar();}catch{return iChar();}});
   const [npcs,setNpcs]=useState([]);
   const [all,setAll]=useState([]);
@@ -3092,6 +3268,12 @@ function App(){
     fbSet(`chars/${name}`,char);
     setAll([selfEntry]);
     const hb=setInterval(()=>fbPatch(`players/${name}`,{lastSeen:ts()}),4000);
+    // Poll waitroom active state
+    const wrPoll=setInterval(async()=>{
+      const d=await fbGet("waitRoomActive");
+      setWaitRoomActive(!!d);
+    },3000);
+    fbGet("waitRoomActive").then(d=>setWaitRoomActive(!!d));
     // Activity tracker — tıklama/tuş = aktif
     const onActivity=()=>fbPatch(`players/${name}`,{lastActive:ts()});
     document.addEventListener("click",onActivity,{passive:true});
@@ -3153,7 +3335,7 @@ function App(){
       if(!data){setNpcs([]);return;}
       setNpcs(Object.values(data).sort((a,b)=>a.id-b.id));
     });
-    return()=>{clearInterval(hb);clearInterval(kickPoll);clearInterval(rollPoll);clearInterval(playerPoll);unA();unC();unN();document.removeEventListener("click",onActivity);document.removeEventListener("keydown",onActivity);};
+    return()=>{clearInterval(hb);clearInterval(kickPoll);clearInterval(rollPoll);clearInterval(playerPoll);clearInterval(wrPoll);unA();unC();unN();document.removeEventListener("click",onActivity);document.removeEventListener("keydown",onActivity);};
   },[phase,name]);
 
   const hChar=fn=>{setChar(prev=>{const u=typeof fn==="function"?fn(prev):fn;clearTimeout(cst.current);cst.current=setTimeout(()=>fbSet(`chars/${name}`,u),400);return u;});};
@@ -3197,8 +3379,8 @@ function App(){
   };
 
   const TABS=role==="dm"
-    ?[{id:"dice",l:"🎲 Zar"},{id:"char",l:"📜 Karakterler"},{id:"npc",l:"⚔ NPC Yönet"},{id:"map",l:"⚔ Arena"}]
-    :[{id:"dice",l:"🎲 Zar"},{id:"char",l:"📜 Karakter"},{id:"npc",l:"⚔ NPC'ler"},{id:"map",l:"⚔ Arena"}];
+    ?[{id:"dice",l:"🎲 Zar"},{id:"char",l:"📜 Karakterler"},{id:"npc",l:"⚔ NPC Yönet"},{id:"map",l:"⚔ Arena"},{id:"wait",l:"🏠 Bekleme Odası"}]
+    :[{id:"dice",l:"🎲 Zar"},{id:"char",l:"📜 Karakter"},{id:"npc",l:"⚔ NPC'ler"},{id:"map",l:"⚔ Arena"},...(waitRoomActive?[{id:"wait",l:"🏠 Bekleme Odası"}]:[])];
 
   if(phase==="lobby"){
     return <LobbyScreen role={role} setRole={setRole} dmPass={dmPass} setDmPass={setDmPass} dmErr={dmErr} setDmErr={setDmErr} setName={setName} setPhase={setPhase}/>;
@@ -3233,6 +3415,7 @@ function App(){
     {tab==="char"&&<Char me={name} isDM={role==="dm"} char={char} setChar={hChar} all={all} avatars={avatars} onUploadAvatar={uploadAvatar}/>}
     {tab==="npc" &&<Npc isDM={role==="dm"} npcs={npcs} setNpcs={setNpcs} onClearRolls={clearRolls} allPlayers={all}/>}
     {tab==="map" &&<Arena me={name} isDM={role==="dm"} avatars={avatars} all={all} npcs={npcs} rolls={rolls} onRoll={onRoll} char={char}/>}
+    {tab==="wait"&&<WaitingRoom me={name} all={all} isDM={role==="dm"} avatars={avatars}/>}
     <Chat me={name} role={role} all={all} avatars={avatars}/>
     <Ambiance isDM={role==="dm"}/>
     {role!=="dm"&&<FloatingNotebook me={name} isDM={false} charName={char.name||name}/>}
