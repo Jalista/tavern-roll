@@ -2675,18 +2675,34 @@ const ytIdFromUrl=url=>{
 function Ambiance({isDM}){
   const [open,setOpen]=useState(false);
   const [url,setUrl]=useState("");
-  const [activeVid,setActiveVid]=useState(null);
-  const [dmVol,setDmVol]=useState(70);
+  const [status,setStatus]=useState("idle"); // idle|loading|playing|paused|error
   const [myVol,setMyVol]=useState(70);
   const [synced,setSynced]=useState(false);
-  const [status,setStatus]=useState("idle");
-  const [shortcuts,setShortcuts]=useState(()=>{try{const s=localStorage.getItem("jukebox_sc");return s?JSON.parse(s):[];}catch{return[];}});
-  const [showScMgr,setShowScMgr]=useState(false);
+  const [savedLinks,setSavedLinks]=useState(()=>{try{return JSON.parse(localStorage.getItem("jukebox_sc")||"[]");}catch{return[];}});
+  const [showMgr,setShowMgr]=useState(false);
   const [scLabel,setScLabel]=useState("");
   const [scUrl,setScUrl]=useState("");
+
+  // Firebase state
+  const [fbData,setFbData]=useState({ytId:null,startedAt:0,pausedAt:null,dmVol:70,state:"idle"});
+  const lastFbRef=useRef(null);
   const playerRef=useRef(null);
-  const lastVidRef=useRef(null);
-  const lastDmVolRef=useRef(null);
+  const pollRef=useRef(null);
+
+  // Poll Firebase ambiance state
+  useEffect(()=>{
+    const poll=async()=>{
+      const data=await fbGet("ambiance");
+      const key=JSON.stringify(data);
+      if(key===lastFbRef.current)return;
+      lastFbRef.current=key;
+      const d=data||{ytId:null,startedAt:0,pausedAt:null,dmVol:70,state:"idle"};
+      setFbData(d);
+    };
+    poll();
+    pollRef.current=setInterval(poll,2500);
+    return()=>clearInterval(pollRef.current);
+  },[]);
 
   // Load YT API
   useEffect(()=>{
@@ -2698,22 +2714,32 @@ function Ambiance({isDM}){
 
   const destroyPlayer=()=>{
     if(playerRef.current){try{playerRef.current.destroy();}catch{}playerRef.current=null;}
+    const old=document.querySelectorAll("[id^='yt-jb-']");
+    old.forEach(el=>el.remove());
   };
 
-  const startPlayer=(ytId,seekTo,vol)=>{
-    destroyPlayer();setStatus("loading");
+  const createPlayer=(ytId,seekTo,vol,autoplay)=>{
+    destroyPlayer();
+    setStatus("loading");
     const div=document.createElement("div");
-    div.id="yt-"+Date.now();
-    div.style.cssText="position:fixed;bottom:-100px;width:1px;height:1px;opacity:0;pointer-events:none;";
+    div.id="yt-jb-"+Date.now();
+    div.style.cssText="position:fixed;bottom:-200px;width:1px;height:1px;opacity:0;pointer-events:none;";
     document.body.appendChild(div);
     const go=()=>{
       playerRef.current=new window.YT.Player(div.id,{
         videoId:ytId,
-        playerVars:{autoplay:1,loop:1,playlist:ytId,start:Math.floor(seekTo||0),controls:0,disablekb:1,fs:0},
+        playerVars:{autoplay:autoplay?1:0,loop:1,playlist:ytId,start:Math.floor(seekTo||0),controls:0,disablekb:1,fs:0},
         events:{
-          onReady:e=>{e.target.setVolume(vol||70);e.target.playVideo();setStatus("playing");},
+          onReady:(e)=>{
+            e.target.setVolume(vol!=null?vol:myVol);
+            if(autoplay)e.target.playVideo();
+            else{e.target.pauseVideo();}
+            setStatus(autoplay?"playing":"paused");
+          },
           onError:()=>setStatus("error"),
-          onStateChange:e=>{if(e.data===0)e.target.playVideo();}
+          onStateChange:(e)=>{
+            if(e.data===0)e.target.playVideo(); // loop
+          }
         }
       });
     };
@@ -2721,130 +2747,157 @@ function Ambiance({isDM}){
     else window.onYouTubeIframeAPIReady=go;
   };
 
-  const play=async(ytUrl)=>{
-    const ytId=ytIdFromUrl(ytUrl||url);
-    if(!ytId){setStatus("error");setTimeout(()=>setStatus("idle"),2000);return;}
-    const data={ytId,startedAt:ts(),dmVol};
-    await fbSet("ambiance",data);
-    setActiveVid(data);
-    startPlayer(ytId,0,dmVol);
-    setUrl("");
-  };
-
-  const stop=async()=>{
-    await fbSet("ambiance",{ytId:null,startedAt:0,dmVol:0});
-    setActiveVid(null);destroyPlayer();setStatus("idle");
-  };
-
-  const changeDMVol=async(v)=>{
-    setDmVol(v);
-    if(playerRef.current)try{playerRef.current.setVolume(v);}catch{}
-    if(activeVid)await fbPatch("ambiance",{dmVol:v});
-  };
-
-  const saveShortcut=()=>{
-    if(!scLabel.trim()||!scUrl.trim())return;
-    const ns=[...shortcuts,{label:scLabel.trim(),url:scUrl.trim()}];
-    setShortcuts(ns);localStorage.setItem("jukebox_sc",JSON.stringify(ns));
-    setScLabel("");setScUrl("");
-  };
-  const deleteShortcut=i=>{
-    const ns=shortcuts.filter((_,idx)=>idx!==i);
-    setShortcuts(ns);localStorage.setItem("jukebox_sc",JSON.stringify(ns));
-  };
-
-  // Player: poll Firebase
+  // React to Firebase changes (player side)
+  const prevFbState=useRef(null);
   useEffect(()=>{
     if(isDM)return;
-    const poll=async()=>{
-      const data=await fbGet("ambiance");
-      if(!data||!data.ytId){
-        if(lastVidRef.current){lastVidRef.current=null;destroyPlayer();setActiveVid(null);setStatus("idle");}
-        return;
-      }
-      // DM volume update
-      if(data.dmVol!=null&&data.dmVol!==lastDmVolRef.current){
-        lastDmVolRef.current=data.dmVol;
-        if(synced){
-          setMyVol(data.dmVol);
-          if(playerRef.current)try{playerRef.current.setVolume(data.dmVol);}catch{}
-        }
-      }
-      if(data.ytId===lastVidRef.current)return;
-      lastVidRef.current=data.ytId;
-      setActiveVid(data);
-      const elapsed=(ts()-data.startedAt)/1000;
-      startPlayer(data.ytId,elapsed%3600,synced?(data.dmVol||70):myVol);
-    };
-    poll();
-    const iv=setInterval(poll,3000);
-    return()=>{clearInterval(iv);destroyPlayer();};
-  },[isDM,synced,myVol]);
+    const prev=prevFbState.current;
+    const cur=fbData;
+    prevFbState.current=cur;
 
-  // When player toggles sync on, immediately match DM vol
+    const vol=synced?(cur.dmVol||70):myVol;
+
+    // No video
+    if(!cur.ytId){
+      if(playerRef.current){destroyPlayer();setStatus("idle");}
+      return;
+    }
+
+    // New video started
+    if(!prev||prev.ytId!==cur.ytId){
+      const elapsed=(ts()-cur.startedAt)/1000;
+      const seek=cur.pausedAt?((cur.pausedAt-cur.startedAt)/1000):elapsed%3600;
+      createPlayer(cur.ytId,seek,vol,cur.state==="playing");
+      return;
+    }
+
+    // State changed: play/pause
+    if(prev&&prev.state!==cur.state&&playerRef.current){
+      try{
+        if(cur.state==="playing")playerRef.current.playVideo();
+        else if(cur.state==="paused")playerRef.current.pauseVideo();
+      }catch{}
+      setStatus(cur.state==="playing"?"playing":"paused");
+    }
+
+    // Volume changed (synced)
+    if(synced&&prev&&prev.dmVol!==cur.dmVol&&playerRef.current){
+      try{playerRef.current.setVolume(cur.dmVol||70);}catch{}
+      setMyVol(cur.dmVol||70);
+    }
+  },[fbData,isDM,synced]);
+
+  // Apply my volume when synced changes
   useEffect(()=>{
-    if(isDM||!synced||lastDmVolRef.current==null)return;
-    setMyVol(lastDmVolRef.current);
-    if(playerRef.current)try{playerRef.current.setVolume(lastDmVolRef.current);}catch{}
+    if(isDM||!playerRef.current)return;
+    const v=synced?fbData.dmVol||70:myVol;
+    try{playerRef.current.setVolume(v);}catch{}
   },[synced]);
 
   useEffect(()=>()=>destroyPlayer(),[]);
 
-  const nowPlaying=activeVid&&activeVid.ytId;
-  const currentDMVol=isDM?dmVol:(lastDmVolRef.current!=null?lastDmVolRef.current:null);
+  // DM actions
+  const play=async(ytUrl)=>{
+    const ytId=ytIdFromUrl(ytUrl||url);
+    if(!ytId){setStatus("error");setTimeout(()=>setStatus("idle"),2000);return;}
+    const data={ytId,startedAt:ts(),pausedAt:null,dmVol:fbData.dmVol||myVol,state:"playing"};
+    await fbSet("ambiance",data);
+    setUrl("");
+    createPlayer(ytId,0,data.dmVol,true);
+  };
 
-  // ─── PLAYER UI ───────────────────────────────────────────────────────────────
+  const pause=async()=>{
+    if(!playerRef.current)return;
+    let elapsed=0;
+    try{elapsed=playerRef.current.getCurrentTime();}catch{}
+    const pausedAt=fbData.startedAt+(elapsed*1000);
+    await fbPatch("ambiance",{state:"paused",pausedAt});
+    try{playerRef.current.pauseVideo();}catch{}
+    setStatus("paused");
+  };
+
+  const resume=async()=>{
+    await fbPatch("ambiance",{state:"playing",pausedAt:null});
+    try{playerRef.current.playVideo();}catch{}
+    setStatus("playing");
+  };
+
+  const stop=async()=>{
+    await fbSet("ambiance",{ytId:null,startedAt:0,pausedAt:null,dmVol:fbData.dmVol||70,state:"idle"});
+    destroyPlayer();setStatus("idle");setUrl("");
+  };
+
+  const changeDMVol=async(v)=>{
+    setMyVol(v);
+    if(playerRef.current)try{playerRef.current.setVolume(v);}catch{}
+    await fbPatch("ambiance",{dmVol:v});
+  };
+
+  const saveLink=()=>{
+    if(!scLabel.trim()||!scUrl.trim())return;
+    const ns=[...savedLinks,{label:scLabel.trim(),url:scUrl.trim()}];
+    setSavedLinks(ns);localStorage.setItem("jukebox_sc",JSON.stringify(ns));
+    setScLabel("");setScUrl("");
+  };
+  const deleteLink=(i)=>{
+    const ns=savedLinks.filter((_,j)=>j!==i);
+    setSavedLinks(ns);localStorage.setItem("jukebox_sc",JSON.stringify(ns));
+  };
+
+  const nowPlaying=!!fbData.ytId;
+  const isPlaying=fbData.state==="playing";
+  const isPaused=fbData.state==="paused";
+  const dmVol=fbData.dmVol||70;
+
+  // ─── PLAYER UI ───────────────────────────────────────────────
   if(!isDM){
     return(
       <div style={{position:"fixed",bottom:22,left:22,zIndex:500}}>
         <button className={"amb-toggle"+(nowPlaying?" playing":"")} onClick={()=>setOpen(o=>!o)} title="Jukebox">🎵</button>
         {open&&(
-          <div style={{position:"absolute",bottom:64,left:0,width:260,background:"var(--bg1)",border:"1px solid rgba(91,155,213,.35)",borderRadius:12,padding:16,boxShadow:"0 8px 40px rgba(0,0,0,.7)"}}>
-            <div style={{fontFamily:"'Cinzel',serif",fontSize:".68rem",letterSpacing:".15em",color:"#90b8f0",marginBottom:12,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-              🎵 JUKEBOX
+          <div style={{position:"absolute",bottom:64,left:0,width:265,background:"var(--bg1)",border:"1px solid rgba(91,155,213,.3)",borderRadius:12,padding:16,boxShadow:"0 8px 40px rgba(0,0,0,.7)"}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
+              <span style={{fontFamily:"'Cinzel',serif",fontSize:".65rem",letterSpacing:".15em",color:"#90b8f0"}}>🎵 JUKEBOX</span>
               <button onClick={()=>setOpen(false)} style={{background:"transparent",border:"none",color:"var(--text-dim)",cursor:"pointer",fontSize:"1rem",lineHeight:1}}>✕</button>
             </div>
 
-            {!nowPlaying&&<div style={{fontSize:".78rem",color:"var(--text-dim)",fontStyle:"italic",textAlign:"center",padding:"12px 0"}}>
-              DM henüz bir şey başlatmadı...
-            </div>}
+            {!nowPlaying&&<div style={{fontSize:".78rem",color:"var(--text-dim)",fontStyle:"italic",textAlign:"center",padding:"12px 0"}}>DM henüz bir şey başlatmadı...</div>}
 
             {nowPlaying&&<>
-              <div style={{marginBottom:8,fontSize:".7rem",color:"rgba(91,155,213,.7)",display:"flex",alignItems:"center",gap:6}}>
-                <span style={{animation:"amb-pulse 2s infinite"}}>♪</span>
-                <span>{status==="playing"?"Çalıyor":"Bağlanıyor..."}</span>
+              <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:10,padding:"7px 10px",background:"rgba(91,155,213,.07)",border:"1px solid rgba(91,155,213,.15)",borderRadius:7}}>
+                <span style={{fontSize:"1rem",animation:isPlaying?"amb-pulse 2s infinite":"none"}}>♪</span>
+                <div style={{flex:1}}>
+                  <div style={{fontFamily:"'Cinzel',serif",fontSize:".6rem",color:"#90b8f0"}}>{isPlaying?"ÇALIYOR":isPaused?"DURAKLATILDI":"..."}</div>
+                  <a href={"https://youtube.com/watch?v="+fbData.ytId} target="_blank" rel="noopener noreferrer" style={{fontSize:".65rem",color:"rgba(91,155,213,.6)",textDecoration:"none"}}>youtu.be/{fbData.ytId}</a>
+                </div>
               </div>
 
-              {currentDMVol!=null&&(
-                <div style={{marginBottom:8,fontSize:".7rem",color:"rgba(200,149,42,.6)"}}>
-                  DM seviyesi: <span style={{color:"var(--gold)",fontFamily:"monospace"}}>{currentDMVol}</span>
-                </div>
-              )}
-
               <div style={{marginBottom:12}}>
-                <div style={{display:"flex",justifyContent:"space-between",marginBottom:4,fontSize:".65rem",color:"var(--text-dim)"}}>
-                  <span>🔊 Ses</span>
-                  <span style={{fontFamily:"monospace",color:"var(--gold)"}}>{synced&&currentDMVol!=null?currentDMVol:myVol}</span>
+                <div style={{display:"flex",justifyContent:"space-between",marginBottom:5,fontSize:".65rem"}}>
+                  <span style={{color:"var(--text-dim)"}}>🔊 Ses</span>
+                  <span style={{fontFamily:"monospace",color:"var(--gold)"}}>{synced?dmVol:myVol}</span>
                 </div>
-                <div style={{position:"relative",height:20,display:"flex",alignItems:"center"}}>
-                  <input type="range" min={0} max={100} value={synced&&currentDMVol!=null?currentDMVol:myVol}
+                <div style={{position:"relative",display:"flex",alignItems:"center"}}>
+                  <input type="range" min={0} max={100} value={synced?dmVol:myVol}
                     className="amb-vol-slider" style={{width:"100%"}}
                     disabled={synced}
                     onChange={e=>{const v=Number(e.target.value);setMyVol(v);if(playerRef.current)try{playerRef.current.setVolume(v);}catch{}}}/>
-                  {currentDMVol!=null&&!synced&&(
-                    <div style={{position:"absolute",left:(currentDMVol)+"%",top:"50%",transform:"translate(-50%,-50%)",width:12,height:12,borderRadius:"50%",background:"var(--gold)",border:"2px solid var(--gold-light)",boxShadow:"0 0 6px rgba(200,149,42,.7)",pointerEvents:"none",zIndex:1}}/>
-                  )}
+                  {!synced&&<div style={{position:"absolute",left:dmVol+"%",top:"50%",transform:"translate(-50%,-50%)",width:11,height:11,borderRadius:"50%",background:"var(--gold)",border:"2px solid var(--gold-light)",boxShadow:"0 0 5px rgba(200,149,42,.6)",pointerEvents:"none"}}/>}
                 </div>
-                {!synced&&currentDMVol!=null&&<div style={{fontSize:".62rem",color:"rgba(200,149,42,.45)",marginTop:3}}>● DM önerisi: {currentDMVol}</div>}
+                {!synced&&<div style={{fontSize:".6rem",color:"rgba(200,149,42,.4)",marginTop:3}}>● DM önerisi: {dmVol}</div>}
               </div>
 
-              <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"8px 10px",background:synced?"rgba(91,155,213,.1)":"rgba(0,0,0,.2)",borderRadius:6,border:"1px solid "+(synced?"rgba(91,155,213,.3)":"rgba(200,149,42,.1)")}}>
+              <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"8px 10px",background:synced?"rgba(91,155,213,.1)":"rgba(0,0,0,.15)",borderRadius:6,border:"1px solid "+(synced?"rgba(91,155,213,.3)":"rgba(200,149,42,.1)")}}>
                 <div>
-                  <div style={{fontFamily:"'Cinzel',serif",fontSize:".65rem",color:synced?"#90b8f0":"var(--text-dim)"}}>DM Senkronu</div>
-                  <div style={{fontSize:".62rem",color:"var(--text-dim)",marginTop:1}}>{synced?"DM seviyesini takip ediyor":"Manuel kontrol"}</div>
+                  <div style={{fontFamily:"'Cinzel',serif",fontSize:".63rem",color:synced?"#90b8f0":"var(--text-dim)"}}>DM Senkronu</div>
+                  <div style={{fontSize:".6rem",color:"var(--text-dim)",marginTop:1}}>{synced?"DM ses seviyesini takip ediyor":"Manuel kontrol"}</div>
                 </div>
                 <label className="toggle">
-                  <input type="checkbox" checked={synced} onChange={e=>setSynced(e.target.checked)}/>
+                  <input type="checkbox" checked={synced} onChange={e=>{
+                    const v=e.target.checked;
+                    setSynced(v);
+                    if(v&&playerRef.current){try{playerRef.current.setVolume(dmVol);}catch{}setMyVol(dmVol);}
+                  }}/>
                   <div className="toggle-track"/>
                   <div className="toggle-thumb"/>
                 </label>
@@ -2856,104 +2909,79 @@ function Ambiance({isDM}){
     );
   }
 
-  // ─── DM UI ───────────────────────────────────────────────────────────────────
+  // ─── DM UI ───────────────────────────────────────────────────
   return(
     <>
       {open&&(
-        <div style={{position:"fixed",bottom:84,left:22,width:300,background:"var(--bg1)",border:"1px solid rgba(91,155,213,.35)",borderRadius:12,padding:18,boxShadow:"0 8px 40px rgba(0,0,0,.7)",zIndex:499}}>
-          <div style={{fontFamily:"'Cinzel',serif",fontSize:".72rem",letterSpacing:".18em",color:"#90b8f0",marginBottom:16,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-            🎵 JUKEBOX
+        <div style={{position:"fixed",bottom:84,left:22,width:300,background:"var(--bg1)",border:"1px solid rgba(91,155,213,.3)",borderRadius:12,padding:18,boxShadow:"0 8px 40px rgba(0,0,0,.7)",zIndex:499}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
+            <span style={{fontFamily:"'Cinzel',serif",fontSize:".7rem",letterSpacing:".18em",color:"#90b8f0"}}>🎵 JUKEBOX</span>
             <button onClick={()=>setOpen(false)} style={{background:"transparent",border:"none",color:"var(--text-dim)",cursor:"pointer",fontSize:"1rem",lineHeight:1}}>✕</button>
           </div>
 
           {/* Kısayollar */}
-          {shortcuts.length>0&&(
-            <div style={{marginBottom:14}}>
-              <div style={{fontFamily:"'Cinzel',serif",fontSize:".55rem",letterSpacing:".15em",color:"rgba(91,155,213,.5)",marginBottom:6,textTransform:"uppercase"}}>Kısayollar</div>
-              <div style={{display:"flex",flexWrap:"wrap",gap:5}}>
-                {shortcuts.map((sc,i)=>(
-                  <button key={i} onClick={()=>play(sc.url)} style={{
-                    background:"rgba(91,155,213,.1)",border:"1px solid rgba(91,155,213,.3)",
-                    borderRadius:16,padding:"5px 12px",color:"#a8c8f8",
-                    fontFamily:"'Cinzel',serif",fontSize:".62rem",cursor:"pointer",
-                    transition:"all .2s"
-                  }}
-                  onMouseEnter={e=>e.currentTarget.style.background="rgba(91,155,213,.22)"}
-                  onMouseLeave={e=>e.currentTarget.style.background="rgba(91,155,213,.1)"}>
-                    ▶ {sc.label}
-                  </button>
-                ))}
-              </div>
+          {savedLinks.length>0&&<div style={{marginBottom:12}}>
+            <div style={{fontFamily:"'Cinzel',serif",fontSize:".52rem",letterSpacing:".15em",color:"rgba(91,155,213,.5)",marginBottom:5,textTransform:"uppercase"}}>Kısayollar</div>
+            <div style={{display:"flex",flexWrap:"wrap",gap:4}}>
+              {savedLinks.map((sc,i)=>(
+                <button key={i} onClick={()=>play(sc.url)}
+                  style={{background:"rgba(91,155,213,.08)",border:"1px solid rgba(91,155,213,.25)",borderRadius:14,padding:"4px 10px",cursor:"pointer",fontFamily:"'Cinzel',serif",fontSize:".6rem",color:"#a8c8f8",transition:"all .2s"}}
+                  onMouseEnter={e=>e.currentTarget.style.background="rgba(91,155,213,.2)"}
+                  onMouseLeave={e=>e.currentTarget.style.background="rgba(91,155,213,.08)"}>
+                  ▶ {sc.label}
+                </button>
+              ))}
             </div>
-          )}
+          </div>}
 
           {/* Aktif oynatıcı */}
           {nowPlaying?(
             <div style={{marginBottom:14}}>
-              <div style={{display:"flex",alignItems:"center",gap:8,background:"rgba(91,155,213,.08)",border:"1px solid rgba(91,155,213,.2)",borderRadius:8,padding:"8px 10px",marginBottom:12}}>
-                <span style={{fontSize:"1.2rem",animation:"amb-pulse 2s infinite"}}>♪</span>
+              <div style={{display:"flex",alignItems:"center",gap:8,background:"rgba(91,155,213,.07)",border:"1px solid rgba(91,155,213,.15)",borderRadius:8,padding:"8px 10px",marginBottom:10}}>
+                <span style={{fontSize:"1.1rem",animation:isPlaying?"amb-pulse 2s infinite":"none"}}>♪</span>
                 <div style={{flex:1,minWidth:0}}>
-                  <div style={{fontFamily:"'Cinzel',serif",fontSize:".6rem",color:"#90b8f0",marginBottom:2}}>ÇALIYOR</div>
-                  <a href={"https://youtube.com/watch?v="+activeVid.ytId} target="_blank" rel="noopener noreferrer"
-                    style={{fontSize:".72rem",color:"#a8c8f8",textDecoration:"none",display:"block",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
-                    youtu.be/{activeVid.ytId}
-                  </a>
+                  <div style={{fontFamily:"'Cinzel',serif",fontSize:".58rem",color:"#90b8f0",marginBottom:2}}>{isPlaying?"ÇALIYOR":isPaused?"DURAKLATILDI":"..."}</div>
+                  <a href={"https://youtube.com/watch?v="+fbData.ytId} target="_blank" rel="noopener noreferrer" style={{fontSize:".7rem",color:"#a8c8f8",textDecoration:"none",display:"block",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>youtu.be/{fbData.ytId}</a>
                 </div>
-                <button onClick={stop} style={{background:"rgba(139,26,26,.15)",border:"1px solid rgba(139,26,26,.4)",borderRadius:5,color:"#ff9090",fontFamily:"'Cinzel',serif",fontSize:".6rem",padding:"4px 8px",cursor:"pointer",flexShrink:0}}>⏹</button>
+                {/* Oynatma kontrolleri */}
+                <div style={{display:"flex",gap:4,flexShrink:0}}>
+                  {isPlaying
+                    ?<button onClick={pause} title="Duraklat" style={{width:28,height:28,borderRadius:5,background:"rgba(91,155,213,.1)",border:"1px solid rgba(91,155,213,.25)",cursor:"pointer",color:"#90b8f0",fontSize:".85rem",display:"flex",alignItems:"center",justifyContent:"center"}}>⏸</button>
+                    :<button onClick={resume} title="Devam et" style={{width:28,height:28,borderRadius:5,background:"rgba(76,175,125,.1)",border:"1px solid rgba(76,175,125,.25)",cursor:"pointer",color:"#7ef0a0",fontSize:".85rem",display:"flex",alignItems:"center",justifyContent:"center"}}>▶</button>}
+                  <button onClick={stop} title="Durdur" style={{width:28,height:28,borderRadius:5,background:"rgba(139,26,26,.1)",border:"1px solid rgba(139,26,26,.3)",cursor:"pointer",color:"#ff9090",fontSize:".85rem",display:"flex",alignItems:"center",justifyContent:"center"}}>⏹</button>
+                </div>
               </div>
-              {/* DM volume */}
-              <div style={{marginBottom:4,display:"flex",justifyContent:"space-between",fontSize:".65rem"}}>
+              <div style={{marginBottom:5,display:"flex",justifyContent:"space-between",fontSize:".63rem"}}>
                 <span style={{color:"var(--text-dim)"}}>🔊 Ses Seviyesi</span>
-                <span style={{color:"var(--gold)",fontFamily:"monospace"}}>{dmVol}</span>
+                <span style={{color:"var(--gold)",fontFamily:"monospace"}}>{dmVol}%</span>
               </div>
-              <input type="range" min={0} max={100} value={dmVol} className="amb-vol-slider" style={{width:"100%",marginBottom:6}}
-                onChange={e=>changeDMVol(Number(e.target.value))}/>
-              <div style={{fontSize:".62rem",color:"rgba(91,155,213,.5)",fontStyle:"italic"}}>Oyuncular bu seviyeyi görebilir</div>
+              <input type="range" min={0} max={100} value={dmVol} className="amb-vol-slider" style={{width:"100%",marginBottom:4}} onChange={e=>changeDMVol(Number(e.target.value))}/>
+              <div style={{fontSize:".6rem",color:"rgba(91,155,213,.4)",fontStyle:"italic"}}>Oyuncular bu seviyeyi görebilir</div>
             </div>
           ):(
             <div style={{marginBottom:14}}>
-              <input className="nb-input" placeholder="YouTube linki yapıştır..."
-                value={url} onChange={e=>setUrl(e.target.value)}
-                onKeyDown={e=>e.key==="Enter"&&play()}
-                style={{marginBottom:8}}/>
-              {status==="error"&&<div style={{color:"#ff6060",fontSize:".72rem",marginBottom:6}}>⚠ Geçersiz link!</div>}
-              <button onClick={()=>play()} disabled={!url.trim()} style={{
-                width:"100%",background:url.trim()?"rgba(91,155,213,.15)":"rgba(91,155,213,.05)",
-                border:"1px solid "+(url.trim()?"rgba(91,155,213,.4)":"rgba(91,155,213,.15)"),
-                borderRadius:7,color:url.trim()?"#a8c8f8":"rgba(91,155,213,.3)",
-                fontFamily:"'Cinzel',serif",fontSize:".7rem",letterSpacing:".1em",
-                padding:"10px",cursor:url.trim()?"pointer":"not-allowed",transition:"all .2s"
-              }}>▶ BAŞLAT</button>
+              <input className="nb-input" placeholder="YouTube linki yapıştır..." value={url} onChange={e=>setUrl(e.target.value)} onKeyDown={e=>e.key==="Enter"&&play()} style={{marginBottom:8}}/>
+              {status==="error"&&<div style={{color:"#ff6060",fontSize:".7rem",marginBottom:6}}>⚠ Geçersiz link!</div>}
+              <button onClick={()=>play()} disabled={!url.trim()} style={{width:"100%",background:url.trim()?"rgba(91,155,213,.12)":"rgba(91,155,213,.04)",border:"1px solid "+(url.trim()?"rgba(91,155,213,.35)":"rgba(91,155,213,.12)"),borderRadius:7,color:url.trim()?"#a8c8f8":"rgba(91,155,213,.3)",fontFamily:"'Cinzel',serif",fontSize:".68rem",letterSpacing:".1em",padding:"9px",cursor:url.trim()?"pointer":"not-allowed",transition:"all .2s"}}>▶ BAŞLAT</button>
             </div>
           )}
 
           {/* Kısayol yönetimi */}
-          <div style={{borderTop:"1px solid rgba(91,155,213,.1)",paddingTop:12}}>
-            <button onClick={()=>setShowScMgr(s=>!s)} style={{
-              background:"transparent",border:"none",
-              color:"rgba(91,155,213,.5)",fontFamily:"'Cinzel',serif",
-              fontSize:".58rem",letterSpacing:".1em",cursor:"pointer",
-              textTransform:"uppercase",display:"flex",alignItems:"center",gap:6
-            }}>
-              {showScMgr?"▲":"▶"} Kısayol Yönet
+          <div style={{borderTop:"1px solid rgba(91,155,213,.1)",paddingTop:10}}>
+            <button onClick={()=>setShowMgr(s=>!s)} style={{background:"transparent",border:"none",color:"rgba(91,155,213,.4)",fontFamily:"'Cinzel',serif",fontSize:".55rem",letterSpacing:".1em",cursor:"pointer",textTransform:"uppercase",display:"flex",alignItems:"center",gap:5}}>
+              {showMgr?"▲":"▶"} Kısayol Yönet
             </button>
-            {showScMgr&&(
-              <div style={{marginTop:10,display:"flex",flexDirection:"column",gap:8}}>
-                <input className="nb-input" placeholder="İsim (ör. Tavern)" value={scLabel} onChange={e=>setScLabel(e.target.value)} style={{marginBottom:0}}/>
-                <input className="nb-input" placeholder="YouTube URL" value={scUrl} onChange={e=>setScUrl(e.target.value)}/>
-                <button onClick={saveShortcut} disabled={!scLabel.trim()||!scUrl.trim()} style={{
-                  background:"rgba(91,155,213,.1)",border:"1px solid rgba(91,155,213,.3)",
-                  borderRadius:5,color:"#a8c8f8",fontFamily:"'Cinzel',serif",
-                  fontSize:".65rem",padding:"7px",cursor:"pointer"
-                }}>+ Kısayol Ekle</button>
-                {shortcuts.map((sc,i)=>(
-                  <div key={i} style={{display:"flex",alignItems:"center",justifyContent:"space-between",fontSize:".72rem"}}>
-                    <span style={{color:"var(--text-dim)"}}>{sc.label}</span>
-                    <button onClick={()=>deleteShortcut(i)} style={{background:"transparent",border:"none",color:"rgba(180,40,40,.6)",cursor:"pointer",fontSize:".8rem"}}>✕</button>
-                  </div>
-                ))}
-              </div>
-            )}
+            {showMgr&&<div style={{marginTop:8,display:"flex",flexDirection:"column",gap:6}}>
+              <input className="nb-input" placeholder="İsim (ör. Tavern)" value={scLabel} onChange={e=>setScLabel(e.target.value)}/>
+              <input className="nb-input" placeholder="YouTube URL" value={scUrl} onChange={e=>setScUrl(e.target.value)}/>
+              <button onClick={saveLink} disabled={!scLabel.trim()||!scUrl.trim()} style={{background:"rgba(91,155,213,.1)",border:"1px solid rgba(91,155,213,.25)",borderRadius:5,color:"#a8c8f8",fontFamily:"'Cinzel',serif",fontSize:".62rem",padding:"6px",cursor:"pointer"}}>+ Ekle</button>
+              {savedLinks.map((sc,i)=>(
+                <div key={i} style={{display:"flex",alignItems:"center",justifyContent:"space-between",fontSize:".7rem"}}>
+                  <span style={{color:"var(--text-dim)"}}>{sc.label}</span>
+                  <button onClick={()=>deleteLink(i)} style={{background:"transparent",border:"none",color:"rgba(180,40,40,.5)",cursor:"pointer",fontSize:".8rem"}}>✕</button>
+                </div>
+              ))}
+            </div>}
           </div>
         </div>
       )}
