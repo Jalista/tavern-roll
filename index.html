@@ -140,7 +140,7 @@ body{font-family:'Crimson Text',serif;color:var(--text);background:var(--bg0);ba
 .db{aspect-ratio:1;background:var(--bg1);border:1px solid rgba(200,149,42,.18);border-radius:8px;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;transition:all .18s;position:relative;overflow:hidden}
 .db::before{content:'';position:absolute;inset:0;background:radial-gradient(circle at 30% 30%,rgba(200,149,42,.07),transparent 70%)}
 .db:hover{border-color:var(--gold);transform:translateY(-2px);box-shadow:0 4px 18px rgba(200,149,42,.18)}.db:active{transform:scale(.95)}
-.di{font-size:1.6rem}.dl{font-family:'Cinzel',serif;font-size:.6rem;color:var(--gold);margin-top:2px}
+.di{font-size:1.6rem}.dl{font-family:'Cinzel',serif;font-size:.85rem;font-weight:700;color:var(--gold);margin-top:2px;letter-spacing:.05em}
 .ra{background:var(--bg1);border:1px solid rgba(200,149,42,.15);border-radius:10px;padding:22px 20px;text-align:center;min-height:120px;display:flex;flex-direction:column;align-items:center;justify-content:center;margin-bottom:14px}
 .rw{font-family:'Cinzel',serif;font-size:.62rem;letter-spacing:.15em;color:var(--gold);margin-bottom:6px;text-transform:uppercase}
 .rn{font-family:'Cinzel',serif;font-size:4rem;font-weight:900;color:#f0c060;text-shadow:0 0 24px rgba(200,149,42,.5);line-height:1}
@@ -2000,6 +2000,7 @@ function Arena({me,isDM,avatars,all,npcs,rolls,onRoll,char}){
         <div style={{flex:1,display:"flex",alignItems:"center",justifyContent:"center",padding:10,overflow:"hidden"}}>
           <div style={{border:"1px solid rgba(200,149,42,.18)",borderRadius:8,overflow:"hidden",boxShadow:"0 4px 28px rgba(0,0,0,.55)",lineHeight:0,flexShrink:0}}>
             <svg ref={svgRef} width={W} height={H} style={{display:"block",cursor:dragPin?"grabbing":"crosshair",touchAction:"none"}}
+              onContextMenu={e=>e.preventDefault()}
               onPointerMove={handleSvgPointerMove} onPointerUp={handleSvgPointerUp} onPointerLeave={handleSvgPointerUp}>
               <defs>
                 {pins.filter(p=>p.type==="player"&&avatars&&avatars[p.entityId||p.name]).map(pin=>{
@@ -2020,6 +2021,9 @@ function Arena({me,isDM,avatars,all,npcs,rolls,onRoll,char}){
                 const sel=hp.some(p=>openCards[p.id]);
                 const dh=dragPin&&dragPin.col===col&&dragPin.row===row&&!blk;
                 return <g key={col+","+row} onClick={()=>handleHexClick(col,row)} onContextMenu={e=>handleHexRC(e,col,row)} style={{cursor:blk?"not-allowed":hp.length?"pointer":"crosshair"}}>
+                  {/* Hit area — her zaman tıklanabilir */}
+                  <path d={hexPath(x,y,S-1)} fill="transparent" stroke="none"/>
+                  {blk&&<path d={hexPath(x,y,S-1.2)} fill="rgba(0,0,0,.55)" stroke="rgba(80,40,40,.4)" strokeWidth={1} strokeDasharray="3,2"/>}
                   {!blk&&(sel||dh)&&<path d={hexPath(x,y,S-1.2)} fill={dh?"rgba(200,149,42,.12)":sel?"rgba(200,149,42,.09)":"transparent"} stroke={dh?"rgba(240,192,96,.65)":sel?"rgba(200,149,42,.5)":"transparent"} strokeWidth={1.1}/>}
                   {!blk&&hp.slice(0,3).map((pin,pi)=>{
                     const pt=getPT(pin);
@@ -2716,7 +2720,6 @@ function Ambiance({isDM}){
   const [url,setUrl]=useState("");
   const [status,setStatus]=useState("idle"); // idle|loading|playing|paused|error
   const [myVol,setMyVol]=useState(70);
-  const [synced,setSynced]=useState(false);
   const [savedLinks,setSavedLinks]=useState(()=>{try{return JSON.parse(localStorage.getItem("jukebox_sc")||"[]");}catch{return[];}});
   const [showMgr,setShowMgr]=useState(false);
   const [scLabel,setScLabel]=useState("");
@@ -2794,7 +2797,7 @@ function Ambiance({isDM}){
     const cur=fbData;
     prevFbState.current=cur;
 
-    const vol=synced?(cur.dmVol||70):myVol;
+    const vol=myVol;
 
     // No video
     if(!cur.ytId){
@@ -2819,19 +2822,8 @@ function Ambiance({isDM}){
       setStatus(cur.state==="playing"?"playing":"paused");
     }
 
-    // Volume changed (synced)
-    if(synced&&prev&&prev.dmVol!==cur.dmVol&&playerRef.current){
-      try{playerRef.current.setVolume(cur.dmVol||70);}catch{}
-      setMyVol(cur.dmVol||70);
-    }
-  },[fbData,isDM,synced]);
+  },[fbData,isDM]);
 
-  // Apply my volume when synced changes
-  useEffect(()=>{
-    if(isDM||!playerRef.current)return;
-    const v=synced?fbData.dmVol||70:myVol;
-    try{playerRef.current.setVolume(v);}catch{}
-  },[synced]);
 
   useEffect(()=>()=>destroyPlayer(),[]);
 
@@ -2911,35 +2903,18 @@ function Ambiance({isDM}){
                 </div>
               </div>
 
-              <div style={{marginBottom:12}}>
+              <div style={{marginBottom:4}}>
                 <div style={{display:"flex",justifyContent:"space-between",marginBottom:5,fontSize:".65rem"}}>
                   <span style={{color:"var(--text-dim)"}}>🔊 Ses</span>
-                  <span style={{fontFamily:"monospace",color:"var(--gold)"}}>{synced?dmVol:myVol}</span>
+                  <span style={{fontFamily:"monospace",color:"var(--gold)"}}>{myVol}</span>
                 </div>
                 <div style={{position:"relative",display:"flex",alignItems:"center"}}>
-                  <input type="range" min={0} max={100} value={synced?dmVol:myVol}
+                  <input type="range" min={0} max={100} value={myVol}
                     className="amb-vol-slider" style={{width:"100%"}}
-                    disabled={synced}
                     onChange={e=>{const v=Number(e.target.value);setMyVol(v);if(playerRef.current)try{playerRef.current.setVolume(v);}catch{}}}/>
-                  {!synced&&<div style={{position:"absolute",left:dmVol+"%",top:"50%",transform:"translate(-50%,-50%)",width:11,height:11,borderRadius:"50%",background:"var(--gold)",border:"2px solid var(--gold-light)",boxShadow:"0 0 5px rgba(200,149,42,.6)",pointerEvents:"none"}}/>}
+                  <div style={{position:"absolute",left:dmVol+"%",top:"50%",transform:"translate(-50%,-50%)",width:11,height:11,borderRadius:"50%",background:"var(--gold)",border:"2px solid var(--gold-light)",boxShadow:"0 0 5px rgba(200,149,42,.6)",pointerEvents:"none"}}/>
                 </div>
-                {!synced&&<div style={{fontSize:".6rem",color:"rgba(200,149,42,.4)",marginTop:3}}>● DM önerisi: {dmVol}</div>}
-              </div>
-
-              <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"8px 10px",background:synced?"rgba(91,155,213,.1)":"rgba(0,0,0,.15)",borderRadius:6,border:"1px solid "+(synced?"rgba(91,155,213,.3)":"rgba(200,149,42,.1)")}}>
-                <div>
-                  <div style={{fontFamily:"'Cinzel',serif",fontSize:".63rem",color:synced?"#90b8f0":"var(--text-dim)"}}>DM Senkronu</div>
-                  <div style={{fontSize:".6rem",color:"var(--text-dim)",marginTop:1}}>{synced?"DM ses seviyesini takip ediyor":"Manuel kontrol"}</div>
-                </div>
-                <label className="toggle">
-                  <input type="checkbox" checked={synced} onChange={e=>{
-                    const v=e.target.checked;
-                    setSynced(v);
-                    if(v&&playerRef.current){try{playerRef.current.setVolume(dmVol);}catch{}setMyVol(dmVol);}
-                  }}/>
-                  <div className="toggle-track"/>
-                  <div className="toggle-thumb"/>
-                </label>
+                <div style={{fontSize:".6rem",color:"rgba(200,149,42,.4)",marginTop:3}}>● DM önerisi: {dmVol}</div>
               </div>
             </>}
           </div>
@@ -3032,157 +3007,877 @@ function Ambiance({isDM}){
 }
 
 function WaitingRoom({me,all,isDM,avatars}){
-  const [messages,setMessages]=useState([]);
-  const [text,setText]=useState("");
-  const [reaction,setReaction]=useState(null);
-  const [reactionAnim,setReactionAnim]=useState(null);
+  const [view,setView]=useState("home");
   const [trivia,setTrivia]=useState(null);
-  const lastRef=useRef(0);
-  const bottomRef=useRef(null);
+  const streakRef=useRef(0);
+  const [streak,setStreakState]=useState(0);
+  const [answered,setAnswered]=useState(null);
+  const [scores,setScores]=useState([]);
+  const [triviaEffect,setTriviaEffect]=useState(null);
+  const [celebration,setCelebration]=useState(null);
+  const [breakEnd,setBreakEnd]=useState(null);
+  const [breakInput,setBreakInput]=useState("15");
+  const [now,setNow]=useState(Date.now());
+  const [news,setNews]=useState([]);
+  const [newsLoading,setNewsLoading]=useState(false);
+  const [newsUpdated,setNewsUpdated]=useState(null);
 
-  const REACTIONS=["😂","🎲","⚔️","🐉","✨","💀","🤝","🎶","🔥","💫"];
+  const setStreak=(n)=>{streakRef.current=n;setStreakState(n);};
+
+  useEffect(()=>{const iv=setInterval(()=>setNow(Date.now()),1000);return()=>clearInterval(iv);},[]);
+  useEffect(()=>{
+    fbGet("breakTimer").then(d=>{if(d&&d.end)setBreakEnd(d.end);});
+    const iv=setInterval(()=>fbGet("breakTimer").then(d=>{
+      setBreakEnd(prev=>{const e=d&&d.end?d.end:null;return prev===e?prev:e;});
+    }),5000);
+    return()=>clearInterval(iv);
+  },[]);
+  useEffect(()=>{fbGet("triviaScores").then(data=>{if(data)setScores(Object.values(data).sort((a,b)=>b.streak-a.streak));});},[]);
+  useEffect(()=>{if(view==="trivia"&&!trivia)pickTrivia();},[view]);
+
+  const shuffle=(arr)=>[...arr].sort(()=>Math.random()-.5);
+
+  const playSound=(type)=>{
+    try{
+      const ctx=new (window.AudioContext||window.webkitAudioContext)();
+      const gain=ctx.createGain();gain.connect(ctx.destination);
+      if(type==="correct"){[0,0.15].forEach((t,i)=>{const osc=ctx.createOscillator();osc.connect(gain);osc.frequency.value=i===0?523:784;gain.gain.setValueAtTime(0.18,ctx.currentTime+t);gain.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+t+0.25);osc.start(ctx.currentTime+t);osc.stop(ctx.currentTime+t+0.25);});}
+      else if(type==="wrong"){const osc=ctx.createOscillator();osc.connect(gain);osc.type="sawtooth";osc.frequency.setValueAtTime(220,ctx.currentTime);osc.frequency.exponentialRampToValueAtTime(110,ctx.currentTime+0.3);gain.gain.setValueAtTime(0.15,ctx.currentTime);gain.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+0.35);osc.start(ctx.currentTime);osc.stop(ctx.currentTime+0.35);}
+      else if(type==="ten"){[0,.1,.2,.3].forEach((t,i)=>{const osc=ctx.createOscillator();osc.connect(gain);osc.frequency.value=[523,659,784,1047][i];gain.gain.setValueAtTime(0.2,ctx.currentTime+t);gain.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+t+0.3);osc.start(ctx.currentTime+t);osc.stop(ctx.currentTime+t+0.3);});}
+      else if(type==="twenty"){[0,.08,.16,.24,.32,.4].forEach((t,i)=>{const osc=ctx.createOscillator();osc.connect(gain);osc.frequency.value=[523,659,784,1047,1319,1568][i];gain.gain.setValueAtTime(0.22,ctx.currentTime+t);gain.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+t+0.35);osc.start(ctx.currentTime+t);osc.stop(ctx.currentTime+t+0.35);});}
+    }catch{}
+  };
+
   const TRIVIA=[
-    {q:"Golis'in tüm varlıklar arasında en çok sevdiği kim?",a:"İnsan — en küçük kardeş, en saf ve en savunmasız"},
-    {q:"İnsanı soğuğa ve güneşin öldüğü ufka süren kim?",a:"Zarif (Narin) — kandırarak tuzağa düşürdü"},
-    {q:"Arcana nedir ve kimin ruhudur?",a:"Golis'in kutsal ruhu — faniler için tehlikeli, el sürülemez"},
-    {q:"İlk insana ismini kim ve nasıl fısıldadı?",a:"İnsulam — onu sıcak sularda bulup küçük salda 'Agus' dedi"},
-    {q:"Theranda kimdir?",a:"Agus'tan var oldu, Golis'in sözü ve elçisi, tek ve gerçek kraliçe"},
-    {q:"Büyük Temizlik nedir?",a:"Agus'un yüzlerce savaşla İnci'yi hainlerden temizlediği süreç"},
-    {q:"Altın Sınır'ı geçenlere ne olur?",a:"Narin'in tuzağına düşer, kabusları gerçekleşir"},
-    {q:"İnci'nin başkenti neresidir?",a:"Agus kenti — İmparatorluğun ve İmparatorun kalbi"},
-    {q:"Servus dininin resmi kurucuları kimlerdir?",a:"İlk İmparator Agus ve Anne Theranda"},
-    {q:"Engizisyon nerede kurulmuştur?",a:"Ragusium — Servus dinini sapkınlıklara karşı korumak için"},
-    {q:"Yüce Hierophant kim tarafından seçilir?",a:"Otuz Exarc kendi aralarından seçer"},
-    {q:"İnsulam nasıl yönetilir?",a:"Servus Kardinalleri tarafından — 'Tanrı'nın krallığı ilim adamlarının oylaması ile'"},
-    {q:"Etfaliyelerde yetişen çocuklar hangi unvanları alabilir?",a:"Paladin, Cleric, Rahip, Exarc veya Hanım"},
-    {q:"Viza Kültü nedir?",a:"Büyü (Arcana) kullananların örgütü — Wizard yetiştirdi"},
-    {q:"Meşale Gecesi ne oldu?",a:"Viza Kulesi yakıldı, Akademi yıkıldı — İnci'nin doğusundan görülen yangın"},
-    {q:"Besteni nedir?",a:"Sadece Agus kentinde geçen para — İmparatora bağlı birliklere ödenir"},
-    {q:"Thot meleği neden lanetlendi?",a:"Golis'e çocuklarının ihanetini bildirdi, Golis inanmadı ve lanetledi"},
-    {q:"Aueron meleğinin görevi nedir?",a:"İnci'deki tüm bilgiyi toplayıp Golis'e aktarmak — takipçiler Annal tutar"},
-    {q:"Kibele meleği kimdir?",a:"Bereketin, buğdayın meleği — Agus'a tarımı öğretti, Theranda ile ilk gecede eşlik etti"},
-    {q:"Feyren meleği neden tehlikelidir?",a:"Hilebazlık meleği — İnsulam'a bile tuzak kurdu, Kibele kılığına giriyor"},
-    {q:"İksir yapımının üç aşaması nelerdir?",a:"Taban (kişilik), Aroma (etki dengeleme), Feda (yaratıcının özü)"},
-    {q:"Liber Dei hangi bölümlerden oluşur?",a:"Yaradılış, Agus, İnci, İhanet, Sadakat, Amaç, Hizmet, Feda"},
-    {q:"Mevatlı Kasimir'in ünlü sözü nedir?",a:"'İmparator köylerini, muhtarından daha iyi bilir.'"},
-    {q:"Noer eyaletinin özelliği nedir?",a:"Tek dini özgürlük tanınan eyalet — kırsal kesimde Atalar Kültü hâkim"},
-    {q:"Anti-Liber Dei nedir?",a:"Kimliksiz Alimler Topluluğu'nun Liber Dei'deki hataları iddia ettiği kitap — Servus'a göre paçavra"},
-    {q:"Faithless Silence nedir?",a:"En büyük Kilise yaptırımı — bölge halkı dinden çıkarılır, tüm dini işlemler askıya alınır"},
-    {q:"Agus askerlerinin kanı neden yere dökülmedi?",a:"Yandı ve duman oldu — kutsal savaşçıların kanı"},
-    {q:"Servus'a göre İmperator çocukları nasıl olur?",a:"Golis her imparatora tek erkek çocuk gönderir — kutsal ruh bizzat yaratılır"},
-    {q:"Metrus ve Minus savaşında iri neden kaybetti?",a:"Hakikatin güzelliği gözlerini kamaştırıyordu, kalabalık olmalarına rağmen"},
-    {q:"Feyren'in çocuklarının özellikleri nedir?",a:"Mor, kırmızı, siyah tenli, kısa boynuzlu, sivri kulaklı — İmparatorluk toplar"},
+    // === Liber Dei & Teoloji ===
+    {q:"Golis'in tüm varlıklar arasında en çok sevdiği kim?",a:"İnsan",w:["Zarif","Bücür","İri"]},
+    {q:"İnsanı soğuğa ve ölüme süren kim?",a:"Zarif",w:["Bücür","İri","İnsulam"]},
+    {q:"Arcana kimin ruhudur?",a:"Golis",w:["Zarif","Agus","İnsulam"]},
+    {q:"İlk insana 'Agus' ismini kim fısıldadı?",a:"İnsulam",w:["Theranda","Metrus","Golis"]},
+    {q:"Theranda kim tarafından var edildi?",a:"Agus",w:["Golis","İnsulam","Metrus"]},
+    {q:"Büyük Temizlik'in ardından ne ilan edildi?",a:"Sadığın İmparatorluğu",w:["Golis Cumhuriyeti","Nazik Hanedanlığı","İnsulam Krallığı"]},
+    {q:"Altın Sınır'ı geçmek ne anlama gelir?",a:"Narin'in tuzağına düşmek",w:["Özgürlüğe kavuşmak","Golis'e ulaşmak","Ölmek"]},
+    {q:"İnci'nin başkenti neresidir?",a:"Agus",w:["İnsulam","Ragusium","Theranda"]},
+    {q:"Servus dinini kim kurdu?",a:"Agus ve Theranda",w:["Golis bizzat","Exarclar","Yüce Hierophant"]},
+    {q:"Engizisyon nerede kurulmuştur?",a:"Ragusium",w:["İnsulam","Agus","Farter"]},
+    {q:"Yüce Hierophant kim tarafından seçilir?",a:"Otuz Exarc",w:["İmparator","Halk","Golis"]},
+    {q:"İnsulam nasıl yönetilir?",a:"İlim adamlarının oylaması ile",w:["Atanan vali ile","Seçmen kontlar ile","Kalıtımsal krallık ile"]},
+    {q:"Etfaliyelerde yetişen çocuklar hangi unvanı alamaz?",a:"İmparator",w:["Paladin","Exarc","Hierophant"]},
+    {q:"Viza Kültünden yetişenlere ne denir?",a:"Wizard",w:["Arcane","Mage","Sorcerer"]},
+    {q:"Meşale Gecesinde ne yandı?",a:"Viza Akademisi",w:["İnsulam Tapınağı","Agus Sarayı","Engizisyon"]},
+    {q:"Besteni nerede geçerlidir?",a:"Sadece Agus",w:["Tüm İmparatorlukta","İnsulam ve Agus","Ragusium ve Agus"]},
+    {q:"Thot meleği neden lanetlendi?",a:"İhaneti Golis'e bildirdi",w:["Zarif'e yardım etti","Arcana'yı çaldı","İnsulam'a tuzak kurdu"]},
+    {q:"Aueron meleğinin takipçileri ne tutar?",a:"Annal",w:["Savaş planı","Vergi defteri","Büyü kitabı"]},
+    {q:"Kibele meleği Agus'a ne öğretti?",a:"Tarım",w:["Savaş","Büyü","Simyacılık"]},
+    {q:"Feyren hangi meleğin kılığına girer?",a:"Kibele",w:["Aurelia","İnsulam","Flame"]},
+    {q:"İksir yapımında Feda aşaması ne demektir?",a:"Yaratıcının özünü katması",w:["Kaynatmak","Karıştırmak","Aromayı eklemek"]},
+    {q:"Liber Dei'nin son bölümü nedir?",a:"Feda",w:["Hizmet","Sadakat","Amaç"]},
+    {q:"Mevatlı Kasimir'e göre İmparator neyi muhtarından iyi bilir?",a:"Köylerini",w:["Halkını","Vergileri","Düşmanlarını"]},
+    {q:"Noer'de Servus'un kabul ettiği tek diğer din nedir?",a:"Atalar Kültü",w:["Viza Kültü","Thot","Aueron"]},
+    {q:"Faithless Silence kararında bölgeyi terk eden kim?",a:"Rahipler",w:["Halk","Lord","İmparator"]},
+    {q:"Agus askerlerinin kanı savaşta ne oldu?",a:"Yandı ve duman oldu",w:["Yere döküldü","Taşa dönüştü","Kayboldu"]},
+    {q:"Servus'a göre imparator her zaman kaç erkek çocuğa sahip olur?",a:"Bir",w:["İki","Üç","Dört"]},
+    {q:"Bücür Stricta savaşında ne yaptı?",a:"Savaş alanını terk etti",w:["Agus'un yanında savaştı","Narin'i öldürdü","Golis'e dua etti"]},
+    {q:"İnci'de en sık kullanılan para birimi hangisidir?",a:"Silver",w:["Gold","Copper","Platinum"]},
+    {q:"Feyren'in çocuklarının ten rengi ne olur?",a:"Mor, kırmızı veya siyah",w:["Altın","Beyaz","Yeşil"]},
+    // === Wiki — Yeni Lore ===
+    {q:"Vita Vya grubunun reisleri kimlerdir?",a:"Pawos ve Tera",w:["Karo ve Yolki","Vita ve Yeshinda","Tera ve Karo"]},
+    {q:"Vita Vya'nın mottosu nedir?",a:"Neredesin Vita?",w:["Geber Atashinda","Ebedi Deniz","Kuzey her zaman gösterir"]},
+    {q:"Vita Vya grubunu oluşturan çocuklar nerede büyüdü?",a:"Arce'deki kilise yetimhanesi",w:["Ragusium sokakları","Agus pazarı","İnsulam manastırı"]},
+    {q:"Rahip Atashinda çocukları kime sattı?",a:"Büyücülere ve cerrahlara",w:["Engizisyon'a","Tüccarlar","Etfaliye'ye"]},
+    {q:"Vita Vya'da Yolki'nin rolü nedir?",a:"Hırsız / Çilingir",w:["Gözcü","Savaşçı","Akıl Hocası"]},
+    {q:"Vita Vya'nın kervanları korkutan ezgisi nasıl başlar?",a:"Neredesin sevgili Vita?",w:["Geber Atashinda","Korkudan titredik","Bağır bizlere Vita"]},
+    {q:"Wild hangi lakabıyla bilinir?",a:"Düşünmeyen Kılıç",w:["Mantıklı Felaketin Mimarı","Ebedi Denizci","Kuzey Balıkçısı"]},
+    {q:"Garmoth nasıl biri olarak tanımlanır?",a:"Sivri zekalı ama yanlış kararlı",w:["Güçlü ama aptal savaşçı","Sessiz ve bilge rahip","Acımasız ve soğuk kaptan"]},
+    {q:"Garmoth ve Wild'in Isel macerasında ne oldu?",a:"Bulundukları şehre gitmek",w:["Hazine buldular","Filo yaktılar","Turnuvayı kazandılar"]},
+    {q:"İmparatorluk Donanması kaç ana armadadan oluşur?",a:"Üç",w:["İki","Dört","Beş"]},
+    {q:"Deniz Nizam Konseyi kaç üyeden oluşur?",a:"Beş",w:["Üç","Yedi","On"]},
+    {q:"Batı Armadası'nın sancağında ne tasvir edilmiştir?",a:"Taç giydirilmiş köpekbalığı",w:["Vatoz","Hamsi","Kartal"]},
+    {q:"Doğu Armadası'nın sancağında hangi deniz canlısı var?",a:"Vatoz",w:["Köpekbalığı","Hamsi","Balina"]},
+    {q:"Kuzey Armadası'nı kim lağvetti?",a:"II. Baldus Agus",w:["I. Agustis Agus","I. Baldus Agus","Deniz Nizam Konseyi"]},
+    {q:"Kuzey Armadası'nın yeni gayriresmi sancağında ne var?",a:"Üç hamsi",w:["Bir köpekbalığı","Bir vatoz","Bir çapa"]},
+    {q:"Mavi Yemin Kardeşliği'nin mottosu nedir?",a:"Ebedi Deniz",w:["Deniz herkese","Kuzey gösterir","İmparatorluk ufukta"]},
+    {q:"Mavi Yemin Kardeşliği'nin üyelerinde hangi dövme bulunur?",a:"Sol omuzda MRA",w:["Sağ bileğe çapa","Boyuna hamsi","Göğse gemi"]},
+    {q:"Vakanüvis'in asıl görevi nedir?",a:"Olayları tarihe uygun kaydetmek",w:["Savaş stratejisi geliştirmek","Vergi toplamak","Kanun yazmak"]},
+    {q:"Dilmaç ne yapar?",a:"Kararları halka tebliğ eder",w:["Vergi toplar","Ordu yönetir","Yargılar"]},
+    {q:"Baş Vakanüvis'in adı nedir?",a:"İlber Middlen",w:["Revlo Krell","Manhurt Veronican","Juster Bruk"]},
+    {q:"Kumpanyadaki işçilere ne ile maaş ödenir?",a:"Pirinç Jetonlar",w:["Altın","Gümüş","Copper"]},
+    {q:"Ala Adaları kumpanyasında en büyük tehditlerden biri nedir?",a:"Susuzluk",w:["Donmak","Yangın","Deprem"]},
+    {q:"I. Agustis Agus'un lakabı nedir?",a:"Baba",w:["İntikamcı","Tavizci","Harikalar Mimarı"]},
+    {q:"I. Agustis Agus hangi geçide dev melek heykelleri yaptırdı?",a:"Stricta Geçidi",w:["Noer Geçidi","Ragusium Boğazı","Ala Kanalı"]},
+    {q:"II. Baldus Agus neden 'İntikamcı' lakabını aldı?",a:"Babasının reformlarını geri aldı",w:["Kuzey'i fethetti","Engizisyon'u kapattı","Donanmayı kurdu"]},
+    {q:"I. Agustis Agus tablolarında eşini nasıl simgeledi?",a:"Yasemin çiçeği ile",w:["Altın halka","Mavi tüy","Kırmızı iplik"]},
+    {q:"Revlo Krell gözünü nasıl kaybetti?",a:"Vali Veran'ın hançeriyle",w:["Savaşta ok ile","Engizisyon işkencesiyle","Turnuvada kılıçla"]},
+    {q:"Olfrit'in 'Dealbreaker' lakabı ne anlama gelir?",a:"Dalgaların oyununu bozan",w:["Anlaşmayı bozan","En iyi denizci","Korsanları durduran"]},
+    {q:"Vakanüvis İlber, Golyat'a hangi unvanı verdi?",a:"The Flyingship",w:["The Tall","The Fox","The Rottweiler"]},
+    {q:"Kumpanya kolonilerinde en fazla kaç kişi yaşar?",a:"80-150",w:["500-1000","20-50","1500-2000"]},
+    {q:"Vita Vya'da Yeshinda kimdir?",a:"Atashinda'nın yeğeni",w:["Vita'nın abisi","Pawos'un kardeşi","Tera'nın annesi"]},
   ];
 
-  useEffect(()=>{
-    const poll=async()=>{
-      const data=await fbGet("waitroom");
-      if(!data)return;
-      const arr=Object.values(data).sort((a,b)=>a.id-b.id);
-      const newOnes=arr.filter(m=>m.id>lastRef.current);
-      if(newOnes.length){lastRef.current=Math.max(...newOnes.map(m=>m.id));setMessages(arr.slice(-80));}
-    };
-    poll();const iv=setInterval(poll,2000);return()=>clearInterval(iv);
-  },[]);
-
-  useEffect(()=>{if(bottomRef.current)bottomRef.current.scrollIntoView({behavior:"smooth"});},[messages]);
-
-  const send=async()=>{
-    if(!text.trim())return;
-    const id=ts();await fbSet("waitroom/"+id,{id,from:me,text:text.trim(),type:"msg"});
-    setText("");
+  const pickTrivia=()=>{
+    const q=TRIVIA[Math.floor(Math.random()*TRIVIA.length)];
+    setTrivia({...q,opts:shuffle([q.a,...q.w])});
+    setAnswered(null);setTriviaEffect(null);
   };
 
-  const sendReaction=async(emoji)=>{
-    const id=ts();await fbSet("waitroom/"+id,{id,from:me,text:emoji,type:"reaction"});
-    setReactionAnim(emoji);setTimeout(()=>setReactionAnim(null),1200);
+  const saveHighScore=async(newStreak)=>{
+    const ex=scores.find(s=>s.name===me);
+    if(!ex||newStreak>ex.streak){
+      const e={name:me,streak:newStreak,date:new Date().toLocaleDateString("tr-TR")};
+      await fbSet("triviaScores/"+me,e);
+      setScores(prev=>[...prev.filter(s=>s.name!==me),e].sort((a,b)=>b.streak-a.streak));
+    }
   };
 
-  const rollDice=async()=>{
-    const raw=Math.floor(Math.random()*20)+1;
-    const id=ts();await fbSet("waitroom/"+id,{id,from:me,text:"🎲 d20 attı → "+raw+(raw===20?" ✨CRIT!":raw===1?" 💀FAIL!":""),type:"roll",val:raw});
+  const answerTrivia=async(chosen)=>{
+    if(answered)return;
+    const correct=chosen===trivia.a;
+    setAnswered({correct,chosen});
+    if(correct){
+      const ns=streakRef.current+1;
+      setStreak(ns);
+      playSound(ns===20?"twenty":ns===10?"ten":"correct");
+      setTriviaEffect("correct");setTimeout(()=>setTriviaEffect(null),700);
+      if(ns===10){setCelebration("ten");setTimeout(()=>setCelebration(null),3500);}
+      if(ns===20){setCelebration("twenty");setTimeout(()=>setCelebration(null),5000);}
+      await saveHighScore(ns);
+    } else {
+      const old=streakRef.current;
+      setStreak(0);
+      playSound("wrong");
+      setTriviaEffect("wrong");setTimeout(()=>setTriviaEffect(null),700);
+      if(old>0)await saveHighScore(old);
+    }
   };
 
-  const pickTrivia=()=>setTrivia(TRIVIA[Math.floor(Math.random()*TRIVIA.length)]);
+  const fetchNews=async()=>{
+    setNewsLoading(true);setNews([]);
+    try{
+      const res=await fetch("https://api.anthropic.com/v1/messages",{
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({
+          model:"claude-sonnet-4-20250514",
+          max_tokens:1500,
+          tools:[{type:"web_search_20250305",name:"web_search"}],
+          messages:[{role:"user",content:"Sozcu gazetesi son dakika sayfasini tara: https://www.sozcu.com.tr/son-dakika/ — En guncel 8 haberin basligini ve 1-2 cumlelik kisa aciklamasini JSON array olarak ver. Format: [{\"title\":\"...\",\"desc\":\"...\",\"url\":\"...\",\"time\":\"...\"}]. Sadece JSON dondur."}]
+        })
+      });
+      const data=await res.json();
+      const text=data.content.filter(b=>b.type==="text").map(b=>b.text).join("");
+      const clean=text.replace(/```json|```/g,"").trim();
+      const items=JSON.parse(clean);
+      if(Array.isArray(items)&&items.length>0){
+        setNews(items);
+        setNewsUpdated(new Date().toLocaleTimeString("tr-TR",{hour:"2-digit",minute:"2-digit"}));
+      }
+    }catch(e){console.error(e);}
+    setNewsLoading(false);
+  };
+
+  const startBreak=async()=>{
+    const mins=parseInt(breakInput)||15;
+    const end=Date.now()+mins*60000;
+    setBreakEnd(end);await fbSet("breakTimer",{end,mins});
+  };
+  const clearBreak=async()=>{setBreakEnd(null);await fbSet("breakTimer",null);};
+
+  const remaining=breakEnd?Math.max(0,Math.ceil((breakEnd-now)/1000)):null;
+  const remMin=remaining!=null?Math.floor(remaining/60):null;
+  const remSec=remaining!=null?remaining%60:null;
+  const breakMins=breakEnd?(parseInt(breakInput)||15):15;
+  const sandPct=remaining!=null&&breakEnd?remaining/(breakMins*60):1;
+
+  const HourGlass=()=>(
+    <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:18,padding:"14px 16px",background:"rgba(200,149,42,.04)",border:"1px solid rgba(200,149,42,.12)",borderRadius:10,marginBottom:14}}>
+      <svg width={44} height={60} viewBox="0 0 44 60">
+        <line x1={4} y1={3} x2={40} y2={3} stroke="rgba(200,149,42,.6)" strokeWidth={2} strokeLinecap="round"/>
+        <line x1={4} y1={57} x2={40} y2={57} stroke="rgba(200,149,42,.6)" strokeWidth={2} strokeLinecap="round"/>
+        <path d="M4,5 L22,28 L40,5 Z" fill="rgba(200,149,42,.06)"/>
+        <path d="M22,32 L40,55 L4,55 Z" fill="rgba(200,149,42,.06)"/>
+        <clipPath id="hg-t"><path d="M4,5 L22,28 L40,5 Z"/></clipPath>
+        <clipPath id="hg-b"><path d="M22,32 L40,55 L4,55 Z"/></clipPath>
+        <rect x={4} y={5} width={36} height={sandPct*23} fill="rgba(200,149,42,.45)" clipPath="url(#hg-t)"/>
+        <rect x={4} y={55-(1-sandPct)*23} width={36} height={(1-sandPct)*23} fill="rgba(200,149,42,.5)" clipPath="url(#hg-b)"/>
+        <circle cx={22} cy={30} r={1.5} fill="rgba(200,149,42,.55)"/>
+      </svg>
+      <div>
+        <div style={{fontFamily:"'Cinzel',serif",fontSize:".48rem",letterSpacing:".15em",color:"rgba(200,149,42,.4)",textTransform:"uppercase",marginBottom:4}}>☕ Mola</div>
+        {remaining!=null&&remaining>0?(
+          <div style={{fontFamily:"'Cinzel',serif",fontSize:"1.8rem",fontWeight:900,color:"#f0c060",lineHeight:1,letterSpacing:".05em"}}>{String(remMin).padStart(2,"0")}:{String(remSec).padStart(2,"0")}</div>
+        ):(
+          <div style={{fontFamily:"'Cinzel',serif",fontSize:"1rem",color:"#7ef0a0",fontWeight:700}}>✓ Mola bitti!</div>
+        )}
+        {remaining!=null&&remaining>0&&(
+          <div style={{marginTop:6,width:110,height:3,background:"rgba(200,149,42,.1)",borderRadius:2,overflow:"hidden"}}>
+            <div style={{height:"100%",width:(sandPct*100)+"%",background:"linear-gradient(90deg,rgba(200,149,42,.4),#f0c060)",borderRadius:2,transition:"width 1s linear"}}/>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+
+  const rankColor=(i)=>i===0?"#f0c060":i===1?"#c0c0c0":i===2?"#cd7f32":"rgba(200,149,42,.4)";
+  const rankIcon=(i)=>i===0?"🥇":i===1?"🥈":i===2?"🥉":String(i+1)+".";
+
+  const ScoreBoard=({data,myKey,valueKey,unit})=>(
+    <div style={{borderRadius:10,overflow:"hidden",border:"1px solid rgba(200,149,42,.1)"}}>
+      <div style={{padding:"9px 14px",background:"rgba(200,149,42,.06)",borderBottom:"1px solid rgba(200,149,42,.1)"}}>
+        <span style={{fontFamily:"'Cinzel',serif",fontSize:".52rem",letterSpacing:".18em",color:"rgba(200,149,42,.5)",textTransform:"uppercase"}}>🏆 Liderlik Tablosu</span>
+      </div>
+      {data.length===0&&(
+        <div style={{padding:"16px",textAlign:"center",fontSize:".72rem",color:"var(--text-dim)",fontStyle:"italic",background:"rgba(0,0,0,.1)"}}>Henüz kimse kayıt yapmadı!</div>
+      )}
+      {data.slice(0,8).map((e,i)=>{
+        const isMe=e.name===myKey;
+        const rc=rankColor(i);
+        const isMedal=i<3;
+        return(
+          <div key={e.name} style={{display:"flex",alignItems:"center",gap:10,padding:"8px 14px",background:isMe?"rgba(200,149,42,.07)":i%2===0?"rgba(0,0,0,.1)":"rgba(0,0,0,.05)",borderBottom:i<data.slice(0,8).length-1?"1px solid rgba(200,149,42,.05)":"none",transition:"background .15s"}}>
+            <span style={{fontFamily:"'Cinzel',serif",fontSize:isMedal?".8rem":".62rem",color:rc,minWidth:26,textAlign:"center",fontWeight:isMedal?700:400,lineHeight:1}}>{rankIcon(i)}</span>
+            <div style={{flex:1,minWidth:0}}>
+              <span style={{fontFamily:"'Cinzel',serif",fontSize:".7rem",color:isMe?"#f0c060":isMedal?rc:"var(--parchment)",fontWeight:isMe?700:isMedal?600:400,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",display:"block"}}>
+                {e.name}{isMe?" ✦":""}
+              </span>
+              {e.date&&<span style={{fontSize:".55rem",color:"var(--text-dim)"}}>{e.date}</span>}
+            </div>
+            <div style={{textAlign:"right",flexShrink:0}}>
+              <span style={{fontFamily:"'Cinzel',serif",fontSize:".82rem",fontWeight:700,color:i===0?"#f0c060":i===1?"#c0c0c0":i===2?"#cd7f32":"#90b8f0"}}>{e[valueKey]}</span>
+              {unit&&<span style={{fontSize:".55rem",color:"var(--text-dim)",marginLeft:3}}>{unit}</span>}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+
+  // Soru ilerleme çubuğu hesabı
+  const myBest=scores.find(s=>s.name===me);
 
   return(
-    <div className="panel" style={{paddingBottom:16,display:"flex",flexDirection:"column",gap:0,height:"100%"}}>
-      <div style={{fontFamily:"'Cinzel',serif",fontSize:"1rem",fontWeight:700,color:"var(--gold)",letterSpacing:".15em",marginBottom:4}}>🏠 Bekleme Odası</div>
-      <div style={{fontSize:".78rem",color:"var(--text-dim)",fontStyle:"italic",marginBottom:14}}>Oturum başlayana kadar burada takılın!</div>
+    <div className="panel" style={{display:"flex",flexDirection:"column"}}>
 
-      {/* Trivia */}
-      <div style={{background:"rgba(200,149,42,.06)",border:"1px solid rgba(200,149,42,.18)",borderRadius:8,padding:12,marginBottom:12}}>
-        <div style={{fontFamily:"'Cinzel',serif",fontSize:".6rem",color:"var(--gold)",letterSpacing:".1em",marginBottom:6}}>🧠 İNCİ TRİVİA</div>
-        {trivia?(
-          <div>
-            <div style={{fontSize:".85rem",color:"var(--parchment)",marginBottom:8}}>{trivia.q}</div>
-            <button onClick={()=>setTrivia({...trivia,show:true})} style={{background:"rgba(200,149,42,.08)",border:"1px solid rgba(200,149,42,.2)",borderRadius:5,padding:"4px 12px",cursor:"pointer",fontFamily:"'Cinzel',serif",fontSize:".62rem",color:"var(--gold)"}}>
-              {trivia.show?"→ "+trivia.a:"Cevabı Gör"}
-            </button>
-            <button onClick={pickTrivia} style={{background:"transparent",border:"none",cursor:"pointer",fontFamily:"'Cinzel',serif",fontSize:".6rem",color:"var(--text-dim)",marginLeft:8}}>↻ Yeni</button>
+      {/* Kutlama */}
+      {celebration&&(
+        <div style={{position:"fixed",inset:0,pointerEvents:"none",zIndex:9999,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:10}}>
+          <div style={{fontFamily:"'Cinzel',serif",fontSize:celebration==="twenty"?"3.5rem":"2.5rem",fontWeight:900,color:"#f0c060",textShadow:"0 0 60px rgba(240,192,96,.9),0 0 20px rgba(240,192,96,.5)",animation:"fp .4s ease-out",textAlign:"center",lineHeight:1.2}}>
+            {celebration==="twenty"?"🎆 20 STREAK 🎆":"🎇 10 STREAK 🎇"}
           </div>
-        ):(
-          <button onClick={pickTrivia} style={{background:"rgba(200,149,42,.08)",border:"1px solid rgba(200,149,42,.2)",borderRadius:6,padding:"6px 14px",cursor:"pointer",fontFamily:"'Cinzel',serif",fontSize:".65rem",color:"var(--gold)"}}>Soru Getir</button>
+          <div style={{fontFamily:"'Cinzel',serif",fontSize:".85rem",letterSpacing:".3em",color:"rgba(240,192,96,.6)",textTransform:"uppercase"}}>
+            {celebration==="twenty"?"Efsane!":"Harika!"}
+          </div>
+        </div>
+      )}
+
+      {/* Header */}
+      <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",marginBottom:16}}>
+        <div style={{display:"flex",alignItems:"center",gap:8}}>
+          {view!=="home"&&(
+            <button onClick={()=>setView("home")} style={{background:"rgba(200,149,42,.06)",border:"1px solid rgba(200,149,42,.15)",borderRadius:6,width:30,height:30,cursor:"pointer",color:"rgba(200,149,42,.6)",fontSize:".9rem",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>←</button>
+          )}
+          <div>
+            <div style={{fontFamily:"'Cinzel',serif",fontSize:"1.1rem",fontWeight:700,color:"var(--gold)",letterSpacing:".1em"}}>🏠 Bekleme Odası</div>
+            {view==="home"&&<div style={{fontSize:".68rem",color:"var(--text-dim)",marginTop:2}}>Oturum başlayana kadar rahat edin</div>}
+          </div>
+        </div>
+        {isDM&&(
+          <div style={{display:"flex",gap:5,alignItems:"center",flexShrink:0}}>
+            <input value={breakInput} onChange={e=>setBreakInput(e.target.value)} type="number" min="1" max="60"
+              style={{width:38,background:"rgba(200,149,42,.06)",border:"1px solid rgba(200,149,42,.18)",borderRadius:5,padding:"4px 5px",color:"var(--gold)",fontFamily:"'Cinzel',serif",fontSize:".6rem",outline:"none",textAlign:"center"}}/>
+            <span style={{fontSize:".56rem",color:"rgba(200,149,42,.4)"}}>dk</span>
+            <button onClick={startBreak} title="Mola başlat" style={{background:"rgba(200,149,42,.08)",border:"1px solid rgba(200,149,42,.22)",borderRadius:5,padding:"4px 9px",cursor:"pointer",fontFamily:"'Cinzel',serif",fontSize:".56rem",color:"var(--gold)"}}>⏳ Başlat</button>
+            {breakEnd&&<button onClick={clearBreak} style={{background:"transparent",border:"1px solid rgba(139,26,26,.2)",borderRadius:5,padding:"3px 7px",cursor:"pointer",color:"rgba(255,100,100,.4)",fontSize:".6rem"}}>✕</button>}
+          </div>
         )}
       </div>
 
-      {/* Online oyuncular */}
-      <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:12}}>
-        {all.map(p=>{
-          const av=avatars&&avatars[p.name];
-          return(
-            <div key={p.name} style={{display:"flex",flexDirection:"column",alignItems:"center",gap:3}}>
-              <div style={{width:36,height:36,borderRadius:"50%",overflow:"hidden",border:"2px solid rgba(200,149,42,.3)",background:"rgba(200,149,42,.08)",display:"flex",alignItems:"center",justifyContent:"center"}}>
-                {av?<img src={av} style={{width:"100%",height:"100%",objectFit:"cover"}}/>:<span style={{fontSize:"1rem"}}>🧙</span>}
-              </div>
-              <span style={{fontFamily:"'Cinzel',serif",fontSize:".42rem",color:"rgba(200,149,42,.5)",textAlign:"center",maxWidth:40,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{(p.char&&p.char.name)||p.name}</span>
-            </div>
-          );
-        })}
-      </div>
+      {/* Kum saati */}
+      {breakEnd&&<HourGlass/>}
 
-      {/* Chat */}
-      <div style={{flex:1,background:"rgba(0,0,0,.2)",borderRadius:8,border:"1px solid rgba(200,149,42,.12)",padding:10,overflowY:"auto",marginBottom:8,minHeight:120,maxHeight:280}}>
-        {messages.length===0&&<div style={{color:"var(--text-dim)",fontStyle:"italic",fontSize:".78rem",textAlign:"center",padding:"12px 0"}}>Henüz mesaj yok 👋</div>}
-        {messages.map(m=>{
-          const isMe=m.from===me;
-          const av=avatars&&avatars[m.from];
-          if(m.type==="reaction")return <div key={m.id} style={{textAlign:"center",fontSize:"1.8rem",margin:"4px 0",animation:"fp .3s"}}>{m.text}</div>;
-          if(m.type==="roll")return <div key={m.id} style={{textAlign:"center",fontSize:".78rem",color:"var(--gold)",fontFamily:"'Cinzel',serif",margin:"5px 0",fontStyle:"italic"}}>{m.from} {m.text}</div>;
-          return(
-            <div key={m.id} style={{display:"flex",gap:7,marginBottom:6,flexDirection:isMe?"row-reverse":"row",alignItems:"flex-end"}}>
-              <div style={{width:26,height:26,borderRadius:"50%",overflow:"hidden",flexShrink:0,background:"rgba(200,149,42,.1)",border:"1px solid rgba(200,149,42,.2)",display:"flex",alignItems:"center",justifyContent:"center"}}>
-                {av?<img src={av} style={{width:"100%",height:"100%",objectFit:"cover"}}/>:<span style={{fontSize:".7rem"}}>🧙</span>}
+      {/* HOME */}
+      {view==="home"&&(
+        <div style={{display:"flex",flexDirection:"column",gap:10}}>
+          {[
+            {id:"trivia",icon:"🧠",label:"İnci Trivia",desc:"Dünya lore'unu ne kadar biliyorsun?",
+              sub:scores.length>0?"🏆 "+scores[0].name+" — "+scores[0].streak+" streak":null,
+              bg:"rgba(200,149,42,.05)",border:"rgba(200,149,42,.18)",hbg:"rgba(200,149,42,.1)",hb:"rgba(200,149,42,.4)",tc:"var(--gold)"},
+            {id:"snake",icon:"🐍",label:"Snake",desc:"Klasik yılan oyunu. Kaç elma yiyebilirsin?",sub:null,
+              bg:"rgba(76,175,125,.04)",border:"rgba(76,175,125,.16)",hbg:"rgba(76,175,125,.1)",hb:"rgba(76,175,125,.4)",tc:"#7ef0a0"},
+            {id:"library",icon:"📚",label:"Kütüphane",desc:"İnci'nin tarihi ve lore'u hakkında eserler",sub:null,
+              bg:"rgba(139,90,43,.05)",border:"rgba(139,90,43,.2)",hbg:"rgba(139,90,43,.12)",hb:"rgba(139,90,43,.45)",tc:"#c8a46e"},
+            {id:"news",icon:"📰",label:"Haberler",desc:"Türkiye gündemine dair haberler",sub:null,
+              bg:"rgba(91,155,213,.04)",border:"rgba(91,155,213,.16)",hbg:"rgba(91,155,213,.1)",hb:"rgba(91,155,213,.4)",tc:"#90b8f0"},
+          ].map(item=>(
+            <button key={item.id} onClick={()=>setView(item.id)}
+              style={{background:item.bg,border:"1px solid "+item.border,borderRadius:12,padding:"16px 18px",cursor:"pointer",textAlign:"left",transition:"all .2s",display:"flex",alignItems:"center",gap:14,width:"100%"}}
+              onMouseEnter={e=>{e.currentTarget.style.background=item.hbg;e.currentTarget.style.borderColor=item.hb;e.currentTarget.style.transform="translateY(-1px)";}}
+              onMouseLeave={e=>{e.currentTarget.style.background=item.bg;e.currentTarget.style.borderColor=item.border;e.currentTarget.style.transform="none";}}>
+              <span style={{fontSize:"1.7rem",flexShrink:0,lineHeight:1}}>{item.icon}</span>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{fontFamily:"'Cinzel',serif",fontSize:".82rem",color:item.tc,fontWeight:700,marginBottom:3}}>{item.label}</div>
+                <div style={{fontSize:".68rem",color:"var(--text-dim)",lineHeight:1.4}}>{item.desc}</div>
+                {item.sub&&<div style={{marginTop:5,fontSize:".6rem",color:"rgba(200,149,42,.45)",borderTop:"1px solid rgba(200,149,42,.08)",paddingTop:5}}>{item.sub}</div>}
               </div>
-              <div style={{maxWidth:"72%"}}>
-                <div style={{fontFamily:"'Cinzel',serif",fontSize:".55rem",color:"rgba(200,149,42,.5)",marginBottom:2,textAlign:isMe?"right":"left"}}>{m.from}</div>
-                <div style={{background:isMe?"rgba(200,149,42,.12)":"rgba(255,255,255,.05)",border:"1px solid "+(isMe?"rgba(200,149,42,.2)":"rgba(200,149,42,.1)"),borderRadius:isMe?"10px 2px 10px 10px":"2px 10px 10px 10px",padding:"6px 10px",fontSize:".82rem",color:"var(--parchment)",lineHeight:1.4,wordBreak:"break-word"}}>{m.text}</div>
-              </div>
-            </div>
-          );
-        })}
-        <div ref={bottomRef}/>
-      </div>
+              <span style={{color:"rgba(200,149,42,.25)",fontSize:".8rem",flexShrink:0}}>›</span>
+            </button>
+          ))}
+        </div>
+      )}
 
-      {/* Reaksiyon bar */}
-      <div style={{display:"flex",gap:4,marginBottom:8,flexWrap:"wrap"}}>
-        {REACTIONS.map(e=>(
-          <button key={e} onClick={()=>sendReaction(e)} style={{background:"transparent",border:"1px solid rgba(200,149,42,.12)",borderRadius:6,padding:"3px 6px",cursor:"pointer",fontSize:"1rem",transition:"all .15s"}} onMouseEnter={ev=>ev.currentTarget.style.background="rgba(200,149,42,.1)"} onMouseLeave={ev=>ev.currentTarget.style.background="transparent"}>{e}</button>
+      {/* TRİVİA */}
+      {view==="trivia"&&(
+        <div style={{display:"flex",flexDirection:"column",gap:12}}>
+          {/* Streak ve kişisel rekor bar */}
+          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"8px 12px",background:"rgba(200,149,42,.04)",border:"1px solid rgba(200,149,42,.1)",borderRadius:8}}>
+            <div style={{display:"flex",alignItems:"center",gap:10}}>
+              <div style={{textAlign:"center"}}>
+                <div style={{fontFamily:"'Cinzel',serif",fontSize:".42rem",color:"rgba(200,149,42,.4)",letterSpacing:".12em",textTransform:"uppercase"}}>Streak</div>
+                <div style={{fontFamily:"'Cinzel',serif",fontSize:"1.3rem",fontWeight:900,color:streak>0?"#f0c060":"rgba(200,149,42,.25)",lineHeight:1}}>{streak>0?"🔥 "+streak:"—"}</div>
+              </div>
+              {myBest&&<div style={{textAlign:"center",paddingLeft:10,borderLeft:"1px solid rgba(200,149,42,.12)"}}>
+                <div style={{fontFamily:"'Cinzel',serif",fontSize:".42rem",color:"rgba(200,149,42,.4)",letterSpacing:".12em",textTransform:"uppercase"}}>Rekorun</div>
+                <div style={{fontFamily:"'Cinzel',serif",fontSize:"1.3rem",fontWeight:900,color:"rgba(200,149,42,.5)",lineHeight:1}}>{myBest.streak}</div>
+              </div>}
+            </div>
+            <button onClick={pickTrivia} style={{background:"rgba(200,149,42,.08)",border:"1px solid rgba(200,149,42,.2)",borderRadius:6,padding:"5px 12px",cursor:"pointer",fontFamily:"'Cinzel',serif",fontSize:".58rem",color:"rgba(200,149,42,.6)"}}>↻ Yeni Soru</button>
+          </div>
+
+          {/* Soru */}
+          <div style={{background:triviaEffect==="correct"?"rgba(76,175,125,.12)":triviaEffect==="wrong"?"rgba(180,40,40,.12)":"rgba(0,0,0,.15)",border:"1px solid "+(triviaEffect==="correct"?"rgba(76,175,125,.45)":triviaEffect==="wrong"?"rgba(180,40,40,.45)":"rgba(200,149,42,.1)"),borderRadius:10,padding:16,transition:"all .18s"}}>
+            {!trivia&&<div style={{textAlign:"center",padding:"16px 0",color:"rgba(200,149,42,.35)",fontFamily:"'Cinzel',serif",fontSize:".62rem",letterSpacing:".1em"}}>⏳ Yükleniyor...</div>}
+            {trivia&&<>
+              <div style={{fontSize:".92rem",color:"var(--parchment)",marginBottom:14,lineHeight:1.5,fontFamily:"'Crimson Text',serif"}}>{trivia.q}</div>
+              <div style={{display:"flex",flexDirection:"column",gap:6}}>
+                {trivia.opts.map((opt,i)=>{
+                  const isChosen=answered&&answered.chosen===opt;
+                  const isCorrect=opt===trivia.a;
+                  const show=!!answered;
+                  let bg="rgba(200,149,42,.04)",bdr="rgba(200,149,42,.1)",clr="var(--parchment)";
+                  if(show&&isCorrect){bg="rgba(76,175,125,.12)";bdr="rgba(76,175,125,.5)";clr="#7ef0a0";}
+                  else if(show&&isChosen&&!isCorrect){bg="rgba(180,40,40,.12)";bdr="rgba(180,40,40,.5)";clr="#ff9090";}
+                  return(
+                    <button key={i} onClick={()=>answerTrivia(opt)} disabled={!!answered}
+                      style={{background:bg,border:"1px solid "+bdr,borderRadius:7,padding:"9px 12px",cursor:answered?"default":"pointer",textAlign:"left",color:clr,fontSize:".82rem",transition:"all .18s",display:"flex",alignItems:"center",gap:8,fontFamily:"'Crimson Text',serif"}}
+                      onMouseEnter={e=>{if(!answered){e.currentTarget.style.background="rgba(200,149,42,.1)";e.currentTarget.style.borderColor="rgba(200,149,42,.35)";}}}
+                      onMouseLeave={e=>{if(!answered){e.currentTarget.style.background=bg;e.currentTarget.style.borderColor=bdr;}}}>
+                      <span style={{fontFamily:"'Cinzel',serif",fontSize:".52rem",color:show?(isCorrect?"#7ef0a0":isChosen?"#ff9090":"rgba(200,149,42,.2)"):"rgba(200,149,42,.4)",flexShrink:0,minWidth:16,fontWeight:700}}>
+                        {show?(isCorrect?"✓":isChosen?"✗":String.fromCharCode(65+i)):String.fromCharCode(65+i)}
+                      </span>
+                      {opt}
+                    </button>
+                  );
+                })}
+              </div>
+              {answered&&(
+                <div style={{marginTop:10,display:"flex",justifyContent:"space-between",alignItems:"center",paddingTop:10,borderTop:"1px solid rgba(200,149,42,.08)"}}>
+                  <span style={{fontSize:".75rem",color:answered.correct?"#7ef0a0":"#ff9090",fontStyle:"italic",fontFamily:"'Crimson Text',serif"}}>{answered.correct?"✨ Doğru!":"💀 Yanlış!"}</span>
+                  <button onClick={pickTrivia} style={{background:"rgba(200,149,42,.08)",border:"1px solid rgba(200,149,42,.25)",borderRadius:6,padding:"5px 14px",cursor:"pointer",fontFamily:"'Cinzel',serif",fontSize:".6rem",color:"var(--gold)"}}>Sonraki →</button>
+                </div>
+              )}
+            </>}
+          </div>
+
+          {/* Liderlik */}
+          <ScoreBoard data={scores} myKey={me} valueKey="streak" unit="streak"/>
+        </div>
+      )}
+
+      {/* SNAKE */}
+      {view==="snake"&&<SnakeGame me={me}/>}
+      {view==="library"&&<LibraryView me={me} isDM={isDM}/>}
+
+      {/* HABERLER */}
+      {view==="news"&&(
+        <div style={{display:"flex",flexDirection:"column",gap:14}}>
+          {/* Haber çekme butonu */}
+          {news.length===0&&!newsLoading&&(
+            <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:12,padding:"32px 20px",background:"rgba(91,155,213,.04)",border:"1px solid rgba(91,155,213,.14)",borderRadius:12,textAlign:"center"}}>
+              <span style={{fontSize:"2.5rem"}}>📰</span>
+              <div style={{fontFamily:"'Cinzel',serif",fontSize:".75rem",color:"#90b8f0",fontWeight:600}}>Haberler</div>
+              <div style={{fontSize:".7rem",color:"var(--text-dim)",lineHeight:1.5,maxWidth:240}}>Sözcü gazetesinden güncel haberleri çekmek için butona bas.</div>
+              <button onClick={fetchNews}
+                style={{background:"rgba(91,155,213,.12)",border:"1px solid rgba(91,155,213,.35)",borderRadius:8,padding:"10px 24px",cursor:"pointer",fontFamily:"'Cinzel',serif",fontSize:".68rem",color:"#90b8f0",letterSpacing:".1em",marginTop:4,transition:"all .2s"}}
+                onMouseEnter={e=>{e.currentTarget.style.background="rgba(91,155,213,.22)";}}
+                onMouseLeave={e=>{e.currentTarget.style.background="rgba(91,155,213,.12)";}}>
+                📡 Haberleri Getir
+              </button>
+            </div>
+          )}
+          {newsLoading&&(
+            <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:10,padding:"32px 0"}}>
+              <div style={{fontSize:"2rem",animation:"amb-pulse 1.5s infinite"}}>📡</div>
+              <div style={{fontFamily:"'Cinzel',serif",fontSize:".65rem",color:"rgba(91,155,213,.5)",letterSpacing:".15em"}}>Haberler yükleniyor...</div>
+            </div>
+          )}
+          {news.length>0&&(
+            <>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                <div style={{fontFamily:"'Cinzel',serif",fontSize:".52rem",letterSpacing:".15em",color:"rgba(91,155,213,.45)",textTransform:"uppercase"}}>📰 Sözcü — Son Dakika</div>
+                <div style={{display:"flex",alignItems:"center",gap:8}}>
+                  {newsUpdated&&<span style={{fontSize:".58rem",color:"var(--text-dim)"}}>{newsUpdated}</span>}
+                  <button onClick={fetchNews} style={{background:"rgba(91,155,213,.08)",border:"1px solid rgba(91,155,213,.2)",borderRadius:5,padding:"3px 9px",cursor:"pointer",fontFamily:"'Cinzel',serif",fontSize:".54rem",color:"#90b8f0"}}>↻</button>
+                </div>
+              </div>
+              <div style={{display:"flex",flexDirection:"column",gap:8}}>
+                {news.map((item,i)=>(
+                  <a key={i} href={item.url} target="_blank" rel="noopener noreferrer"
+                    style={{display:"flex",gap:12,padding:"11px 14px",background:"rgba(0,0,0,.15)",border:"1px solid rgba(91,155,213,.1)",borderRadius:9,textDecoration:"none",transition:"all .18s"}}
+                    onMouseEnter={e=>{e.currentTarget.style.background="rgba(91,155,213,.08)";e.currentTarget.style.borderColor="rgba(91,155,213,.28)";}}
+                    onMouseLeave={e=>{e.currentTarget.style.background="rgba(0,0,0,.15)";e.currentTarget.style.borderColor="rgba(91,155,213,.1)";}}>
+                    <span style={{fontFamily:"'Cinzel',serif",fontSize:".62rem",color:"rgba(91,155,213,.35)",flexShrink:0,marginTop:2,minWidth:18,fontWeight:600}}>{i+1}</span>
+                    <div style={{flex:1,minWidth:0}}>
+                      <div style={{fontSize:".82rem",color:"var(--parchment)",lineHeight:1.4,fontFamily:"'Crimson Text',serif",fontWeight:600,marginBottom:item.desc?4:0}}>{item.title}</div>
+                      {item.desc&&<div style={{fontSize:".72rem",color:"var(--text-dim)",lineHeight:1.4,fontFamily:"'Crimson Text',serif",fontStyle:"italic"}}>{item.desc}</div>}
+                      {item.time&&<div style={{fontSize:".58rem",color:"rgba(91,155,213,.4)",marginTop:3}}>{item.time}</div>}
+                    </div>
+                    <span style={{color:"rgba(91,155,213,.25)",fontSize:".75rem",flexShrink:0,marginTop:2}}>↗</span>
+                  </a>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function LibraryView({me,isDM}){
+  const [selBook,setSelBook]=useState(null);
+  const [selChap,setSelChap]=useState(null);
+  const [readStats,setReadStats]=useState({});
+
+  // Firebase'den okuma istatistikleri çek (DM için)
+  useEffect(()=>{
+    fbGet("libraryStats").then(d=>{if(d)setReadStats(d);});
+  },[]);
+
+  const trackRead=(bookId)=>{
+    if(!me)return;
+    const key="libraryStats/"+me+"/"+bookId;
+    fbGet("libraryStats/"+me+"/"+bookId).then(cur=>{
+      const newCount=(cur||0)+1;
+      fbSet(key,newCount);
+      setReadStats(prev=>({...prev,[me]:{...(prev[me]||{}),[bookId]:newCount}}));
+    });
+  };
+
+  const openBook=(bookId)=>{
+    setSelBook(bookId);
+    setSelChap(null);
+    trackRead(bookId);
+  };
+
+  const BOOKS=[
+    {
+      id:"liber",spine:"Liber Dei",author:"İmparator Agus buyruğuyla",year:"Evvel Zaman",color:"#8B1A1A",
+      desc:"Servus dininin kutsal kitabı. Yaradılış'tan Feda'ya uzanan sekiz bölümde İnci'nin kuruluş gerçeği.",
+      chapters:[
+        {title:"Yaradılış",text:"Golis, birçok türden varlık yarattı. Bücürü, irisini, zarifini, kabasını, zekisini, aptalını, hainleri ve sadığını. İnsan en küçük kardeşleriydi, Golis'e en çok ihtiyaç duyan oydu. Sevdi ve sevildi.\n\nKardeşleri onu kıskandı, haset güttü. Zeki ve zarif olan şeytanca düşündü, insanı bir tuzağa düşürdü. Kandırdı, ümitlendirdi, hırçınlaştırdı. Soğuğa, güneşin öldüğü ufka sürdü.\n\nGolis, insanı aradı. Gözü Insulam'ı zirveye atadı. İnsulam küçük salda var oldu, insana ismini fısıldadı: 'Agus'. O'na emretti: 'Gittiğin gibi geri gel.'"},
+        {title:"Agus",text:"Golis'in temiz kulu Agus, kendisine en büyük hediye eşi Theranda ile büyüdü. Theranda bereketli, sadık ve güçlü bir kadındı; Agus'u kin, intikam ve öfke gibi duygulardan arındırmıştı.\n\nBüyük savaş başladı. İnsanların yüzleri kutsal savaşta aydınlıktı. Agus'un ordusunun kanı asla yere dökülmedi — yandı ve duman oldu.\n\nAgus affetmek istedi. Ancak Theranda Golis'in emrini iletti: 'Af yok.' Agus, Büyük Temizlik'i başlattı."},
+        {title:"İnci",text:"İnci, merhametli annelerin en merhametlisidir. İnci, İmparator'un tacı ve sorumluluğudur. İnci, Golis'in sıfatıdır.\n\nGolis, İnci'yi her insanın yüreğine kendisi yerleştirmiştir. Golis size sığınak verdi, yuva verdi. O'nun ötesinde ölümden başka bir şey yok. İnsan Altın Sınır'ı geçerse düşüşü kaçınılmazdır."},
+      ]
+    },
+    {
+      id:"eyaletler",spine:"Eyaletler & Vilayetler",author:"Kraliyet Arşivleri — Coğrafya Bölümü",year:"1179",color:"#3D2B1A",
+      desc:"İnci İmparatorluğu'nun tüm topraklarına dair resmi rehber. Her eyaletin yönetim yapısı, konumu ve özellikleri kayıt altındadır.",
+      chapters:[
+        {title:"Agus — Başkent",harita:true,haritaNot:"Kıtanın kalbinde, Metrus ve Minus sıradağları arasındaki verimli ovada kurulu.",text:"İmparatorluğun ve İmparator'un kalbi olan başkent, kurucusunun adını taşıyan Agus kentidir. İmparator'un şahsi toprağıdır; vergileri doğrudan İmparator hazinesine aktarılır.\n\nSadece bu kentte geçerli olan Besteni adında özel bir para birimi bulunmaktadır. Agus şehri doğrudan İmparator tarafından yönetilir; vali atanmaz.\n\nŞehrin merkezinde İmparatorluk Sarayı yükselir. Sarayın duvarları altınla kaplı, kubbesi elmaslarla süslenmiştir. Halkı o kadar medeni bir halktır ki duvarlardan bir tırnak boyunda altın alıp ömürlerini lord gibi yaşayabilirlerdi — ama hiçbiri buna yeltenmedi."},
+        {title:"İnsulam — Tanrı Krallığı",harita:true,haritaNot:"Doğu denizlerindeki kutsal ada. Göz Dağı zirvesinde büyük tapınak bulunur.",text:"İnsulam, Golis'in emri olan tanrı krallığıdır. Yöneticisi Servus dininin de lideri olan Yüce Servus'tur. Yüce Servus, İnsulam'da bulunan Servus Kardinalleri tarafından kendi aralarında seçilir.\n\nGöz Dağı'nın zirvesindeki büyük tapınak, tüm Servus kiliselerinin merkezidir. Exarclar iki senede bir burada toplanır; Yüce Hierophant yerel yönetimler hakkında bilgi edinir.\n\nInsulam ile Ragusium, karşılıklı duran iki ada olarak yıllarca birbirine nefret dolu gözlerle baktı. İmparatorluk Lejyonu Kale Adası'na çıkana kadar bu gerilim sürdü."},
+        {title:"Ragusium — Engizisyon Kalesi",harita:true,haritaNot:"Batı kıyısındaki stratejik ada kenti. Engizisyon'un merkezi.",text:"Ragusium, Servus'u korumak için kurulan Engizisyon'un evidir. Engizisyon mahkemeleri, sorgulanan kişilerden itiraflarını almak için işkence kullanabilir; itiraf etmeyenler sıklıkla idama mahkum edilirdi.\n\nBurada aynı zamanda Viza Akademisi kurulmuştu — uzun bir kule: alt katları öğrenci yurdu, orta katları derslik, üst katları profesör ofisleri, zirve ise rasathane. Bu kule hem Servus'a hem kiliseye açık bir meydan okumaydı.\n\nMeşale Gecesi'nde Viza Kulesi yakıldı. Yangın İnci'nin doğu kıyısından bile görüldü."},
+        {title:"Noer — Özgür Eyalet",harita:true,haritaNot:"Kuzey geçişinde, ormanlık bölgede. Dini özgürlüğüyle tanınır.",text:"Noer, dini özgürlüğü bulunan bir seçmen kont eyaletidir. Şehir çoğunlukla Servus dinine mensup olsa da kırsal kesimde hala Atalar Kültü inancı hakimdir.\n\nAtalar Kültü, Servus tarafından kabul edilen tek dindir. Bu nedenle Noer, İmparatorluk içindeki en hoşgörülü köşedir.\n\nNoer ötesinde, dondurucu rüzgarların hiç susmadığı ve toprağın kazma vurulmayacak kadar sert olduğu ölü topraklar başlar. Burada Buzkıran ve Demir Ağacı Kumpanyası'nın karakolları yer alır."},
+        {title:"Theranda Eyaleti",harita:true,haritaNot:"Güneybatı ovaları. Verimli tarım toprakları ve ticaret limanları.",text:"Agus'a doğrudan bağlı ve İmparator tarafından atanmış valiler tarafından yönetilen eyaletlerden biridir. Kurucunun kutsal eşi Theranda'nın adını taşır.\n\nTheranda eyaleti, İmparatorluğun güney ticaret kapısıdır. Liman şehirleri ve verimli ovaları İmparatorluğun tahıl ambarı olarak işlev görür.\n\nSisica, Aquincum ve Gard ile birlikte bu eyalet, I. Agustis Agus'un 'İmparator Yolu' projesinin ilk aşamasında güçlü bir şekilde birbirine bağlandı."},
+        {title:"Ala Adaları",harita:true,haritaNot:"Güney okyanusundaki tropikal takımadalar. Kan İncisi ve Siyah İnci yatakları.",text:"Ala kıyılarında Ala Adaları İnci ve Sedef Ortaklığı faaliyetini sürdürür. Kayalıkların üzerine kazıklarla oturtulmuş, şiddetli fırtınalarda sürekli sallanan, tuzdan çürümüş ahşap barakalar.\n\nSadece Ala resiflerinin karanlık akıntılarının derinliklerinde yetişen, saray kuyumcularının gözdesi Kan İncileri ve Siyah İnciler buradan çıkar.\n\nEtrafları uçsuz bucaksız okyanusla çevrili olsa da içecek bir damla tatlı suları yoktur. Gemi yanaşamazsa, işçiler susuzluktan delirip okyanus suyunu içerek ölmeye başlarlar.\n\n'Altın soğuktan korumaz, inci karın doyurmaz.' — Kayıp bir erzak kervanını bekleyen isimsiz bir katip"},
+        {title:"Sisica",harita:true,haritaNot:"Doğu denizindeki takımadalar. Ticaret guildlerinin merkezi.",text:"Sisica, seçmen kontlar ve onların varisleri tarafından yönetilen topraklardandır. Ticaret Guildlerine kayıtlı denizciler, burada filo büyüklüğü limitlerini genişletebilir.\n\nSisica Adaları limanında Viza Kültü mensuplarının 'Kaçakçı' numarası yapıp vergi memurları yerine bölge donanmasını tepelerine toplayarak rezil olduğu rivayet edilir.\n\nOlfrit, Sisica takımadalarında doğup büyüyen, denizle hep iç içe olmuş bir denizcidir. Daha çocuk yaşta kendini limanlarda mal taşırken bulmuş ve zamanla büyük bir denizci olmuştur."},
+        {title:"Farter",harita:true,haritaNot:"Güneydoğu falezleri. Viza Akademisi'nin yeni yeri.",text:"Farter Falezleri'nin en ucuna uzun bir kule inşa edilerek Viza Akademisi yeniden kuruldu. Viza Katliamı sonrasında saha görevindeki Wizard'lar İmparatorluk tarafından toplandı ve buraya yerleştirildi.\n\nAkademinin idaresini, güvenliğini ve hazinesini İmparatorluk memurları yönetmeye başladı. Viza Akademisi artık İmparatorluk ordusu için Wizard yetiştiriyor ve izinli olarak seçmen kontlara danışman Wizard gönderiyor.\n\nFarter ve Isel, Sisica, Ragusium, Audr, Arce, Italaus ile birlikte seçmen kontlar tarafından yönetilen topraklardandır."},
+        {title:"Kuzey Toprakları",harita:true,haritaNot:"Dondurucu kuzey. İmparatorluğun en zorlu ve en özgür coğrafyası.",text:"Noer şehri ötesinde başlayan bu topraklar, İmparatorluğun en sert ve ulaşılması güç bölgesidir. Kuzey Armadası burada devriye görevi yürütüyordu.\n\nUzun yıllar boyunca kuzey halkıyla kaynaşan Kuzey Armadası mürettebatı, rütbelerden çok güvene dayalı bir düzen oluşturdu. Bu kültür İmparatorluk otoritesiyle taban tabana zıttı.\n\nII. Baldus Agus, Kuzey Armadası'nı lağvetti. Sökülen gemi kalasları üzerine 'Kuzey Balıkçıları' yazdırılarak limanlara balıkçı barakası yaptırıldı. Teslim edilmeyen 3 Ağır Harp Kalyonu ile 4 Muhafız Fırkateyn hâlâ kuzeyin sisli sularında kayıp."},
+      ]
+    },
+    {
+      id:"defterler",spine:"Defterler ve Kayıt Yaprakları",author:"Çeşitli Eller",year:"1179",color:"#2A3D2A",
+      desc:"Düzenlenmemiş belgeler, kişisel mektuplar ve resmi olmayan turnuva kayıtları. Arşivcilerin henüz sınıflandıramadığı yapraklar.",
+      chapters:[
+        {title:"Alis'ten Azil'e Mektup",text:"Azil,\n\nBu parşömeni sana ulaştırması için muhafızımı gönderdiğimde, atının eyerini çoktan bağlamış ve bu kasabadan tıpkı bir hırsız gibi kaçmaya hazırlanıyor olmalısın.\n\nİki gün boyunca kapıya bakıp o yüzükle içeri gireceğin anı beklemek... Sanırım hayatımda yaptığım en büyük aptallıktı.\n\nO gece, o devin yumruğu altında ezilmiş bedeninin başında sabaha kadar beklerken, ateşler içinde kıvranırken kanını silen ellerimin titremesinde sadece 'Veronican Hanesi'nin bir siyasetini' görecek kadar kör olduğunu fark edemedim.\n\nÇadırın loşluğunda göz göze geldiğimiz o kaçamak bakışların bir anlamı olmalıydı diye düşünmüştüm. O sessizliğin içinde, kılıçların ve soyluların dünyasından uzak, gerçek bir an paylaştığımızı sanmıştım. Meğer hepsi benim kuruntum, aklımı kandıran boş bir hevesmiş.\n\nSen, sana uzatılan şefkatli bir eli bile boynuna geçirilecek bir tasma, bir entrika ağı zannedecek kadar körsün. Oysa o gece o çadırda bir prenses değil, sadece yaranı sarmaya çalışan, senin kan revan vücudunda kalp arayan bir kadın vardı.\n\nAma sen kılıç darbelerini, birinin sana sahiden değer verme ihtimaline tercih ettin. Şimdi o çok sevdiğin ekibinle, o güvenli yalnızlığına dönebilirsin.\n\nYıllar geçecek Azil. Hepimiz ihtiyarlayacağız. O çok güvendiğin yoldaşlıklar bir gün dağılacak. Ve sen ne yapacaksın?\n\nBir daha hiçbir yaranı sarmak zorunda kalmamak dileğiyle.\n\nAlis"},
+        {title:"Vakanüvis İlber — Dosya No 734-B",text:"Konu: Nelgard Turnuvası Katılımcıları\nKayıt Tarihi: 19 Agustus 1179\n\nBahsi geçen beşli; Vael the Fox, Azil the Rottweiler, Herthell the Milkyboy, Golyat the Flyingship ve Duncan the Tall, turnuva süresince Veronican Hanesi'nin şahsi çadırında ikamet etmişlerdir.\n\nVael denilen bu zat, tilki unvanının hakkını kurnazlığıyla değil, ağzının kalabalığıyla veriyor. Otoriteyi, mührü veya parlayan bir zırhı gördüğü an bülbül gibi şakımaya başlıyor.\n\nGolyat... İsmi devasa, cüssesi heybetli lakin görünüşü tam bir sefalet numunesi. Perişanlık üzerinden akıyor. Yanındaki bu grubu idare etmeye çalışıyor ama beyhude bir çaba.\n\nBu maceracı tayfasının egoları, Nelgard Kalesi'nin surlarından daha yüksek ama bir cam kase kadar kırılgan. Sırf turnuva alanında kulis izni alabilmeleri için verilen 'Yatakçı' ve 'Çamaşırcı' görevlerini, sanki onurlarını ayaklar altına almışız gibi karşıladılar.\n\nÖyle bir feryat figan kopardılar, öyle bir 'Biz bu muyuz?' nidasıyla ortalığı ayağa kaldırdılar ki, Lord Pennety'yi Vakanüvis çadırına kadar getirdiler. İşte vizyonsuzluk budur, cahillik budur!\n\n— Vakanüvis İlber, Dosya No 734-B"},
+        {title:"İmparatorluk Unvan Kayıtları",text:"İlber Middlen'in Nelgard Turnuvası Kayıtları — İmparatorluk siciline işlenen unvanlar:\n\nVael the Fox: 'Kurnazlığı, bir ordunun stratejisinden daha tehlikeli. Gölgelerde süzülüşü tilkiyi bile kıskandırır.'\n\nAzil the Rottweiler: 'Bir kez dişini geçirdi mi bırakmıyor. Sadakati kadar öfkesi de sarsılmaz.'\n\nHerthell the Milkyboy: 'Yüzündeki o genç ifadeye aldanan, kılıcının tadına bakınca hatasını anlar. Sütün masumiyeti, çeliğin sertliği.'\n\nGolyat the Flyingship: 'Göklerden inen bir devasa kütle gibi. Onu durdurmak, rüzgarı elle tutmaya çalışmakla eşdeğer.'\n\nDuncan the Tall: 'Boyu sadece arşı değil, yiğitliğin sınırlarını da zorluyor. Isel'in tozlu yollarında bir fener gibi yükseliyor.'\n\n'Bakın efendiler, tarih dediğiniz şey dedikodu değildir. Ben buraya ne yazarsam, bin yıl sonra torunlarınız sizi öyle anacak. O yüzden düzgün durun!' — Vakanüvis İlber"},
+      ]
+    },
+    {
+      id:"kitap2",spine:"İnci Rehberi",author:"Kraliyet Arşivleri",year:"1179",color:"#1A3A5C",
+      desc:"İmparatorluk kurumları, din ve ticaret üzerine kapsamlı rehber. Her devlet memurunun başucu kitabı.",
+      chapters:[
+        {title:"Servus Kilisesi",text:"Servus kiliselerinin merkezi Insulam adasındaki Göz Dağı'nın zirvesindeki büyük tapınaktır. Bu tapınağın ve tüm Servus dinini başı otuz Exarc tarafından kendi aralarından seçilen Yüce Hierophant'dır.\n\nExarclar iki senede bir Insulam'da toplanır. En büyük yaptırım 'Faithless Silence' kararıdır: bölge halkı dinden çıkarılır, tüm dini işlemler askıya alınır. Bir diğer yaptırım Aforoz kararıdır — sadece lorda uygulanabilir."},
+        {title:"Etfaliyeler",text:"Etfaliyeler Servus kilisesi tarafından idare edilen yetim ve yalnız çocukların bakıldığı yetimhanelerdir. Çocuklar burada dini eğitim görür.\n\nEtfaliyeliler 7-8 yaşlarına kadar sıkı eğitim görür. Erginliğe yakın inançlı bir Servus ailesine verilir. 16-17 yaşlarında Etfaliye'ye geri döner ve test edilirler.\n\nEtfaliye'de eğitimini tamamlayan çocuklara 'Çıkma' denir. Paladin, Cleric, Rahip, Exarc veya Hanım olarak hizmetlerini sürdürürler."},
+        {title:"İksir Yapımı & Simyacılık",text:"İksir yapmanın üç aşaması vardır.\n\nTaban: Simyacı doğadan topladığı otlar ile taban oluşturur. Nefes Otu ile yaşam iksiri, Çığırtan Ot ile ses gürleştiren iksir yapılabilir.\n\nAroma: İksirinize en tatlıdan en ağıra binlerce farklı aroma eklenebilir. Asıl önemi Feda aşamasındaki ağırlığı dengelemektir.\n\nFeda: İksirinize özünüzü katmalısınız. Ruhunuzu, sevdiğinizi, aşkınızı, duygunuzu feda ederseniz — iksiriniz İmparator'un boğazından geçecek kalitede olur."},
+        {title:"Para Birimleri",text:"İnci'de geçerli tek para birimi İmperium'dur: Copper, Silver, Gold, Platinum.\n\n1 gp ile iyi bir zanaatkar günlük kazanabilir. Silver orta kesim halkın parasıdır. Bakır paraya dilenciler ve köylüler arasında rastlanır. Platinum parayı saraydan dışarı göremezsiniz.\n\nBesteni: Sadece Agus kentinde geçer. İmparatora bağlı birliklere ödenir. İmparatorluk bankalarından adedini bir altın ile takas edebilirsiniz."},
+      ]
+    },
+    {
+      id:"mevat",spine:"Mevat Gezgini",author:"Kasimir",year:"1179",color:"#2D5A2D",
+      desc:"İmparatorun sadık kulu Kasimir'in başkent anıları. Kasabanın sıradan gözüyle İnci'nin ihtişamını anlatan naif bir tanıklık.",
+      chapters:[
+        {title:"Mevat",text:"Meğerse, ne kadar da griydi kasabanın günlük telaşı. Şu eski çeşmenin yanında durup etrafı seyretmek, bir anlık dinginlik getiriyordu ruhuma.\n\nBugün farklıydı. Çılgınca bir heyecan vardı içimde, sanki önümde bambaşka bir dünya varmış gibi. Eski cebimden çıkardığım harita, beni bilinmeyene doğru çağırıyordu."},
+        {title:"Başkent Rüyası",text:"Başkentte birkaç gün kaldım. Saray öylesine büyüktü ki içine bin köy sığabilirdi. Duvarları altınla kaplıydı.\n\nHalkı o kadar medeni ki isterseler duvarlardan bir tırnak boyunda altın alıp ömürlerini lord gibi yaşayabilirlerdi. Ama hiçbiri buna yeltenmedi.\n\n'Dostlarım! Bu sadece bir şehir değil, bir rüya diyarıydı!' — Kasimir"},
+      ]
+    },
+    {
+      id:"vitavya",spine:"Vita Vya Destanı",author:"Anonim",year:"Bilinmiyor",color:"#4A1A4A",
+      desc:"Arce'nin sokaklarından doğan intikam grubunun hikayesi. Çocukların sessiz öfkesinden doğan bir efsane.",
+      chapters:[
+        {title:"Kökeni",text:"Vita Vya, Arce şehrinin dış sokaklarındaki bir kilise yetimhanesinde yetişen, yaşadıkları sistematik işkence ve ihanetin ardından birer hayduda dönüşen yetimlerin oluşturduğu intikam grubudur.\n\nRahip Atashinda, rütbe atlamak için çocukları büyücülere denek, cerrahlara ise canlı kadavra olarak sattı. Bir gece Pawos ve Tera, Atashinda'yı yatağında katlettiler. O gece yetimhane terk edildi ve Vita Vya doğdu."},
+        {title:"Neredesin Vita?",text:"Grubun en küçüğü Vita'nın, nüfuzlu bir Lord'a 'hediye' olarak verilip geri dönmemesi, yetimlerin içindeki son masumiyet kırıntısını da öldürdü.\n\nOrmanın derinliklerinden gelen melankolik ve korkutucu ezgi, bir kervan için ölümün ilanıdır. Bu şarkının son mısrasını duyanın yaşadığı görülmemiştir.\n\n'Neredesin sevgili Vita? Geber Atashinda.'"},
+        {title:"İlkeleri",text:"1. Yetimleri Koru: Nerede bir yetim görseler onlara yardım eder, saflarına katarlar.\n\n2. Güven Sadece Bizdedir: Birbirlerinden başka kimseye güvenmezler.\n\n3. Vita'yı Bul: Tek bir iz dahi olsa, sarayın en derin mahzenine kadar sızmayı göze alırlar."},
+      ]
+    },
+    {
+      id:"wildgarmoth",spine:"Wild ile Garmoth",author:"Halk Masalları",year:"Her Dönem",color:"#5C3D1A",
+      desc:"İnci Kıtasının her meyhanesinde fısıldanan iki figür. Beşeriyetin bitmek bilmeyen kusurlarının ete kemiğe bürünmüş hali.",
+      chapters:[
+        {title:"Kahramanlarımız",text:"Wild: 'Düşünmeyen Kılıç.' Her kavgada haksız olan, her tartışmada bağıran ve her kapıyı çalmak yerine kırmaya çalışan savaşçı.\n\nGarmoth: 'Mantıklı Felaketlerin Mimarı.' Son derece zeki, sakin bir büyücü. Ama her zaman en mantıklı görünen ama en feci sonuçları doğuran yanlış kararı seçer."},
+        {title:"Isel Macerası",text:"Isel'deyken Isel'e gitmeye çalıştılar. Garmoth'un 'Bu kadar soğuk ancak Noer'in topraklarında olur' teşhisiyle tüm mallarını atlarına yükleyip gecenin köründe şehirden çıktılar.\n\nGün ağardığında kendilerini yine terk ettikleri şehrin arka kapısında buldular. Garmoth: 'Isel'i ne kadar hızlı bulduğumuza inanamıyorum, coğrafi sezgilerim yine yanıltmadı.'"},
+        {title:"Deyimler",text:"'Wild gibi sallıyor, Garmoth gibi tutturuyor.' — Hiçbir şey bilmeden konuşuyor ve en kötü sonucu doğuracak tercihi yapıyor.\n\nOnlar her yerdedir; her başarısız girişimin, her komik mağlubiyetin ve her yanlış tercihin arkasında bıyık altından gülen o iki hayalet figür vardır."},
+      ]
+    },
+    {
+      id:"donanma",spine:"İmparatorluk Donanması",author:"Deniz Nizam Konseyi",year:"1179",color:"#1A2A5C",
+      desc:"Kraliyet Deniz Kuvvetleri'nin kuruluşu, armadaları ve tarihi. 'Imperium Ultra Horizontem.'",
+      chapters:[
+        {title:"Kuruluş",text:"İmparatorluk Donanması, İmparator Agus tarafından kurulmuştur. Amacı kıtanın dört bir yanının denizlerle çevrili olmasının sağladığı stratejik üstünlüğü, mutlak hakimiyete dönüştürmektir.\n\nDeniz Nizam Konseyi beş üyeden oluşur: üçü İmparator'un ataması, biri Mavi Yemin Kardeşliği Reisi, biri Servus dinine uygunluğu denetleyen ruhbandır."},
+        {title:"Üç Armada",text:"Kuzey Armadası: Kuzey halkıyla kaynaşan, rütbelerden çok güvene dayalı düzen kuran armada. II. Baldus tarafından lağvedildi — gemileri 'Kuzey Balıkçıları' yazılarak barakaya dönüştürüldü.\n\nBatı Armadası: 'En gözde Armada.' Sancağında taç giydirilmiş köpekbalığı vardır.\n\nDoğu Armadası: İnsulam'ı korur. Sancağında Servus'un sessiz kudretini simgeleyen vatoz yer alır."},
+        {title:"Mavi Yemin",text:"'Mare Rex Aeternus' — Ebedi Deniz Krallığı. Sol omuzlarında 'MRA' yazılı dövme taşırlar.\n\nKardeşlerden biri olmak için bir üyenin referansı şart. 'Güverte İçtiması' üç yılda bir yapılır.\n\n'Bana verilen görevi namusum ve vicdanım gereğince yerine getireceğime... yemin ederim.'"},
+      ]
+    },
+  ];
+
+  // Harita SVG'leri
+  const HaritaSVG=({sehir})=>{
+    const lokasyonlar={
+      "Agus — Başkent":{x:50,y:55,renk:"#f0c060",label:"Agus"},
+      "İnsulam — Tanrı Krallığı":{x:72,y:45,renk:"#c0c0c0",label:"İnsulam"},
+      "Ragusium — Engizisyon Kalesi":{x:35,y:42,renk:"#cc4444",label:"Ragusium"},
+      "Noer — Özgür Eyalet":{x:40,y:28,renk:"#7ef0a0",label:"Noer"},
+      "Theranda Eyaleti":{x:55,y:68,renk:"#90b8f0",label:"Theranda"},
+      "Ala Adaları":{x:60,y:82,renk:"#ff9090",label:"Ala"},
+      "Sisica":{x:75,y:62,renk:"#ffc060",label:"Sisica"},
+      "Farter":{x:25,y:60,renk:"#c0a0ff",label:"Farter"},
+      "Kuzey Toprakları":{x:45,y:12,renk:"#aaeeff",label:"Kuzey"},
+    };
+    const tum=[
+      {x:35,y:18,r:14,f:"rgba(76,120,76,.25)"},
+      {x:50,y:30,r:22,f:"rgba(76,120,76,.2)"},
+      {x:45,y:50,r:20,f:"rgba(76,120,76,.22)"},
+      {x:60,y:55,r:16,f:"rgba(76,120,76,.18)"},
+      {x:55,y:72,r:12,f:"rgba(76,120,76,.2)"},
+      {x:72,y:45,r:8,f:"rgba(76,120,76,.15)"},
+      {x:62,y:80,r:9,f:"rgba(76,120,76,.18)"},
+      {x:25,y:55,r:11,f:"rgba(76,120,76,.2)"},
+    ];
+    const seçili=lokasyonlar[sehir];
+    return(
+      <svg viewBox="0 0 100 100" style={{width:"100%",maxWidth:280,background:"rgba(91,155,213,.06)",borderRadius:8,border:"1px solid rgba(91,155,213,.15)"}}>
+        {/* Deniz */}
+        <rect width={100} height={100} fill="rgba(30,60,100,.25)"/>
+        {/* Kara kütleleri */}
+        {tum.map((k,i)=><ellipse key={i} cx={k.x} cy={k.y} rx={k.r} ry={k.r*.7} fill={k.f} stroke="rgba(100,140,100,.3)" strokeWidth={.5}/>)}
+        {/* Tüm şehirler soluk */}
+        {Object.values(lokasyonlar).map((l,i)=>(
+          <g key={i}>
+            <circle cx={l.x} cy={l.y} r={2.2} fill="rgba(200,149,42,.25)"/>
+          </g>
         ))}
-        <button onClick={rollDice} style={{background:"rgba(200,149,42,.08)",border:"1px solid rgba(200,149,42,.2)",borderRadius:6,padding:"3px 8px",cursor:"pointer",fontFamily:"'Cinzel',serif",fontSize:".6rem",color:"var(--gold)",marginLeft:"auto"}}>🎲 Zar At</button>
+        {/* Seçili şehir */}
+        {seçili&&<>
+          <circle cx={seçili.x} cy={seçili.y} r={4} fill="none" stroke={seçili.renk} strokeWidth={.8} opacity={.5}/>
+          <circle cx={seçili.x} cy={seçili.y} r={2.5} fill={seçili.renk}/>
+          <text x={seçili.x} y={seçili.y-5} textAnchor="middle" fontSize={4} fill={seçili.renk} fontWeight="bold">{seçili.label}</text>
+        </>}
+        {/* Kuzey göstergesi */}
+        <text x={5} y={8} fontSize={4} fill="rgba(200,149,42,.4)">N↑</text>
+      </svg>
+    );
+  };
+
+  // İçerik okuma ekranı
+  if(selBook&&selChap!==null){
+    const book=BOOKS.find(b=>b.id===selBook);
+    const chap=book.chapters[selChap];
+    return(
+      <div style={{display:"flex",flexDirection:"column",gap:12}}>
+        <button onClick={()=>setSelChap(null)} style={{background:"transparent",border:"none",color:"rgba(200,149,42,.5)",cursor:"pointer",fontSize:".8rem",textAlign:"left",padding:0,fontFamily:"'Cinzel',serif"}}>← {book.spine}</button>
+        <div style={{background:"rgba(200,149,42,.04)",border:"1px solid rgba(200,149,42,.15)",borderRadius:10,padding:"16px 14px"}}>
+          <div style={{fontFamily:"'Cinzel',serif",fontSize:".95rem",fontWeight:700,color:"var(--parchment)",marginBottom:12,paddingBottom:10,borderBottom:"1px solid rgba(200,149,42,.12)"}}>{chap.title}</div>
+          {chap.harita&&<div style={{marginBottom:14}}><HaritaSVG sehir={chap.title}/><div style={{fontSize:".6rem",color:"rgba(200,149,42,.4)",fontStyle:"italic",marginTop:4}}>{chap.haritaNot}</div></div>}
+          <div style={{fontFamily:"'Crimson Text',serif",fontSize:"1rem",color:"var(--parchment)",lineHeight:1.85,whiteSpace:"pre-line"}}>{chap.text}</div>
+        </div>
+        <div style={{display:"flex",justifyContent:"space-between",gap:8}}>
+          {selChap>0&&<button onClick={()=>setSelChap(selChap-1)} style={{flex:1,background:"rgba(200,149,42,.06)",border:"1px solid rgba(200,149,42,.15)",borderRadius:7,padding:"7px",cursor:"pointer",fontFamily:"'Cinzel',serif",fontSize:".6rem",color:"rgba(200,149,42,.6)"}}>← Önceki</button>}
+          {selChap<book.chapters.length-1&&<button onClick={()=>setSelChap(selChap+1)} style={{flex:1,background:"rgba(200,149,42,.06)",border:"1px solid rgba(200,149,42,.15)",borderRadius:7,padding:"7px",cursor:"pointer",fontFamily:"'Cinzel',serif",fontSize:".6rem",color:"rgba(200,149,42,.6)"}}>Sonraki →</button>}
+        </div>
+      </div>
+    );
+  }
+
+  // Kitap içerik ekranı
+  if(selBook){
+    const book=BOOKS.find(b=>b.id===selBook);
+    return(
+      <div style={{display:"flex",flexDirection:"column",gap:12}}>
+        <button onClick={()=>setSelBook(null)} style={{background:"transparent",border:"none",color:"rgba(200,149,42,.5)",cursor:"pointer",fontSize:".8rem",textAlign:"left",padding:0,fontFamily:"'Cinzel',serif"}}>← Kütüphane</button>
+        <div style={{display:"flex",gap:14,alignItems:"flex-start",padding:"14px 0",borderBottom:"1px solid rgba(200,149,42,.1)",marginBottom:4}}>
+          <div style={{width:8,borderRadius:2,alignSelf:"stretch",background:book.color,flexShrink:0,minHeight:70}}/>
+          <div>
+            <div style={{fontFamily:"'Cinzel',serif",fontSize:"1.05rem",fontWeight:700,color:"var(--parchment)",marginBottom:4}}>{book.spine}</div>
+            <div style={{fontSize:".66rem",color:"rgba(200,149,42,.5)",fontFamily:"'Cinzel',serif",marginBottom:8}}>{book.author} · {book.year}</div>
+            <div style={{fontSize:".8rem",color:"var(--text-dim)",fontFamily:"'Crimson Text',serif",lineHeight:1.5}}>{book.desc}</div>
+          </div>
+        </div>
+        <div style={{fontFamily:"'Cinzel',serif",fontSize:".5rem",letterSpacing:".18em",color:"rgba(200,149,42,.4)",textTransform:"uppercase",marginBottom:2}}>Bölümler</div>
+        <div style={{display:"flex",flexDirection:"column",gap:6}}>
+          {book.chapters.map((ch,i)=>(
+            <button key={i} onClick={()=>setSelChap(i)}
+              style={{background:"rgba(200,149,42,.04)",border:"1px solid rgba(200,149,42,.1)",borderRadius:8,padding:"10px 14px",cursor:"pointer",textAlign:"left",display:"flex",justifyContent:"space-between",alignItems:"center",transition:"all .18s"}}
+              onMouseEnter={e=>{e.currentTarget.style.background="rgba(200,149,42,.1)";e.currentTarget.style.borderColor="rgba(200,149,42,.3)";}}
+              onMouseLeave={e=>{e.currentTarget.style.background="rgba(200,149,42,.04)";e.currentTarget.style.borderColor="rgba(200,149,42,.1)";}}>
+              <div style={{display:"flex",alignItems:"center",gap:10}}>
+                <span style={{fontFamily:"'Cinzel',serif",fontSize:".58rem",color:"rgba(200,149,42,.35)",minWidth:18}}>{i+1}.</span>
+                <span style={{fontFamily:"'Cinzel',serif",fontSize:".8rem",color:"var(--parchment)"}}>{ch.title}</span>
+              </div>
+              <span style={{color:"rgba(200,149,42,.3)",fontSize:".8rem"}}>›</span>
+            </button>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  // Kütüphane ana ekranı
+  return(
+    <div style={{display:"flex",flexDirection:"column",gap:16}}>
+      <div style={{fontFamily:"'Crimson Text',serif",fontSize:".9rem",color:"var(--text-dim)",fontStyle:"italic",lineHeight:1.6,padding:"10px 14px",background:"rgba(200,149,42,.04)",border:"1px solid rgba(200,149,42,.1)",borderRadius:8,borderLeft:"3px solid rgba(200,149,42,.3)"}}>
+        "Yazılmayan şey yaşanmamış demektir." — Baş Vakanüvis İlber Middlen
       </div>
 
-      {/* Input */}
-      <div style={{display:"flex",gap:6}}>
-        <input value={text} onChange={e=>setText(e.target.value)} onKeyDown={e=>e.key==="Enter"&&send()} placeholder="Bir şeyler yaz..." style={{flex:1,background:"rgba(200,149,42,.05)",border:"1px solid rgba(200,149,42,.2)",borderRadius:7,padding:"8px 12px",color:"var(--parchment)",fontFamily:"'Crimson Text',serif",fontSize:".92rem",outline:"none"}}/>
-        <button onClick={send} style={{background:"rgba(200,149,42,.12)",border:"1px solid rgba(200,149,42,.3)",borderRadius:7,padding:"0 14px",cursor:"pointer",color:"var(--gold)",fontSize:"1rem"}}>➤</button>
+      {/* DM istatistikleri */}
+      {isDM&&Object.keys(readStats).length>0&&(
+        <div style={{background:"rgba(91,155,213,.04)",border:"1px solid rgba(91,155,213,.14)",borderRadius:8,padding:"10px 12px"}}>
+          <div style={{fontFamily:"'Cinzel',serif",fontSize:".5rem",letterSpacing:".18em",color:"rgba(91,155,213,.5)",textTransform:"uppercase",marginBottom:8}}>👁 Okuma İstatistikleri</div>
+          {Object.entries(readStats).map(([oyuncu,kitaplar])=>(
+            <div key={oyuncu} style={{marginBottom:8}}>
+              <div style={{fontFamily:"'Cinzel',serif",fontSize:".65rem",color:"var(--gold)",marginBottom:4}}>{oyuncu}</div>
+              <div style={{display:"flex",flexWrap:"wrap",gap:4}}>
+                {Object.entries(kitaplar).map(([bookId,count])=>{
+                  const book=BOOKS.find(b=>b.id===bookId);
+                  return book?(
+                    <span key={bookId} style={{fontFamily:"'Cinzel',serif",fontSize:".55rem",background:"rgba(91,155,213,.1)",border:"1px solid rgba(91,155,213,.2)",borderRadius:4,padding:"2px 7px",color:"#90b8f0"}}>
+                      {book.spine} ×{count}
+                    </span>
+                  ):null;
+                })}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Raf */}
+      <div style={{fontFamily:"'Cinzel',serif",fontSize:".5rem",letterSpacing:".2em",color:"rgba(200,149,42,.4)",textTransform:"uppercase"}}>{BOOKS.length} eser</div>
+      <div style={{display:"flex",gap:2,alignItems:"flex-end",padding:"0 0 10px",borderBottom:"2px solid rgba(200,149,42,.18)",overflowX:"auto",paddingBottom:14}}>
+        {BOOKS.map((book,i)=>(
+          <button key={book.id} onClick={()=>openBook(book.id)} title={book.spine}
+            style={{display:"flex",flexDirection:"column",alignItems:"center",background:"transparent",border:"none",cursor:"pointer",padding:"0 3px",gap:5,flexShrink:0}}
+            onMouseEnter={e=>{const b=e.currentTarget.querySelector(".bk");if(b){b.style.transform="translateY(-7px)";b.style.boxShadow="3px 3px 12px rgba(0,0,0,.55)";}}}
+            onMouseLeave={e=>{const b=e.currentTarget.querySelector(".bk");if(b){b.style.transform="translateY(0)";b.style.boxShadow="2px 2px 6px rgba(0,0,0,.3)";}}}
+          >
+            <div className="bk" style={{width:44,height:i%3===0?128:i%3===1?112:120,background:book.color,borderRadius:"2px 4px 4px 2px",boxShadow:"2px 2px 6px rgba(0,0,0,.3)",transition:"all .2s ease",display:"flex",alignItems:"center",justifyContent:"center",position:"relative",overflow:"hidden"}}>
+              <div style={{position:"absolute",left:0,top:0,bottom:0,width:5,background:"rgba(0,0,0,.22)",borderRadius:"2px 0 0 2px"}}/>
+              <div style={{fontFamily:"'Cinzel',serif",fontSize:".38rem",fontWeight:700,color:"rgba(255,255,255,.8)",textAlign:"center",writingMode:"vertical-rl",textOrientation:"mixed",transform:"rotate(180deg)",lineHeight:1.2,maxHeight:"85%",overflow:"hidden",marginLeft:5,padding:"0 4px"}}>{book.spine}</div>
+            </div>
+          </button>
+        ))}
       </div>
 
-      {reactionAnim&&<div style={{position:"fixed",top:"40%",left:"50%",transform:"translate(-50%,-50%)",fontSize:"5rem",pointerEvents:"none",animation:"fp .3s ease-out",zIndex:999}}>{reactionAnim}</div>}
+      {/* Liste */}
+      <div style={{display:"flex",flexDirection:"column",gap:6}}>
+        {BOOKS.map(book=>(
+          <button key={book.id} onClick={()=>openBook(book.id)}
+            style={{display:"flex",gap:10,padding:"10px 12px",background:"rgba(200,149,42,.04)",border:"1px solid rgba(200,149,42,.1)",borderRadius:8,cursor:"pointer",textAlign:"left",transition:"all .18s",alignItems:"flex-start",width:"100%"}}
+            onMouseEnter={e=>{e.currentTarget.style.background="rgba(200,149,42,.1)";e.currentTarget.style.borderColor="rgba(200,149,42,.28)";}}
+            onMouseLeave={e=>{e.currentTarget.style.background="rgba(200,149,42,.04)";e.currentTarget.style.borderColor="rgba(200,149,42,.1)";}}>
+            <div style={{width:4,borderRadius:2,alignSelf:"stretch",background:book.color,flexShrink:0,minHeight:36}}/>
+            <div style={{flex:1,minWidth:0}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline",marginBottom:2}}>
+                <span style={{fontFamily:"'Cinzel',serif",fontSize:".76rem",fontWeight:700,color:"var(--parchment)"}}>{book.spine}</span>
+                <span style={{fontFamily:"'Cinzel',serif",fontSize:".52rem",color:"rgba(200,149,42,.4)",flexShrink:0,marginLeft:8}}>{book.chapters.length} bölüm</span>
+              </div>
+              <div style={{fontSize:".63rem",color:"rgba(200,149,42,.45)",fontFamily:"'Cinzel',serif",marginBottom:3}}>{book.author}</div>
+              <div style={{fontSize:".73rem",color:"var(--text-dim)",fontFamily:"'Crimson Text',serif",lineHeight:1.4}}>{book.desc}</div>
+            </div>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
 
-      {isDM&&<div style={{marginTop:12,borderTop:"1px solid rgba(200,149,42,.1)",paddingTop:10}}>
-        <button onClick={async()=>{await fbSet("waitroom",null);setMessages([]);lastRef.current=0;}} style={{background:"transparent",border:"1px solid rgba(139,26,26,.25)",borderRadius:5,padding:"5px 12px",cursor:"pointer",fontFamily:"'Cinzel',serif",fontSize:".6rem",color:"rgba(255,100,100,.5)"}}>🗑 Sohbeti Temizle</button>
-      </div>}
+function SnakeGame({me}){
+  const COLS=22,ROWS=18,SZ=17;
+  const W=COLS*SZ,H=ROWS*SZ;
+  const [gameState,setGameState]=useState("idle");
+  const [snake,setSnake]=useState([{x:11,y:9}]);
+  const [food,setFood]=useState({x:5,y:5});
+  const [score,setScore]=useState(0);
+  const [hi,setHi]=useState(()=>{try{return parseInt(localStorage.getItem("snake_hi_"+me)||"0");}catch{return 0;}});
+  const [allHi,setAllHi]=useState([]);
+  const dirRef=useRef({x:1,y:0});
+  const loopRef=useRef(null);
+  const snakeRef=useRef([{x:11,y:9}]);
+
+  useEffect(()=>{
+    fbGet("snakeScores").then(data=>{
+      if(data)setAllHi(Object.values(data).sort((a,b)=>b.score-a.score));
+    });
+  },[]);
+
+  const rnd=(s)=>{let f;do{f={x:Math.floor(Math.random()*COLS),y:Math.floor(Math.random()*ROWS)};}while(s.some(p=>p.x===f.x&&p.y===f.y));return f;};
+
+  const start=()=>{
+    const init=[{x:11,y:9},{x:10,y:9},{x:9,y:9}];
+    snakeRef.current=init;dirRef.current={x:1,y:0};
+    setSnake(init);setFood(rnd(init));setScore(0);setGameState("playing");
+  };
+
+  const saveScore=async(s)=>{
+    const newHi=Math.max(hi,s);
+    setHi(newHi);localStorage.setItem("snake_hi_"+me,newHi);
+    const existing=allHi.find(e=>e.name===me);
+    if(!existing||s>existing.score){
+      const entry={name:me,score:s,date:new Date().toLocaleDateString("tr-TR")};
+      await fbSet("snakeScores/"+me,entry);
+      setAllHi(prev=>[...prev.filter(e=>e.name!==me),entry].sort((a,b)=>b.score-a.score));
+    }
+  };
+
+  useEffect(()=>{
+    if(gameState!=="playing")return;
+    loopRef.current=setInterval(()=>{
+      const d=dirRef.current,s=snakeRef.current;
+      const head={x:((s[0].x+d.x)+COLS)%COLS,y:((s[0].y+d.y)+ROWS)%ROWS};
+      if(s.some(p=>p.x===head.x&&p.y===head.y)){
+        setGameState("dead");clearInterval(loopRef.current);
+        setScore(sc=>{saveScore(sc);return sc;});
+        return;
+      }
+      setFood(prev=>{
+        const ate=head.x===prev.x&&head.y===prev.y;
+        const ns=ate?[head,...s]:[head,...s.slice(0,-1)];
+        snakeRef.current=ns;setSnake([...ns]);
+        if(ate){setScore(sc=>sc+1);return rnd(ns);}
+        return prev;
+      });
+    },110);
+    return()=>clearInterval(loopRef.current);
+  },[gameState]);
+
+  useEffect(()=>{
+    if(gameState!=="playing")return;
+    const h=(e)=>{
+      const map={ArrowUp:{x:0,y:-1},ArrowDown:{x:0,y:1},ArrowLeft:{x:-1,y:0},ArrowRight:{x:1,y:0},w:{x:0,y:-1},s:{x:0,y:1},a:{x:-1,y:0},d:{x:1,y:0}};
+      const nd=map[e.key];if(!nd)return;
+      const c=dirRef.current;if(nd.x===-c.x&&nd.y===-c.y)return;
+      e.preventDefault();dirRef.current=nd;
+    };
+    window.addEventListener("keydown",h);return()=>window.removeEventListener("keydown",h);
+  },[gameState]);
+
+  const move=(dx,dy)=>{const c=dirRef.current;if(dx===-c.x&&dy===-c.y)return;dirRef.current={x:dx,y:dy};};
+  const isNewRecord=gameState==="dead"&&score>0&&score===hi;
+
+  const rankColor=(i)=>i===0?"#f0c060":i===1?"#c0c0c0":i===2?"#cd7f32":"var(--text-dim)";
+  const rankIcon=(i)=>i===0?"🥇":i===1?"🥈":i===2?"🥉":String(i+1);
+
+  return(
+    <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:10}}>
+      {/* Skor header */}
+      <div style={{width:W,display:"flex",gap:6,justifyContent:"center"}}>
+        {[
+          {label:"Skor",value:score,color:"#f0c060"},
+          {label:"Senin Rekorun",value:hi,color:"rgba(200,149,42,.5)"},
+          {label:"Genel Rekor",value:allHi.length>0?allHi[0].score:"-",color:"#c0c0c0"},
+        ].map((stat,i)=>(
+          <div key={i} style={{flex:1,background:"rgba(200,149,42,.05)",border:"1px solid rgba(200,149,42,.1)",borderRadius:7,padding:"7px 4px",textAlign:"center"}}>
+            <div style={{fontFamily:"'Cinzel',serif",fontSize:".42rem",letterSpacing:".12em",color:"rgba(200,149,42,.35)",textTransform:"uppercase",marginBottom:3}}>{stat.label}</div>
+            <div style={{fontFamily:"'Cinzel',serif",fontSize:"1rem",fontWeight:900,color:stat.color,lineHeight:1}}>{stat.value}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Oyun alanı */}
+      <div style={{position:"relative",width:W,height:H,background:"linear-gradient(135deg,rgba(6,3,1,.97),rgba(12,6,2,.95))",border:"1px solid rgba(200,149,42,.2)",borderRadius:6,overflow:"hidden",boxShadow:"0 0 24px rgba(0,0,0,.6),inset 0 0 40px rgba(0,0,0,.4)",cursor:gameState!=="playing"?"pointer":"default"}}
+        onClick={gameState!=="playing"?start:undefined}>
+        <svg width={W} height={H} style={{position:"absolute",top:0,left:0,pointerEvents:"none"}}>
+          {Array.from({length:COLS+1}).map((_,i)=><line key={"v"+i} x1={i*SZ} y1={0} x2={i*SZ} y2={H} stroke="rgba(200,149,42,.03)" strokeWidth={.5}/>)}
+          {Array.from({length:ROWS+1}).map((_,i)=><line key={"h"+i} x1={0} y1={i*SZ} x2={W} y2={i*SZ} stroke="rgba(200,149,42,.03)" strokeWidth={.5}/>)}
+          <circle cx={food.x*SZ+SZ/2} cy={food.y*SZ+SZ/2} r={SZ*.38} fill="#f0c060"/>
+          <circle cx={food.x*SZ+SZ/2-SZ*.1} cy={food.y*SZ+SZ/2-SZ*.1} r={SZ*.1} fill="rgba(255,255,200,.7)"/>
+          <circle cx={food.x*SZ+SZ/2} cy={food.y*SZ+SZ/2} r={SZ*.38} fill="none" stroke="rgba(240,192,96,.6)" strokeWidth={1} style={{filter:"drop-shadow(0 0 6px rgba(240,192,96,.9))"}}/>
+          {snake.map((p,i)=>{
+            const isHead=i===0;
+            const t=Math.max(0,1-i*0.04);
+            const g=Math.round(175*t+60*(1-t));
+            return <g key={i}>
+              <rect x={p.x*SZ+1.5} y={p.y*SZ+1.5} width={SZ-3} height={SZ-3} rx={isHead?5:3} fill={isHead?"#3dba6e":`rgb(40,${g},60)`} style={isHead?{filter:"drop-shadow(0 0 4px rgba(61,186,110,.8))"}:undefined}/>
+              {isHead&&<>
+                <circle cx={p.x*SZ+SZ*.3} cy={p.y*SZ+SZ*.32} r={2} fill="white"/>
+                <circle cx={p.x*SZ+SZ*.7} cy={p.y*SZ+SZ*.32} r={2} fill="white"/>
+                <circle cx={p.x*SZ+SZ*.3} cy={p.y*SZ+SZ*.32} r={1} fill="#111"/>
+                <circle cx={p.x*SZ+SZ*.7} cy={p.y*SZ+SZ*.32} r={1} fill="#111"/>
+              </>}
+            </g>;
+          })}
+        </svg>
+        {gameState!=="playing"&&(
+          <div style={{position:"absolute",inset:0,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",background:"rgba(0,0,0,.72)",backdropFilter:"blur(1px)",gap:10}}>
+            {gameState==="dead"&&<>
+              <div style={{fontFamily:"'Cinzel',serif",fontSize:"1.1rem",color:"#ff7070",fontWeight:900,letterSpacing:".1em"}}>💀 GAME OVER</div>
+              <div style={{fontFamily:"'Cinzel',serif",fontSize:".75rem",color:"var(--gold)"}}>{score} elma{isNewRecord?" — 🏆 Yeni Rekor!":""}</div>
+            </>}
+            {gameState==="idle"&&<div style={{fontFamily:"'Cinzel',serif",fontSize:".75rem",color:"rgba(200,149,42,.6)",letterSpacing:".08em",marginBottom:4}}>🐍 SNAKE</div>}
+            <div style={{marginTop:4,background:"rgba(200,149,42,.12)",border:"1px solid rgba(200,149,42,.35)",borderRadius:8,padding:"8px 22px",fontFamily:"'Cinzel',serif",fontSize:".72rem",color:"var(--gold)",cursor:"pointer",letterSpacing:".1em"}}>
+              {gameState==="idle"?"▶ BAŞLAT":"↺ TEKRAR"}
+            </div>
+            {gameState==="idle"&&<div style={{fontSize:".6rem",color:"rgba(200,149,42,.3)",fontStyle:"italic",marginTop:2}}>WASD · Ok tuşları · Mobil butonlar</div>}
+          </div>
+        )}
+      </div>
+
+      {/* Mobil kontroller */}
+      <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:3}}>
+        <button onPointerDown={()=>move(0,-1)} style={{width:44,height:34,background:"rgba(200,149,42,.07)",border:"1px solid rgba(200,149,42,.18)",borderRadius:6,cursor:"pointer",color:"var(--gold)",fontSize:".9rem",display:"flex",alignItems:"center",justifyContent:"center"}}>▲</button>
+        <div style={{display:"flex",gap:3}}>
+          <button onPointerDown={()=>move(-1,0)} style={{width:44,height:34,background:"rgba(200,149,42,.07)",border:"1px solid rgba(200,149,42,.18)",borderRadius:6,cursor:"pointer",color:"var(--gold)",fontSize:".9rem",display:"flex",alignItems:"center",justifyContent:"center"}}>◀</button>
+          <button onPointerDown={()=>move(0,1)} style={{width:44,height:34,background:"rgba(200,149,42,.07)",border:"1px solid rgba(200,149,42,.18)",borderRadius:6,cursor:"pointer",color:"var(--gold)",fontSize:".9rem",display:"flex",alignItems:"center",justifyContent:"center"}}>▼</button>
+          <button onPointerDown={()=>move(1,0)} style={{width:44,height:34,background:"rgba(200,149,42,.07)",border:"1px solid rgba(200,149,42,.18)",borderRadius:6,cursor:"pointer",color:"var(--gold)",fontSize:".9rem",display:"flex",alignItems:"center",justifyContent:"center"}}>▶</button>
+        </div>
+      </div>
+
+      {/* Liderlik tablosu */}
+      <div style={{width:W,background:"rgba(0,0,0,.2)",border:"1px solid rgba(200,149,42,.12)",borderRadius:8,overflow:"hidden"}}>
+        <div style={{padding:"8px 12px",background:"rgba(200,149,42,.05)",borderBottom:"1px solid rgba(200,149,42,.1)"}}>
+          <span style={{fontFamily:"'Cinzel',serif",fontSize:".55rem",letterSpacing:".15em",color:"rgba(200,149,42,.5)",textTransform:"uppercase"}}>🏆 Snake Liderlik Tablosu</span>
+        </div>
+        {allHi.length===0&&<div style={{padding:"12px",fontSize:".72rem",color:"var(--text-dim)",fontStyle:"italic",textAlign:"center"}}>Henüz kayıt yok</div>}
+        {allHi.slice(0,8).map((e,i)=>{
+          const isMe=e.name===me;
+          const rc=rankColor(i);
+          return(
+            <div key={e.name} style={{display:"flex",alignItems:"center",gap:10,padding:"7px 12px",background:isMe?"rgba(200,149,42,.06)":"transparent",borderBottom:i<allHi.slice(0,8).length-1?"1px solid rgba(200,149,42,.05)":"none"}}>
+              <span style={{fontFamily:"'Cinzel',serif",fontSize:i<3?".75rem":".62rem",color:rc,minWidth:24,textAlign:"center",fontWeight:i<3?700:400}}>{rankIcon(i)}</span>
+              <span style={{fontFamily:"'Cinzel',serif",fontSize:".7rem",color:isMe?"#f0c060":i<3?rc:"var(--parchment)",flex:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",fontWeight:isMe?700:i<3?600:400}}>{e.name}{isMe?" (sen)":""}</span>
+              <span style={{fontFamily:"'Cinzel',serif",fontSize:".78rem",fontWeight:700,color:i===0?"#f0c060":i===1?"#c0c0c0":i===2?"#cd7f32":"#90b8f0"}}>{e.score}</span>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }
